@@ -1,0 +1,90 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F9E9B5">
+
+    <!-- Top Header -->
+    <LinearLayout
+        android:id="@+id/topHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="30dp"
+        android:background="#F9E9B5">
+
+        <TextView
+            android:id="@+id/appTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Hygiene Buddy"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#121417" />
+
+        <TextView
+            android:id="@+id/btnSkip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Skip"
+            android:textSize="16sp"
+            android:textColor="#7C7C7C"
+            android:clickable="true"
+            android:focusable="true"/>
+    </LinearLayout>
+
+    <!-- Logo in center -->
+
+    <!-- Bottom White Container -->
+
+    <ImageView
+        android:id="@+id/logoImage"
+        android:layout_width="500dp"
+        android:layout_height="600dp"
+        android:adjustViewBounds="true"
+        android:contentDescription="Onboarding Logo"
+        android:scaleType="fitCenter"
+        android:src="@drawable/app_logo" />
+
+    <LinearLayout
+        android:id="@+id/bottomContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:background="@android:color/white"
+        android:layout_alignParentBottom="true">
+
+        <TextView
+            android:id="@+id/onboardingTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Building Healthy Routines Together"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#121417"
+            android:gravity="left"/>
+
+        <TextView
+            android:id="@+id/onboardingSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="A fun and supportive app that helps neurodivergent children with hygiene routines."
+            android:textSize="14sp"
+            android:textColor="#272C2A"
+            android:gravity="left"/>
+
+        <Button
+            android:id="@+id/btnNext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="#000000"
+            android:paddingVertical="15dp"
+            android:text="Next"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white" />
+    </LinearLayout>
+
+</RelativeLayout>

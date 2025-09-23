@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Custom colors for Hygiene Buddy -->
+    <color name="logo_bg_1">#F9E9B5</color>  <!-- 1st screen logo background -->
+    <color name="logo_bg_2">#EBCBF6</color>  <!-- 2nd screen logo background -->
+    <color name="logo_bg_3">#DCF5F8</color>  <!-- 3rd screen logo background -->
+    <color name="text_header">#121417</color>  <!-- Header text -->
+    <color name="skip_text">#7C7C7C</color>  <!-- Skip text -->
+    <color name="bottom_bg">#FFFFFF</color>  <!-- Bottom space background -->
+    <color name="feature_text">#000000</color>  <!-- Feature details text -->
+    <color name="subtitle_text">#272C2A</color>  <!-- Subtitle text -->
+    <color name="next_button_text">#7C7C7C</color>  <!-- Next button text -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="gray_light">#F0F0F0</color>  <!-- Divider color -->
+</resources>
