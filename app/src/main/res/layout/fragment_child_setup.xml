@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/white"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Set up your child's profile"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_header"
+            android:gravity="center"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Instruction Text -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="This helps us tailor routines to their needs."
+            android:textSize="16sp"
+            android:textColor="@color/subtitle_text"
+            android:gravity="center"
+            android:lineSpacingExtra="4sp"
+            android:layout_marginBottom="40dp" />
+
+        <!-- Avatar Selection Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Choose an avatar"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/feature_text"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select an avatar for your child's profile"
+            android:textSize="14sp"
+            android:textColor="@color/subtitle_text"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Avatar Image with Edit Icon -->
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginBottom="32dp">
+
+            <!-- Avatar Circle -->
+            <LinearLayout
+                android:id="@+id/avatarContainer"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:background="@drawable/avatar_bg"
+                android:gravity="center">
+
+                <ImageView
+                    android:id="@+id/ivChildAvatar"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:src="@drawable/default_avatar"
+                    android:scaleType="fitCenter" />
+
+            </LinearLayout>
+
+            <!-- Edit Icon Overlay -->
+            <ImageButton
+                android:id="@+id/btnEditAvatar"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_edit"
+                android:background="@drawable/editbtn_bg"
+                android:scaleType="centerInside"
+                android:layout_alignBottom="@id/avatarContainer"
+                android:layout_alignEnd="@id/avatarContainer"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="8dp" />
+
+        </RelativeLayout>
+
+        <!-- Child's Name Input -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Child's Name"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/feature_text"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etChildName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Enter child's name"
+                android:textSize="16sp"
+                android:padding="16dp" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Age Selection -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Age"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/feature_text"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/ageDropdownLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Age"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+            <AutoCompleteTextView
+                android:id="@+id/actvAge"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none"
+                android:focusable="false"
+                android:hint="Select Age" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Condition Tags Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Condition Tags"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/feature_text"
+            android:layout_marginBottom="16dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="32dp">
+
+            <!-- ASD Checkbox -->
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cbASD"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="ASD"
+                android:textSize="16sp"
+                android:textColor="@color/feature_text"
+                android:paddingVertical="12dp" />
+
+            <!-- ADHD Checkbox -->
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cbADHD"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="ADHD"
+                android:textSize="16sp"
+                android:textColor="@color/feature_text"
+                android:paddingVertical="12dp" />
+
+            <!-- Down Syndrome Checkbox -->
+            <com.google.android.material.checkbox.MaterialCheckBox
+                android:id="@+id/cbDownSyndrome"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Down Syndrome"
+                android:textSize="16sp"
+                android:textColor="@color/feature_text"
+                android:paddingVertical="12dp" />
+
+        </LinearLayout>
+
+        <!-- Edit Note -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Profiles can be edited anytime in profile settings."
+            android:textSize="14sp"
+            android:textColor="@color/subtitle_text"
+            android:gravity="center"
+            android:lineSpacingExtra="2sp"
+            android:layout_marginBottom="32dp" />
+
+        <!-- Save & Continue Button -->
+        <Button
+            android:id="@+id/btnSaveContinue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Save &amp; Continue"
+            android:textSize="18sp"
+            android:backgroundTint="#A2D1BF"
+            android:textColor="#121717"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp" />
+
+    </LinearLayout>
+
+</ScrollView>

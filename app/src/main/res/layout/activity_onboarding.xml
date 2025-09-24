@@ -28,4 +28,11 @@
         app:tabSelectedTextColor="@android:color/black"
         app:tabTextColor="#7C7C7C" />
 
+    <!-- Setup Fragment Container (Initially hidden) -->
+    <FrameLayout
+        android:id="@+id/fragment_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

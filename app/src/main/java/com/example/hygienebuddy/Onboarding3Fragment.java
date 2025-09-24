@@ -19,15 +19,23 @@ public class Onboarding3Fragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_onboarding3, container, false);
 
-        Button btnNext = view.findViewById(R.id.btnGetStarted); // re-use same id, change text in XML to "Get Started"
+        Button btnGetStarted = view.findViewById(R.id.btnGetStarted);
+        btnGetStarted.setOnClickListener(v -> {
+            // Hide onboarding UI
+            requireActivity().findViewById(R.id.onboardingViewPager).setVisibility(View.GONE);
+            requireActivity().findViewById(R.id.tabIndicator).setVisibility(View.GONE);
 
-        if (getActivity() instanceof OnboardingActivity) {
-            OnboardingActivity host = (OnboardingActivity) getActivity();
+            // Show setup container
+            View setupContainer = requireActivity().findViewById(R.id.fragment_container);
+            setupContainer.setVisibility(View.VISIBLE);
 
-            if (btnNext != null) {
-                btnNext.setOnClickListener(v -> host.goToMain());
-            }
-        }
+            // Navigate to FacilitatorSetupFragment
+            requireActivity().getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.fragment_container, new FacilitatorSetupFragment())
+                    .addToBackStack(null)
+                    .commit();
+        });
 
         return view;
     }

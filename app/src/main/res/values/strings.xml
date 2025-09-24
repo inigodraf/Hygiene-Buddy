@@ -1,3 +1,42 @@
 <resources>
     <string name="app_name">Hygiene Buddy</string>
+
+    <string name="setup_profile_title">Set up your profile</string>
+    <string name="welcome_facilitator">Welcome, Facilitator!</string>
+    <string name="setup_instructions">Let\'s set up your profile to get started.</string>
+    <string name="facilitator_name_label">Facilitator\'s Name</string>
+    <string name="facilitator_name_hint">Enter your name</string>
+    <string name="relationship_label">Relationship to Child</string>
+    <string name="relationship_hint">Relationship to Child</string>
+    <string name="next_button">Next ></string>
+    <string name="child_info_next">We\'ll ask about your child next.</string>
+
+    <!-- Relationship options -->
+    <string-array name="relationship_options">
+        <item>Parent</item>
+        <item>Teacher</item>
+    </string-array>
+
+    <string name="child_profile_title">Set up your child\'s profile</string>
+    <string name="child_profile_instruction">This helps us tailor routines to their needs.</string>
+    <string name="choose_avatar">Choose an avatar</string>
+    <string name="avatar_description">Select an avatar for your child\'s profile</string>
+    <string name="child_name_label">Child\'s Name</string>
+    <string name="child_name_hint">Enter child\'s name</string>
+    <string name="age_label">Age</string>
+    <string name="age_hint">Select age (4-7 years)</string>
+    <string name="condition_tags_label">Condition Tags</string>
+    <string name="asd_label">ASD</string>
+    <string name="adhd_label">ADHD</string>
+    <string name="down_syndrome_label">Down Syndrome</string>
+    <string name="edit_note">Profiles can be edited anytime in profile settings.</string>
+    <string name="save_continue_button">Save &amp; Continue</string>
+
+    <string-array name="age_options">
+        <item>4 years old</item>
+        <item>5 years old</item>
+        <item>6 years old</item>
+        <item>7 years old</item>
+    </string-array>
+
 </resources>
