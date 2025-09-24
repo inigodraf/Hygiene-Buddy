@@ -15,7 +15,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Set up your child's profile"
+            android:text="@string/child_profile_title"
             android:textSize="28sp"
             android:textStyle="bold"
             android:textColor="@color/text_header"
@@ -26,7 +26,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="This helps us tailor routines to their needs."
+            android:text="@string/child_profile_instruction"
             android:textSize="16sp"
             android:textColor="@color/subtitle_text"
             android:gravity="center"
@@ -37,7 +37,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Choose an avatar"
+            android:text="@string/choose_avatar"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/feature_text"
@@ -46,7 +46,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Select an avatar for your child's profile"
+            android:text="@string/avatar_description"
             android:textSize="14sp"
             android:textColor="@color/subtitle_text"
             android:layout_marginBottom="16dp" />
@@ -71,7 +71,9 @@
                     android:layout_width="80dp"
                     android:layout_height="80dp"
                     android:src="@drawable/default_avatar"
-                    android:scaleType="fitCenter" />
+                    android:scaleType="fitCenter"
+                    android:contentDescription="@string/child_avatar_description"
+                    />
 
             </LinearLayout>
 
@@ -86,7 +88,9 @@
                 android:layout_alignBottom="@id/avatarContainer"
                 android:layout_alignEnd="@id/avatarContainer"
                 android:layout_marginEnd="8dp"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginBottom="8dp"
+                android:contentDescription="@string/editbtn"
+                />
 
         </RelativeLayout>
 
@@ -94,7 +98,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Child's Name"
+            android:text="@string/child_name_label"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/feature_text"
@@ -110,7 +114,7 @@
                 android:id="@+id/etChildName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Enter child's name"
+                android:hint="@string/child_name_hint"
                 android:textSize="16sp"
                 android:padding="16dp" />
 
@@ -120,7 +124,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Age"
+            android:text="@string/age_label"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/feature_text"
@@ -130,7 +134,7 @@
             android:id="@+id/ageDropdownLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Age"
+            android:hint="@string/age_label"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
 
             <AutoCompleteTextView
@@ -139,14 +143,14 @@
                 android:layout_height="wrap_content"
                 android:inputType="none"
                 android:focusable="false"
-                android:hint="Select Age" />
+                android:hint="@string/age_hint" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Condition Tags Section -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Condition Tags"
+            android:text="@string/condition_tags_label"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/feature_text"
@@ -163,7 +167,7 @@
                 android:id="@+id/cbASD"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="ASD"
+                android:text="@string/asd_label"
                 android:textSize="16sp"
                 android:textColor="@color/feature_text"
                 android:paddingVertical="12dp" />
@@ -173,7 +177,7 @@
                 android:id="@+id/cbADHD"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="ADHD"
+                android:text="@string/adhd_label"
                 android:textSize="16sp"
                 android:textColor="@color/feature_text"
                 android:paddingVertical="12dp" />
@@ -183,7 +187,7 @@
                 android:id="@+id/cbDownSyndrome"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Down Syndrome"
+                android:text="@string/down_syndrome_label"
                 android:textSize="16sp"
                 android:textColor="@color/feature_text"
                 android:paddingVertical="12dp" />
@@ -194,7 +198,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Profiles can be edited anytime in profile settings."
+            android:text="@string/edit_note"
             android:textSize="14sp"
             android:textColor="@color/subtitle_text"
             android:gravity="center"
@@ -206,7 +210,7 @@
             android:id="@+id/btnSaveContinue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Save &amp; Continue"
+            android:text="@string/save_continue_button"
             android:textSize="18sp"
             android:backgroundTint="#A2D1BF"
             android:textColor="#121717"

@@ -24,13 +24,15 @@
     <string name="child_name_label">Child\'s Name</string>
     <string name="child_name_hint">Enter child\'s name</string>
     <string name="age_label">Age</string>
-    <string name="age_hint">Select age (4-7 years)</string>
+    <string name="age_hint">Select age (4—7 years)</string>
     <string name="condition_tags_label">Condition Tags</string>
     <string name="asd_label">ASD</string>
     <string name="adhd_label">ADHD</string>
     <string name="down_syndrome_label">Down Syndrome</string>
     <string name="edit_note">Profiles can be edited anytime in profile settings.</string>
     <string name="save_continue_button">Save &amp; Continue</string>
+    <string name="child_avatar_description"> Default user avatar</string>
+    <string name="editbtn">Edit</string>"
 
     <string-array name="age_options">
         <item>4 years old</item>
