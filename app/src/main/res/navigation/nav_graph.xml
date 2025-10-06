@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeDashboardFragment">
+
+    <!-- Home Dashboard -->
+    <fragment
+        android:id="@+id/homeDashboardFragment"
+        android:name="com.example.hygienebuddy.HomeDashboardFragment"
+        android:label="Home" />
+
+    <!-- Tasks -->
+    <fragment
+        android:id="@+id/fragmentTasks"
+        android:name="com.example.hygienebuddy.FragmentTasks"
+        android:label="Tasks">
+        <action
+            android:id="@+id/action_fragmentTasks_to_fragmentTaskSteps"
+            app:destination="@id/fragmentTaskSteps" />
+    </fragment>
+
+    <!-- Task Steps -->
+    <fragment
+        android:id="@+id/fragmentTaskSteps"
+        android:name="com.example.hygienebuddy.FragmentTaskSteps"
+        android:label="Task Steps" />
+
+    <!-- Badges -->
+    <fragment
+        android:id="@+id/fragmentBadges"
+        android:name="com.example.hygienebuddy.FragmentBadges"
+        android:label="Badges" />
+
+    <!-- Report -->
+    <fragment
+        android:id="@+id/fragmentReportSummary"
+        android:name="com.example.hygienebuddy.FragmentReportSummary"
+        android:label="Report" />
+
+    <!-- Settings -->
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.example.hygienebuddy.SettingsFragment"
+        android:label="Settings" />
+
+</navigation>

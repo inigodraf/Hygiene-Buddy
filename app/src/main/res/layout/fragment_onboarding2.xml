@@ -20,7 +20,8 @@
             android:text="Hygiene Buddy"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="#121417" />
+            android:textColor="#121417"
+            android:textFontWeight="700" />
 
         <TextView
             android:id="@+id/btnSkip"
@@ -30,7 +31,8 @@
             android:textSize="16sp"
             android:textColor="#7C7C7C"
             android:clickable="true"
-            android:focusable="true"/>
+            android:focusable="true"
+            android:textFontWeight="700" />
     </LinearLayout>
 
     <!-- Logo in center -->
@@ -62,7 +64,8 @@
             android:textSize="22sp"
             android:textStyle="bold"
             android:textColor="#121417"
-            android:gravity="left" />
+            android:gravity="left"
+            android:textFontWeight="700" />
 
         <TextView
             android:id="@+id/onboardingSubtitle"
@@ -83,7 +86,8 @@
             android:text="Next"
             android:textAllCaps="false"
             android:textColor="@android:color/white"
-            android:paddingVertical="15dp" />
+            android:paddingVertical="15dp"
+            android:textFontWeight="750" />
     </LinearLayout>
 
 </RelativeLayout>

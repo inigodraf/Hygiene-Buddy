@@ -7,7 +7,7 @@
     <string name="facilitator_name_label">Facilitator\'s Name</string>
     <string name="facilitator_name_hint">Enter your name</string>
     <string name="relationship_label">Relationship to Child</string>
-    <string name="relationship_hint">Relationship to Child</string>
+    <string name="relationship_hint">Select relationship</string>
     <string name="next_button">Next ></string>
     <string name="child_info_next">We\'ll ask about your child next.</string>
 
@@ -40,5 +40,41 @@
         <item>6 years old</item>
         <item>7 years old</item>
     </string-array>
+
+    <string name="child_profile">Child Profile</string>
+    <string name="task_completed">TASK COMPLETED</string>
+    <string name="points">POINTS</string>
+    <string name="streak">STREAK</string>
+    <string name="completed_total">Completed Total</string>
+    <string name="longest_streak">Longest Streak</string>
+    <string name="upcoming_tasks">UPCOMING TASKS</string>
+    <string name="toothbrushing">Toothbrushing</string>
+    <string name="handwashing">Handwashing</string>
+    <string name="home">Home</string>
+    <string name="tasks">Tasks</string>
+    <string name="badges">Badges</string>
+    <string name="report">Report</string>
+    <string name="settings">Settings</string>
+
+    <string-array name="week_days">
+        <item>Mon</item>
+        <item>Tue</item>
+        <item>Wed</item>
+        <item>Thur</item>
+        <item>Fri</item>
+        <item>Sat</item>
+        <item>Sun</item>
+    </string-array>
+
+    <string name="tasks_title">Tasks</string>
+    <string name="choose_task">Choose a Task</string>
+    <string name="toothbrushing_task">Toothbrushing</string>
+    <string name="handwashing_task">Handwashing</string>
+    <string name="more_tasks_coming">More tasks coming soon...</string>
+    <string name="completed_today">completed today</string>
+
+    <string name="task_title_placeholder">Title Placeholder</string>
+    <string name="step_progress_placeholder">1/5</string>
+    <string name="instruction_placeholder">Instruction Placeholder</string>
 
 </resources>

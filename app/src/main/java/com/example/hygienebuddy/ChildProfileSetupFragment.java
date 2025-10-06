@@ -35,6 +35,7 @@ public class ChildProfileSetupFragment extends Fragment {
     private AutoCompleteTextView actvAge;
     private MaterialCheckBox cbASD, cbADHD, cbDownSyndrome;
     private Button btnSaveContinue;
+    private ImageView btnBack;
 
     private Uri selectedImageUri = null;
 
@@ -60,6 +61,7 @@ public class ChildProfileSetupFragment extends Fragment {
         cbADHD = view.findViewById(R.id.cbADHD);
         cbDownSyndrome = view.findViewById(R.id.cbDownSyndrome);
         btnSaveContinue = view.findViewById(R.id.btnSaveContinue);
+        btnBack = view.findViewById(R.id.btnBack);
 
         // Set default avatar
         ivChildAvatar.setImageResource(R.drawable.default_avatar);
@@ -78,6 +80,13 @@ public class ChildProfileSetupFragment extends Fragment {
 
         // Save & Continue button click
         btnSaveContinue.setOnClickListener(v -> saveChildProfile());
+
+        btnBack.setOnClickListener(v -> {
+            requireActivity()
+                    .getSupportFragmentManager()
+                    .popBackStack(); // goes back to FacilitatorSetupFragment
+        });
+
     }
 
     private void openImageChooser() {
@@ -131,6 +140,11 @@ public class ChildProfileSetupFragment extends Fragment {
 
         Toast.makeText(requireContext(), summary.toString(), Toast.LENGTH_LONG).show();
 
-        // TODO: Navigate to next fragment (e.g., Dashboard or Routine setup)
+        // Navigate directly to DashboardFragment
+        HomeDashboardFragment dashboardFragment = new HomeDashboardFragment();
+        requireActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, dashboardFragment)
+                .commit();
     }
 }

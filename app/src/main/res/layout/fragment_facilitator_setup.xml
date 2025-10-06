@@ -27,7 +27,6 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_marginEnd="16dp"
-                android:contentDescription="Back"
                 android:src="@drawable/ic_arrow_back" />
 
             <!-- Title -->
@@ -35,7 +34,7 @@
                 android:layout_width="267dp"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:text="Set up your profile"
+                android:text="@string/setup_profile_title"
                 android:textColor="@color/text_header"
                 android:textSize="28sp"
                 android:textStyle="bold" />
@@ -45,7 +44,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Welcome, Facilitator!"
+            android:text="@string/welcome_facilitator"
             android:textSize="20sp"
             android:textColor="@color/feature_text"
             android:gravity="center"
@@ -55,7 +54,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Let's set up your profile to get started."
+            android:text="@string/setup_instructions"
             android:textSize="16sp"
             android:textColor="@color/subtitle_text"
             android:gravity="center"
@@ -66,7 +65,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Facilitator's Name"
+            android:text="@string/facilitator_name_label"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/feature_text"
@@ -82,10 +81,19 @@
                 android:id="@+id/etFacilitatorName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Enter your name"
+                android:hint="@string/facilitator_name_hint"
                 android:textSize="16sp"
                 android:padding="16dp" />
         </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/relationship_label"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/feature_text"
+            android:layout_marginBottom="8dp" />
 
         <!-- Relationship Dropdown -->
         <com.google.android.material.textfield.TextInputLayout
@@ -93,13 +101,12 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="32dp"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-            android:hint="Select relationship">
+            android:hint="@string/relationship_hint">
 
             <AutoCompleteTextView
                 android:id="@+id/actvRelationship"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Relationship to Child"
                 android:textSize="16sp"
                 android:padding="16dp"
                 android:inputType="none" />
@@ -110,7 +117,7 @@
             android:id="@+id/btnNext"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Next"
+            android:text="@string/next_button"
             android:textSize="18sp"
             android:backgroundTint="#A2D1BF"
             android:textColor="#121717"
@@ -122,7 +129,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="We'll ask about your child next."
+            android:text="@string/child_info_next"
             android:textSize="14sp"
             android:textColor="#617D8A"
             android:gravity="center"

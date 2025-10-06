@@ -51,10 +51,24 @@ public class FacilitatorSetupFragment extends Fragment {
         );
         actvRelationship.setAdapter(adapter);
 
-        // Back button click → goes to Onboarding3Fragment (or last fragment in back stack)
         btnBack.setOnClickListener(v -> {
-            requireActivity().getSupportFragmentManager().popBackStack();
+            // pop the setup fragment
+            requireActivity().getSupportFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.fragment_container, new ChildProfileSetupFragment())
+                    .addToBackStack(null) // <-- this is REQUIRED for back to work
+                    .commit();
+
+            // make sure onboarding UI is visible again and hide the setup container
+            View pager = requireActivity().findViewById(R.id.onboardingViewPager);
+            View tabs = requireActivity().findViewById(R.id.tabIndicator);
+            View setupContainer = requireActivity().findViewById(R.id.fragment_container);
+
+            if (pager != null) pager.setVisibility(View.VISIBLE);
+            if (tabs != null) tabs.setVisibility(View.VISIBLE);
+            if (setupContainer != null) setupContainer.setVisibility(View.GONE);
         });
+
 
         // Next button click → goes to ChildSetupFragment
         btnNext.setOnClickListener(v -> {
@@ -85,6 +99,7 @@ public class FacilitatorSetupFragment extends Fragment {
                     .replace(R.id.fragment_container, childSetupFragment)
                     .addToBackStack(null)
                     .commit();
+
         });
     }
 }

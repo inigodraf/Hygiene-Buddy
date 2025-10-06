@@ -13,4 +13,6 @@
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
     <color name="gray_light">#F0F0F0</color>  <!-- Divider color -->
+    <color name="blue">#2DB7FF</color> <!-- change to your desired water blue -->
+
 </resources>

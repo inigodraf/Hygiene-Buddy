@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:background="@drawable/badge_item_background"
+    android:layout_marginBottom="8dp">
+
+    <!-- Badge Icon -->
+    <ImageView
+        android:id="@+id/ivBadgeIcon"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@drawable/ic_handwash"
+        android:contentDescription="Badge icon"
+        android:layout_marginEnd="16dp" />
+
+    <!-- Badge Details -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- Badge Title -->
+        <TextView
+            android:id="@+id/tvBadgeTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Badge Title"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Badge Description -->
+        <TextView
+            android:id="@+id/tvBadgeDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Badge description goes here with details about how to earn it."
+            android:textSize="14sp"
+            android:textColor="#666666"
+            android:lineSpacingExtra="2dp" />
+
+        <!-- Progress (for unearned badges) -->
+        <LinearLayout
+            android:id="@+id/layoutProgress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginTop="8dp">
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="8dp"
+                android:progress="60"
+                android:progressTint="#2196F3" />
+
+            <TextView
+                android:id="@+id/tvProgressText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="3/5 days completed"
+                android:textSize="12sp"
+                android:textColor="#666666"
+                android:layout_marginTop="4dp" />
+
+        </LinearLayout>
+
+        <!-- Earned Date (for earned badges) -->
+        <TextView
+            android:id="@+id/tvEarnedDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Earned on: 2025-01-15"
+            android:textSize="12sp"
+            android:textColor="#4CAF50"
+            android:visibility="gone"
+            android:layout_marginTop="4dp" />
+
+    </LinearLayout>
+
+    <!-- Earned/Locked Indicator -->
+    <ImageView
+        android:id="@+id/ivStatusIndicator"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_earned"
+        android:contentDescription="Badge status"
+        android:layout_gravity="center_vertical" />
+
+</LinearLayout>

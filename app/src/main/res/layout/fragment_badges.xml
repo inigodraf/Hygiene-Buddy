@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fragmentBadges"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header Section -->
+        <TextView
+            android:id="@+id/tvBadgesTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Your Badges"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Motivation Message -->
+        <TextView
+            android:id="@+id/tvMotivationMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="You're doing great!\nKeep up the amazing work, and you'll unlock more rewards!"
+            android:textSize="16sp"
+            android:textColor="#666666"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:layout_marginBottom="32dp" />
+
+        <!-- Earned Badges Section -->
+        <TextView
+            android:id="@+id/tvEarnedSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Earned"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Earned Badges Container -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvEarnedBadges"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp" />
+
+        <!-- All Badges Section -->
+        <TextView
+            android:id="@+id/tvAllBadgesSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Badges"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#000000"
+            android:layout_marginBottom="16dp" />
+
+        <!-- All Badges Container -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvAllBadges"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp" />
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Bottom Navigation (uncomment later) -->
+        <include layout="@layout/layout_bottom_nav" />
+
+    </LinearLayout>
+
+</ScrollView>
