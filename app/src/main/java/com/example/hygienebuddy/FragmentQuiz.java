@@ -1,42 +1,54 @@
 package com.example.hygienebuddy;
 
 import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link FragmentQuiz#newInstance} factory method to
- * create an instance of this fragment.
- */
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 public class FragmentQuiz extends Fragment {
 
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
 
-    // TODO: Rename and change types of parameters
     private String mParam1;
     private String mParam2;
+
+    // Quiz elements
+    private ImageView image1, image2, image3, image4;
+    private TextView instructionText, scoreText;
+    private Button resetButton, homeButton;
+
+    // Quiz logic
+    private List<Integer> correctOrder = Arrays.asList(1, 2, 3, 4);
+    private List<Integer> userSequence = new ArrayList<>();
+    private List<Integer> currentImagePositions = new ArrayList<>();
+    private int score = 0;
+    private int totalAttempts = 0;
+
+    // Image resources
+    private int[] imageResources = {
+            R.drawable.app_logo,
+            R.drawable.ic_add,
+            R.drawable.ic_data,
+            R.drawable.ic_checklist
+    };
 
     public FragmentQuiz() {
         // Required empty public constructor
     }
 
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment FragmentQuiz.
-     */
-    // TODO: Rename and change types and number of parameters
     public static FragmentQuiz newInstance(String param1, String param2) {
         FragmentQuiz fragment = new FragmentQuiz();
         Bundle args = new Bundle();
@@ -47,18 +59,135 @@ public class FragmentQuiz extends Fragment {
     }
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_quiz, container, false);
+
+        initializeViews(view);
+        setupClickListeners();
+        resetQuiz();
+
+        return view;
+    }
+
+    private void initializeViews(View view) {
+        image1 = view.findViewById(R.id.image1);
+        image2 = view.findViewById(R.id.image2);
+        image3 = view.findViewById(R.id.image3);
+        image4 = view.findViewById(R.id.image4);
+        instructionText = view.findViewById(R.id.instructionText);
+        scoreText = view.findViewById(R.id.scoreText);
+        resetButton = view.findViewById(R.id.resetButton);
+        homeButton = view.findViewById(R.id.homeButton);
+    }
+
+    private void setupClickListeners() {
+        image1.setOnClickListener(v -> onImageClicked(0));
+        image2.setOnClickListener(v -> onImageClicked(1));
+        image3.setOnClickListener(v -> onImageClicked(2));
+        image4.setOnClickListener(v -> onImageClicked(3));
+
+        resetButton.setOnClickListener(v -> resetQuiz());
+        homeButton.setOnClickListener(v -> navigateToHome());
+    }
+
+    private void shuffleImages() {
+        List<Integer> imageIndices = new ArrayList<>();
+        for (int i = 0; i < imageResources.length; i++) {
+            imageIndices.add(i);
+        }
+        Collections.shuffle(imageIndices);
+
+        image1.setImageResource(imageResources[imageIndices.get(0)]);
+        image2.setImageResource(imageResources[imageIndices.get(1)]);
+        image3.setImageResource(imageResources[imageIndices.get(2)]);
+        image4.setImageResource(imageResources[imageIndices.get(3)]);
+
+        // Reset backgrounds
+        image1.setBackgroundResource(R.drawable.image_border);
+        image2.setBackgroundResource(R.drawable.image_border);
+        image3.setBackgroundResource(R.drawable.image_border);
+        image4.setBackgroundResource(R.drawable.image_border);
+
+        currentImagePositions.clear();
+        for (int i = 0; i < imageIndices.size(); i++) {
+            currentImagePositions.add(imageIndices.get(i) + 1);
         }
     }
 
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_quiz, container, false);
+    private void onImageClicked(int position) {
+        if (userSequence.contains(position)) {
+            Toast.makeText(getContext(), "You already clicked this image!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        userSequence.add(position);
+        highlightImage(position);
+
+        if (userSequence.size() == correctOrder.size()) {
+            checkSequence();
+        } else {
+            instructionText.setText("Selected " + userSequence.size() + " of 4 images\nClick next image in sequence");
+        }
+    }
+
+    private void highlightImage(int position) {
+        int highlightColor = R.drawable.image_border_highlighted;
+
+        switch (position) {
+            case 0:
+                image1.setBackgroundResource(highlightColor);
+                break;
+            case 1:
+                image2.setBackgroundResource(highlightColor);
+                break;
+            case 2:
+                image3.setBackgroundResource(highlightColor);
+                break;
+            case 3:
+                image4.setBackgroundResource(highlightColor);
+                break;
+        }
+    }
+
+    private void checkSequence() {
+        totalAttempts++;
+
+        List<Integer> userImageSequence = new ArrayList<>();
+        for (int position : userSequence) {
+            userImageSequence.add(currentImagePositions.get(position));
+        }
+
+        if (userImageSequence.equals(correctOrder)) {
+            score++;
+            Toast.makeText(getContext(), "Correct! Well done!", Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(getContext(), "Wrong sequence! Try again.", Toast.LENGTH_LONG).show();
+        }
+
+        updateScore();
+        resetButton.setVisibility(View.VISIBLE);
+        instructionText.setText("Sequence complete! Correct order was: 1-2-3-4\nClick reset to try again.");
+    }
+
+    private void updateScore() {
+        scoreText.setText("Score: " + score + "/" + totalAttempts);
+    }
+
+    private void resetQuiz() {
+        userSequence.clear();
+        shuffleImages();
+        resetButton.setVisibility(View.GONE);
+        instructionText.setText("Click the images in the correct sequence order (1-2-3-4)!");
+        updateScore();
+    }
+
+    private void navigateToHome() {
+        // Navigate back to HomeDashboardFragment
+        Fragment homeFragment = new HomeDashboardFragment();
+        FragmentTransaction transaction = getParentFragmentManager().beginTransaction();
+        transaction.replace(R.id.fragment_container, homeFragment);
+        transaction.addToBackStack(null);
+        transaction.commit();
     }
 }

@@ -1,14 +1,115 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
     tools:context=".FragmentQuiz">
 
-    <!-- TODO: Update blank fragment layout -->
     <TextView
+        android:id="@+id/instructionText"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:text="@string/hello_blank_fragment" />
+        android:layout_height="wrap_content"
+        android:text="Click the images in the correct sequence order!"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="16dp"
+        android:padding="8dp" />
 
-</FrameLayout>
+    <TextView
+        android:id="@+id/scoreText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Score: 0/0"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <!-- First row of images -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/image1"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_margin="8dp"
+                android:background="@drawable/image_border"
+                android:scaleType="centerCrop" />
+
+            <ImageView
+                android:id="@+id/image2"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_margin="8dp"
+                android:background="@drawable/image_border"
+                android:scaleType="centerCrop" />
+        </LinearLayout>
+
+        <!-- Second row of images -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/image3"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_margin="8dp"
+                android:background="@drawable/image_border"
+                android:scaleType="centerCrop" />
+
+            <ImageView
+                android:id="@+id/image4"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_margin="8dp"
+                android:background="@drawable/image_border"
+                android:scaleType="centerCrop" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="16dp">
+
+        <Button
+            android:id="@+id/resetButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Reset Quiz"
+            android:layout_marginEnd="16dp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/homeButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Back to Home" />
+
+    </LinearLayout>
+
+</LinearLayout>
