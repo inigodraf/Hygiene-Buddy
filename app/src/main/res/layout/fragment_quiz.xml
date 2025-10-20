@@ -1,115 +1,131 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:padding="16dp"
     tools:context=".FragmentQuiz">
 
-    <TextView
-        android:id="@+id/instructionText"
+    <!-- Celebration Overlay -->
+    <View
+        android:id="@+id/celebrationOverlay"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Click the images in the correct sequence order!"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="16dp"
-        android:padding="8dp" />
-
-    <TextView
-        android:id="@+id/scoreText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Score: 0/0"
-        android:textSize="16sp"
-        android:gravity="center"
-        android:layout_marginBottom="24dp" />
+        android:layout_height="match_parent"
+        android:background="#8000FF00"
+        android:visibility="gone"
+        android:alpha="0.3" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <!-- First row of images -->
+        <TextView
+            android:id="@+id/instructionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Click the images in the correct sequence order!"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"
+            android:padding="8dp" />
+
+        <TextView
+            android:id="@+id/resultText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="24dp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:gravity="center">
 
-            <ImageView
-                android:id="@+id/image1"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
+            <!-- First row of images -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
                 android:layout_weight="1"
-                android:layout_margin="8dp"
-                android:background="@drawable/image_border"
-                android:scaleType="centerCrop" />
+                android:orientation="horizontal"
+                android:gravity="center">
 
-            <ImageView
-                android:id="@+id/image2"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
+                <ImageView
+                    android:id="@+id/image1"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_margin="8dp"
+                    android:background="@drawable/image_border"
+                    android:scaleType="centerCrop" />
+
+                <ImageView
+                    android:id="@+id/image2"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_margin="8dp"
+                    android:background="@drawable/image_border"
+                    android:scaleType="centerCrop" />
+            </LinearLayout>
+
+            <!-- Second row of images -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
                 android:layout_weight="1"
-                android:layout_margin="8dp"
-                android:background="@drawable/image_border"
-                android:scaleType="centerCrop" />
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <ImageView
+                    android:id="@+id/image3"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_margin="8dp"
+                    android:background="@drawable/image_border"
+                    android:scaleType="centerCrop" />
+
+                <ImageView
+                    android:id="@+id/image4"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_margin="8dp"
+                    android:background="@drawable/image_border"
+                    android:scaleType="centerCrop" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Second row of images -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
+            android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center">
+            android:gravity="center"
+            android:layout_marginTop="16dp">
 
-            <ImageView
-                android:id="@+id/image3"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_margin="8dp"
-                android:background="@drawable/image_border"
-                android:scaleType="centerCrop" />
+            <Button
+                android:id="@+id/resetButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Try Again"
+                android:layout_marginEnd="16dp"
+                android:visibility="gone" />
 
-            <ImageView
-                android:id="@+id/image4"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_margin="8dp"
-                android:background="@drawable/image_border"
-                android:scaleType="centerCrop" />
+            <Button
+                android:id="@+id/homeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Back to Home" />
+
         </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginTop="16dp">
-
-        <Button
-            android:id="@+id/resetButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Reset Quiz"
-            android:layout_marginEnd="16dp"
-            android:visibility="gone" />
-
-        <Button
-            android:id="@+id/homeButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Back to Home" />
 
     </LinearLayout>
 
-</LinearLayout>
+</RelativeLayout>

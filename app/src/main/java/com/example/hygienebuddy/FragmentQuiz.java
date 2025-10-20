@@ -27,15 +27,14 @@ public class FragmentQuiz extends Fragment {
 
     // Quiz elements
     private ImageView image1, image2, image3, image4;
-    private TextView instructionText, scoreText;
+    private TextView instructionText, resultText;
     private Button resetButton, homeButton;
+    private View celebrationOverlay;
 
     // Quiz logic
     private List<Integer> correctOrder = Arrays.asList(1, 2, 3, 4);
     private List<Integer> userSequence = new ArrayList<>();
     private List<Integer> currentImagePositions = new ArrayList<>();
-    private int score = 0;
-    private int totalAttempts = 0;
 
     // Image resources
     private int[] imageResources = {
@@ -76,9 +75,10 @@ public class FragmentQuiz extends Fragment {
         image3 = view.findViewById(R.id.image3);
         image4 = view.findViewById(R.id.image4);
         instructionText = view.findViewById(R.id.instructionText);
-        scoreText = view.findViewById(R.id.scoreText);
+        resultText = view.findViewById(R.id.resultText);
         resetButton = view.findViewById(R.id.resetButton);
         homeButton = view.findViewById(R.id.homeButton);
+        celebrationOverlay = view.findViewById(R.id.celebrationOverlay);
     }
 
     private void setupClickListeners() {
@@ -103,11 +103,8 @@ public class FragmentQuiz extends Fragment {
         image3.setImageResource(imageResources[imageIndices.get(2)]);
         image4.setImageResource(imageResources[imageIndices.get(3)]);
 
-        // Reset backgrounds
-        image1.setBackgroundResource(R.drawable.image_border);
-        image2.setBackgroundResource(R.drawable.image_border);
-        image3.setBackgroundResource(R.drawable.image_border);
-        image4.setBackgroundResource(R.drawable.image_border);
+        // Reset all borders to normal
+        resetAllBorders();
 
         currentImagePositions.clear();
         for (int i = 0; i < imageIndices.size(); i++) {
@@ -132,7 +129,7 @@ public class FragmentQuiz extends Fragment {
     }
 
     private void highlightImage(int position) {
-        int highlightColor = R.drawable.image_border_highlighted;
+        int highlightColor = R.drawable.image_border_selected;
 
         switch (position) {
             case 0:
@@ -151,35 +148,92 @@ public class FragmentQuiz extends Fragment {
     }
 
     private void checkSequence() {
-        totalAttempts++;
-
         List<Integer> userImageSequence = new ArrayList<>();
         for (int position : userSequence) {
             userImageSequence.add(currentImagePositions.get(position));
         }
 
         if (userImageSequence.equals(correctOrder)) {
-            score++;
-            Toast.makeText(getContext(), "Correct! Well done!", Toast.LENGTH_LONG).show();
+            showCelebration();
+            resultText.setText("Correct! Good job!");
+            resultText.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
         } else {
-            Toast.makeText(getContext(), "Wrong sequence! Try again.", Toast.LENGTH_LONG).show();
+            showWrongSequence();
+            resultText.setText("Wrong sequence! Try again.");
+            resultText.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
         }
 
-        updateScore();
         resetButton.setVisibility(View.VISIBLE);
-        instructionText.setText("Sequence complete! Correct order was: 1-2-3-4\nClick reset to try again.");
+        instructionText.setText("Sequence complete!");
     }
 
-    private void updateScore() {
-        scoreText.setText("Score: " + score + "/" + totalAttempts);
+    private void showCelebration() {
+        // Show celebration overlay
+        celebrationOverlay.setVisibility(View.VISIBLE);
+
+        // Set all correct images to green border
+        for (int i = 0; i < userSequence.size(); i++) {
+            int position = userSequence.get(i);
+            switch (position) {
+                case 0:
+                    image1.setBackgroundResource(R.drawable.image_border_correct);
+                    break;
+                case 1:
+                    image2.setBackgroundResource(R.drawable.image_border_correct);
+                    break;
+                case 2:
+                    image3.setBackgroundResource(R.drawable.image_border_correct);
+                    break;
+                case 3:
+                    image4.setBackgroundResource(R.drawable.image_border_correct);
+                    break;
+            }
+        }
+
+        // Hide celebration after 3 seconds
+        celebrationOverlay.postDelayed(() -> {
+            celebrationOverlay.setVisibility(View.GONE);
+        }, 3000);
+    }
+
+    private void showWrongSequence() {
+        // Set all images to red border
+        for (int position : userSequence) {
+            switch (position) {
+                case 0:
+                    image1.setBackgroundResource(R.drawable.image_border_wrong);
+                    break;
+                case 1:
+                    image2.setBackgroundResource(R.drawable.image_border_wrong);
+                    break;
+                case 2:
+                    image3.setBackgroundResource(R.drawable.image_border_wrong);
+                    break;
+                case 3:
+                    image4.setBackgroundResource(R.drawable.image_border_wrong);
+                    break;
+            }
+        }
+
+        // Flash the result text
+        resultText.setAlpha(0f);
+        resultText.animate().alpha(1f).setDuration(500).start();
+    }
+
+    private void resetAllBorders() {
+        image1.setBackgroundResource(R.drawable.image_border);
+        image2.setBackgroundResource(R.drawable.image_border);
+        image3.setBackgroundResource(R.drawable.image_border);
+        image4.setBackgroundResource(R.drawable.image_border);
     }
 
     private void resetQuiz() {
         userSequence.clear();
+        resultText.setText("");
         shuffleImages();
         resetButton.setVisibility(View.GONE);
-        instructionText.setText("Click the images in the correct sequence order (1-2-3-4)!");
-        updateScore();
+        celebrationOverlay.setVisibility(View.GONE);
+        instructionText.setText("Click the images in the correct order!");
     }
 
     private void navigateToHome() {
