@@ -1,5 +1,7 @@
 package com.example.hygienebuddy;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -65,7 +67,7 @@ public class HomeDashboardFragment extends Fragment {
 
         // Set up UI with placeholder (mock) data
         setTodayDate();
-        loadMockChildProfile();
+        loadChildProfile(); //Dynamic profile: name, age, conditions
         loadMockTaskProgress();
         loadMockStreakData();
         loadMockUpcomingTasks();
@@ -80,7 +82,6 @@ public class HomeDashboardFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // ✅ Ensure navbar highlights correctly after layout is ready
         view.post(() -> BottomNavHelper.setupBottomNav(this, "home"));
     }
 
@@ -110,12 +111,6 @@ public class HomeDashboardFragment extends Fragment {
     private void setTodayDate() {
         String today = new SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(new Date());
         tvTodayDate.setText("TODAY - " + today);
-    }
-
-    /** Mock: loads a child profile (replace later with DB data) */
-    private void loadMockChildProfile() {
-        tvChildName.setText("Liam Santos");
-        tvChildDetails.setText("Age 8 • ADHD");
     }
 
     /** Mock: loads example progress and points */
@@ -155,6 +150,30 @@ public class HomeDashboardFragment extends Fragment {
         tvLongestStreak.setText("Longest Streak: 2 days");
     }
 
+    private void loadChildProfile() {
+        SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
+        String name = sharedPref.getString("child_name", null);
+        String age = sharedPref.getString("child_age", null);
+        String conditions = sharedPref.getString("child_conditions", null);
+
+        if (name != null && age != null) {
+            String formattedConditions = "";
+            if (conditions != null && !conditions.trim().isEmpty()) {
+                String[] conditionArray = conditions.trim().split("\\s+");
+                formattedConditions = String.join(", ", conditionArray);
+            } else {
+                formattedConditions = "No listed condition";
+            }
+
+            tvChildName.setText(name);
+            tvChildDetails.setText("Age " + age + " • " + formattedConditions);
+        } else {
+            tvChildName.setText("No profile set");
+            tvChildDetails.setText("Please create a child profile to begin");
+        }
+    }
+
+
     /** Mock: dynamically adds upcoming task cards */
     private void loadMockUpcomingTasks() {
         layoutUpcomingTasks.removeAllViews();
@@ -192,6 +211,7 @@ public class HomeDashboardFragment extends Fragment {
             layoutUpcomingTasks.addView(taskCard, params);
         }
     }
+
 
     /** Handles navigation and user clicks */
     private void setupListeners(View view) {

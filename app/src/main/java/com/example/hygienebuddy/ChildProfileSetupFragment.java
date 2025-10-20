@@ -1,7 +1,9 @@
 package com.example.hygienebuddy;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -128,17 +130,23 @@ public class ChildProfileSetupFragment extends Fragment {
             return;
         }
 
-        // Here you can save to database or shared preferences
-        StringBuilder summary = new StringBuilder();
-        summary.append("Child's Name: ").append(childName).append("\n");
-        summary.append("Age: ").append(childAge).append("\n");
-        summary.append("Conditions: ");
-        if (hasASD) summary.append("ASD ");
-        if (hasADHD) summary.append("ADHD ");
-        if (hasDownSyndrome) summary.append("Down Syndrome ");
-        if (!hasASD && !hasADHD && !hasDownSyndrome) summary.append("None");
+        // Build conditions string
+        StringBuilder conditions = new StringBuilder();
+        if (hasASD) conditions.append("ASD ");
+        if (hasADHD) conditions.append("ADHD ");
+        if (hasDownSyndrome) conditions.append("Down Syndrome ");
+        if (conditions.length() == 0) conditions.append("None");
 
-        Toast.makeText(requireContext(), summary.toString(), Toast.LENGTH_LONG).show();
+        // Save to SharedPreferences
+        SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putString("child_name", childName);
+        editor.putString("child_age", childAge);
+        editor.putString("child_conditions", conditions.toString().trim());
+        editor.apply();
+
+        // Confirmation
+        Toast.makeText(requireContext(), "Child profile saved successfully!", Toast.LENGTH_SHORT).show();
 
         // Navigate directly to DashboardFragment
         HomeDashboardFragment dashboardFragment = new HomeDashboardFragment();
