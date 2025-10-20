@@ -14,6 +14,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 
 import java.text.SimpleDateFormat;
@@ -79,8 +80,8 @@ public class HomeDashboardFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Highlight home in bottom nav and setup click listeners
-        BottomNavHelper.setupBottomNav(this, "home");
+        // ✅ Ensure navbar highlights correctly after layout is ready
+        view.post(() -> BottomNavHelper.setupBottomNav(this, "home"));
     }
 
     /** Bind all view IDs */
@@ -99,7 +100,6 @@ public class HomeDashboardFragment extends Fragment {
         layoutUpcomingTasks = view.findViewById(R.id.layoutUpcomingTasks);
         tvTodayDate = view.findViewById(R.id.tvTodayDate);
 
-        // New clickable containers from XML
         layoutChildProfile = view.findViewById(R.id.layoutChildProfile);
         layoutTaskProgress = view.findViewById(R.id.layoutTaskProgress);
         layoutPoints = view.findViewById(R.id.layoutPoints);
@@ -133,13 +133,13 @@ public class HomeDashboardFragment extends Fragment {
     private void loadMockStreakData() {
         layoutStreakDays.removeAllViews();
         ArrayList<Boolean> streakDays = new ArrayList<>();
-        streakDays.add(true);  // Mon
-        streakDays.add(true);  // Tue
-        streakDays.add(false); // Wed
-        streakDays.add(true);  // Thu
-        streakDays.add(false); // Fri
-        streakDays.add(false); // Sat
-        streakDays.add(true);  // Sun
+        streakDays.add(true);
+        streakDays.add(true);
+        streakDays.add(false);
+        streakDays.add(true);
+        streakDays.add(false);
+        streakDays.add(false);
+        streakDays.add(true);
 
         for (boolean completed : streakDays) {
             ImageView dayView = new ImageView(getContext());
@@ -172,7 +172,6 @@ public class HomeDashboardFragment extends Fragment {
             tvTaskName.setText(tasks[i]);
             tvTaskName.setTextSize(16);
             tvTaskName.setTextColor(getResources().getColor(R.color.black));
-            tvTaskName.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
             tvTaskName.setTypeface(null, Typeface.BOLD);
 
             TextView tvTaskTime = new TextView(getContext());
@@ -183,8 +182,7 @@ public class HomeDashboardFragment extends Fragment {
             taskCard.addView(tvTaskName);
             taskCard.addView(tvTaskTime);
 
-            String actionName = "action_homeDashboard_to_taskDetails";
-            taskCard.setOnClickListener(v -> safeNavigate(v, actionName));
+            taskCard.setOnClickListener(v -> safeNavigate(R.id.fragmentTasks));
 
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -197,41 +195,26 @@ public class HomeDashboardFragment extends Fragment {
 
     /** Handles navigation and user clicks */
     private void setupListeners(View view) {
-        String actionReminder = "action_homeDashboard_to_reminderPage";
-        String actionChildProfile = "action_homeDashboard_to_childProfile";
-        String actionTaskList = "action_homeDashboard_to_taskList";
-        String actionRewards = "action_homeDashboard_to_rewardsPage";
-        String actionStreakDetails = "action_homeDashboard_to_streakDetails";
-
-        ivReminder.setOnClickListener(v -> safeNavigate(v, actionReminder));
-        layoutChildProfile.setOnClickListener(v -> safeNavigate(v, actionChildProfile));
-        layoutTaskProgress.setOnClickListener(v -> safeNavigate(v, actionTaskList));
-        layoutPoints.setOnClickListener(v -> safeNavigate(v, actionRewards));
-        layoutWeeklyStreak.setOnClickListener(v -> safeNavigate(v, actionStreakDetails));
+        ivReminder.setOnClickListener(v -> safeNavigate(R.id.fragmentTasks));
+        layoutChildProfile.setOnClickListener(v -> safeNavigate(R.id.fragmentBadges));
+        layoutTaskProgress.setOnClickListener(v -> safeNavigate(R.id.fragmentReportSummary));
+        layoutPoints.setOnClickListener(v -> safeNavigate(R.id.settingsFragment));
+        layoutWeeklyStreak.setOnClickListener(v -> safeNavigate(R.id.fragmentTasks));
     }
 
-    private void safeNavigate(View view, String name) {
-        if (view == null || name == null) return;
-
-        int resId = 0;
+    /** Safe navigation helper using main NavHostFragment */
+    private void safeNavigate(int destinationId) {
         try {
-            resId = requireContext().getResources().getIdentifier(name, "id", requireContext().getPackageName());
-        } catch (Exception e) {}
+            NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment);
+            int current = navController.getCurrentDestination() != null
+                    ? navController.getCurrentDestination().getId()
+                    : -1;
 
-        if (resId == 0) {
-            Toast.makeText(getContext(),
-                    "Navigation action/destination '" + name + "' not found. Add it to res/navigation/nav_graph.xml",
-                    Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        try {
-            Navigation.findNavController(view).navigate(resId);
-        } catch (Exception ex) {
-            Toast.makeText(getContext(),
-                    "Unable to navigate using '" + name + "'. Check nav_graph or host fragment id.",
-                    Toast.LENGTH_SHORT).show();
-            ex.printStackTrace();
+            if (current != destinationId) {
+                navController.navigate(destinationId);
+            }
+        } catch (Exception e) {
+            Toast.makeText(requireContext(), "Navigation failed. Check nav_graph.xml.", Toast.LENGTH_SHORT).show();
         }
     }
 }

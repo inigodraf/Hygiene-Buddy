@@ -1,296 +1,315 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/fragmentReportSummary"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/fragmentReportSummary"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
-    android:fillViewport="true">
+    android:background="#FFFFFF">
 
-    <LinearLayout
+    <!-- Scrollable Content Area -->
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <!-- Back Arrow and Title -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="16dp">
-
-            <ImageView
-                android:id="@+id/btnBack"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_arrow_back"
-                android:contentDescription="Back"
-                app:tint="#000000" />
-
-            <TextView
-                android:id="@+id/tvReportTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Report Summary"
-                android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="#000000"
-                android:gravity="center" />
-        </LinearLayout>
-
-        <!-- Profile Section -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="24dp">
-
-            <ImageView
-                android:id="@+id/ivUserAvatar"
-                android:layout_width="80dp"
-                android:layout_height="80dp"
-                android:src="@drawable/ic_toothbrush"
-                android:contentDescription="User Avatar"
-                android:background="@drawable/circle_primary"
-                android:padding="8dp"
-                android:layout_marginEnd="16dp" />
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/tvUserName"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Ethan"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#000000" />
-
-                <TextView
-                    android:id="@+id/tvUserAge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Age 8"
-                    android:textSize="14sp"
-                    android:textColor="#666666" />
-
-                <TextView
-                    android:id="@+id/tvUserConditions"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ASD, ADHD"
-                    android:textSize="14sp"
-                    android:textColor="#666666" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Date Range -->
-        <TextView
-            android:id="@+id/tvDateRangeLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Select Date Range"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:textColor="#000000"
-            android:layout_marginBottom="8dp" />
-
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/toggleDateRange"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:singleSelection="true"
-            app:selectionRequired="true"
-            android:layout_marginBottom="24dp">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnWeek"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Week"
-                style="@style/Widget.Material3.Button.OutlinedButton" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnMonth"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Month"
-                style="@style/Widget.Material3.Button.OutlinedButton" />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
-
-        <!-- Streak History -->
-        <TextView
-            android:id="@+id/tvStreakHistoryTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Streak History"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="#000000"
-            android:layout_marginBottom="8dp" />
+        android:layout_height="match_parent"
+        android:layout_above="@+id/bottomNav"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#F2FAE6"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="24dp"
-            android:gravity="center"
-            android:backgroundTintMode="src_over"
-            android:clipToOutline="true"
-            android:backgroundTint="#F2FAE6"
-            android:layout_gravity="center"
-            android:layout_marginTop="4dp"
-            android:layout_marginHorizontal="0dp"
-            android:elevation="2dp">
+            android:padding="16dp">
 
-            <!-- Month navigation -->
+            <!-- Back Arrow and Title -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+                <!-- ... your existing back arrow and title ... -->
+                <ImageView
+                    android:id="@+id/btnBack"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_arrow_back"
+                    android:contentDescription="Back"
+                    app:tint="#000000" />
+
+                <TextView
+                    android:id="@+id/tvReportTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Report Summary"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000"
+                    android:gravity="center" />
+            </LinearLayout>
+
+            <!-- ... all your other content (Profile, Date Range, Streak, etc.) goes here ... -->
+            <!-- Make sure to REMOVE the <include> for the bottom nav from here -->
+
+            <!-- For example: -->
+
+            <!-- Profile Section -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical|center_horizontal"
-                android:layout_marginBottom="12dp">
+                android:gravity="center_vertical"
+                android:layout_marginBottom="24dp">
 
                 <ImageView
-                    android:id="@+id/btnPrevMonth"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/ic_chevron_left"
-                    android:contentDescription="Previous Month"
-                    app:tint="#000000" />
+                    android:id="@+id/ivUserAvatar"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:src="@drawable/ic_toothbrush"
+                    android:contentDescription="User Avatar"
+                    android:background="@drawable/circle_primary"
+                    android:padding="8dp"
+                    android:layout_marginEnd="16dp" />
 
-                <TextView
-                    android:id="@+id/tvCurrentMonth"
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvUserName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ethan"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#000000" />
+
+                    <TextView
+                        android:id="@+id/tvUserAge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Age 8"
+                        android:textSize="14sp"
+                        android:textColor="#666666" />
+
+                    <TextView
+                        android:id="@+id/tvUserConditions"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ASD, ADHD"
+                        android:textSize="14sp"
+                        android:textColor="#666666" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Date Range -->
+            <TextView
+                android:id="@+id/tvDateRangeLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Select Date Range"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:textColor="#000000"
+                android:layout_marginBottom="8dp" />
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/toggleDateRange"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:selectionRequired="true"
+                android:layout_marginBottom="24dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnWeek"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="August 2025"
-                    android:textColor="#000000"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:gravity="center" />
+                    android:text="Week"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
 
-                <ImageView
-                    android:id="@+id/btnNextMonth"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/ic_right_chevron"
-                    android:contentDescription="Next Month"
-                    app:tint="#000000" />
-            </LinearLayout>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnMonth"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Month"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
 
-            <!-- Calendar Grid -->
-            <GridLayout
-                android:id="@+id/gridCalendar"
+            <!-- Streak History -->
+            <TextView
+                android:id="@+id/tvStreakHistoryTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:columnCount="7"
-                android:rowCount="6"
-                android:alignmentMode="alignMargins"
-                android:useDefaultMargins="true"
-                android:gravity="center" />
-        </LinearLayout>
+                android:text="Streak History"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_marginBottom="8dp" />
 
-        <!-- Rewards Summary -->
-        <TextView
-            android:id="@+id/tvRewardsTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Rewards Summary"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="#000000"
-            android:layout_marginBottom="12dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:weightSum="2"
-            android:layout_marginBottom="24dp">
-
-            <!-- Total Points -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:background="#F2FAE6"
                 android:orientation="vertical"
-                android:background="@drawable/card_bg"
                 android:padding="16dp"
-                android:layout_marginEnd="8dp"
-                android:gravity="center">
+                android:layout_marginBottom="24dp"
+                android:gravity="center"
+                android:backgroundTintMode="src_over"
+                android:clipToOutline="true"
+                android:backgroundTint="#F2FAE6"
+                android:layout_gravity="center"
+                android:layout_marginTop="4dp"
+                android:layout_marginHorizontal="0dp"
+                android:elevation="2dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- Month navigation -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Total Points"
-                    android:textSize="14sp"
-                    android:textColor="#666666"
-                    android:layout_marginBottom="8dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:layout_marginBottom="12dp">
 
-                <TextView
-                    android:id="@+id/tvTotalPoints"
-                    android:layout_width="wrap_content"
+                    <ImageView
+                        android:id="@+id/btnPrevMonth"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_chevron_left"
+                        android:contentDescription="Previous Month"
+                        app:tint="#000000" />
+
+                    <TextView
+                        android:id="@+id/tvCurrentMonth"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="August 2025"
+                        android:textColor="#000000"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:gravity="center" />
+
+                    <ImageView
+                        android:id="@+id/btnNextMonth"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_right_chevron"
+                        android:contentDescription="Next Month"
+                        app:tint="#000000" />
+                </LinearLayout>
+
+                <!-- Calendar Grid -->
+                <GridLayout
+                    android:id="@+id/gridCalendar"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="150 XP"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="#2196F3" />
+                    android:columnCount="7"
+                    android:rowCount="6"
+                    android:alignmentMode="alignMargins"
+                    android:useDefaultMargins="true"
+                    android:gravity="center" />
             </LinearLayout>
 
-            <!-- Badges Earned -->
-            <LinearLayout
-                android:layout_width="0dp"
+            <!-- Rewards Summary -->
+            <TextView
+                android:id="@+id/tvRewardsTitle"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:background="@drawable/card_bg"
-                android:padding="16dp"
-                android:layout_marginStart="8dp"
-                android:gravity="center">
+                android:text="Rewards Summary"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_marginBottom="12dp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Badges Earned"
-                    android:textSize="14sp"
-                    android:textColor="#666666"
-                    android:layout_marginBottom="8dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="2"
+                android:layout_marginBottom="24dp">
 
-                <TextView
-                    android:id="@+id/tvBadgesEarned"
-                    android:layout_width="wrap_content"
+                <!-- Total Points -->
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="3"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="#4CAF50" />
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/card_bg"
+                    android:padding="16dp"
+                    android:layout_marginEnd="8dp"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Total Points"
+                        android:textSize="14sp"
+                        android:textColor="#666666"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvTotalPoints"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="150 XP"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="#2196F3" />
+                </LinearLayout>
+
+                <!-- Badges Earned -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/card_bg"
+                    android:padding="16dp"
+                    android:layout_marginStart="8dp"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Badges Earned"
+                        android:textSize="14sp"
+                        android:textColor="#666666"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvBadgesEarned"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="3"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="#4CAF50" />
+                </LinearLayout>
             </LinearLayout>
+
+            <!-- Download Report -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDownloadReport"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Download Report (CSV)"
+                android:textSize="16sp"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#2196F3"
+                android:layout_marginBottom="32dp"
+                android:icon="@drawable/ic_download" />
+
         </LinearLayout>
+    </ScrollView>
 
-        <!-- Download Report -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnDownloadReport"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Download Report (CSV)"
-            android:textSize="16sp"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#2196F3"
-            android:layout_marginBottom="32dp"
-            android:icon="@drawable/ic_download" />
+    <!-- Fixed Bottom Navigation Bar -->
+    <include
+        android:id="@+id/bottomNav"
+        layout="@layout/layout_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true" />
 
-
-        <include layout="@layout/layout_bottom_nav" />
-    </LinearLayout>
-</ScrollView>
+</RelativeLayout>

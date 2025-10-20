@@ -83,7 +83,7 @@ public class FragmentStreak extends Fragment {
         });
 
         // Highlight home in bottom nav and setup click listeners
-        BottomNavHelper.setupBottomNav(this, "streak");
+        // BottomNavHelper.setupBottomNav(this, "streak");
     }
 
     private void updateCalendar() {

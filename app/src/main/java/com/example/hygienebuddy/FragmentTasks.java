@@ -10,8 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
+import androidx.fragment.app.FragmentActivity;
 
 public class FragmentTasks extends Fragment {
 
@@ -26,7 +25,6 @@ public class FragmentTasks extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_tasks, container, false);
     }
 
@@ -39,29 +37,32 @@ public class FragmentTasks extends Fragment {
         cardHandwashing = view.findViewById(R.id.cardHandwashing);
         btnBack = view.findViewById(R.id.btnBack);
 
-        // Initialize NavController
-        NavController navController = Navigation.findNavController(view);
-
         // Click: Toothbrushing → Task Steps screen
-        cardToothbrushing.setOnClickListener(v -> {
-            Bundle bundle = new Bundle();
-            bundle.putString("taskType", "toothbrushing"); // optional if you need to identify the task
-            navController.navigate(R.id.action_fragmentTasks_to_fragmentTaskSteps, bundle);
-        });
+        cardToothbrushing.setOnClickListener(v -> openTaskSteps("toothbrushing"));
 
         // Click: Handwashing → Task Steps screen
-        cardHandwashing.setOnClickListener(v -> {
-            Bundle bundle = new Bundle();
-            bundle.putString("taskType", "handwashing");
-            navController.navigate(R.id.action_fragmentTasks_to_fragmentTaskSteps, bundle);
-        });
+        cardHandwashing.setOnClickListener(v -> openTaskSteps("handwashing"));
 
         // Click: Back Button → previous screen
-        btnBack.setOnClickListener(v -> {
-            requireActivity().onBackPressed();
-        });
+        btnBack.setOnClickListener(v -> requireActivity().onBackPressed());
 
-        // Highlight home in bottom nav and setup click listeners
-        BottomNavHelper.setupBottomNav(this, "tasks");
+        // ✅ Set up bottom navigation *after* view is attached
+        view.post(() -> BottomNavHelper.setupBottomNav(this, "tasks"));
+    }
+
+    /** Opens the Task Steps screen manually using FragmentManager */
+    private void openTaskSteps(String taskType) {
+        FragmentTaskSteps fragment = new FragmentTaskSteps();
+        Bundle bundle = new Bundle();
+        bundle.putString("taskType", taskType);
+        fragment.setArguments(bundle);
+
+        FragmentActivity activity = requireActivity();
+        activity.getSupportFragmentManager()
+                .beginTransaction()
+                .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+                .replace(R.id.fragment_container, fragment) // ✅ use fragment_container
+                .addToBackStack(null)
+                .commit();
     }
 }

@@ -5,7 +5,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -26,6 +25,7 @@ public class FragmentBadges extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_badges, container, false);
 
+        // Initialize views
         rvEarnedBadges = view.findViewById(R.id.rvEarnedBadges);
         rvAllBadges = view.findViewById(R.id.rvAllBadges);
         tvMotivationMessage = view.findViewById(R.id.tvMotivationMessage);
@@ -59,6 +59,15 @@ public class FragmentBadges extends Fragment {
         return view;
     }
 
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        // Wait until the view hierarchy is fully drawn before updating navbar
+        view.post(() -> BottomNavHelper.setupBottomNav(this, "badges"));
+    }
+
+
     private List<BadgeModel> getMockBadges() {
         List<BadgeModel> badges = new ArrayList<>();
         badges.add(new BadgeModel("First Step", "Completed your first hygiene task!", true, "2025-10-01", 0, 0));
@@ -67,13 +76,5 @@ public class FragmentBadges extends Fragment {
         badges.add(new BadgeModel("Helper Star", "Assisted a friend during hygiene time!", true, "2025-09-28", 0, 0));
         return badges;
     }
-
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-
-        // Highlight home in bottom nav and setup click listeners
-        BottomNavHelper.setupBottomNav(this, "badges");
-    }
-
 }
+

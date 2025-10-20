@@ -3,19 +3,18 @@ package com.example.hygienebuddy;
 import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -23,7 +22,9 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.android.material.button.MaterialButton;
+
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -97,12 +98,10 @@ public class SettingsFragment extends Fragment {
                     if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                         Uri videoUri = result.getData().getData();
                         if (videoUri != null) {
-                            // Save or preview video (metadata only)
                             Toast.makeText(getContext(),
                                     currentTaskSelected + " video uploaded: " + videoUri.getLastPathSegment(),
                                     Toast.LENGTH_LONG).show();
 
-                            // (Future: Save metadata to SQLite)
                             previewUploadedVideo(videoUri);
                         }
                     }
@@ -132,7 +131,6 @@ public class SettingsFragment extends Fragment {
     // REMINDER SYSTEM (ALARM MANAGER DEMO)
     // ---------------------------------------------------------------
     private void openReminderDialog() {
-        // Temporary: create a simple test reminder
         String newReminder = "Handwashing Reminder - " + System.currentTimeMillis();
         reminderList.add(newReminder);
 
@@ -158,7 +156,6 @@ public class SettingsFragment extends Fragment {
     }
 
     private void scheduleReminder() {
-        // Demo: schedule an alarm for 10 seconds later
         Context context = getContext();
         if (context == null) return;
 
@@ -168,7 +165,7 @@ public class SettingsFragment extends Fragment {
         PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
 
         Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.SECOND, 10); // trigger after 10 seconds (demo)
+        calendar.add(Calendar.SECOND, 10);
 
         if (alarmManager != null) {
             alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
@@ -180,7 +177,6 @@ public class SettingsFragment extends Fragment {
     // REINFORCERS DISPLAY (RECYCLERVIEW)
     // ---------------------------------------------------------------
     private void setupReinforcers() {
-        // Placeholder items
         reinforcersList.add("Sticker");
         reinforcersList.add("Song");
         reinforcersList.add("Cartoon Time");
@@ -240,8 +236,7 @@ public class SettingsFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Highlight home in bottom nav and setup click listeners
-        BottomNavHelper.setupBottomNav(this, "settings");
+        // ✅ Delay setup until view hierarchy is ready
+        view.post(() -> BottomNavHelper.setupBottomNav(this, "settings"));
     }
-
 }

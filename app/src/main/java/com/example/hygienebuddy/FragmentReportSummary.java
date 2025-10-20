@@ -1,11 +1,11 @@
 package com.example.hygienebuddy;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.GridLayout;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,16 +23,16 @@ import java.util.Locale;
 
 public class FragmentReportSummary extends Fragment {
 
-    private ImageView btnBack, ivUserAvatar;
+    private ImageView btnBack, ivUserAvatar, btnPrevMonth, btnNextMonth;
     private TextView tvUserName, tvUserAge, tvUserConditions, tvCurrentMonth,
             tvTotalPoints, tvBadgesEarned;
     private MaterialButtonToggleGroup toggleDateRange;
     private MaterialButton btnWeek, btnMonth, btnDownloadReport;
-    private ImageButton btnPrevMonth, btnNextMonth;
     private GridLayout gridCalendar;
 
     private Calendar calendar;
 
+    @SuppressLint("WrongViewCast")
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -71,10 +71,8 @@ public class FragmentReportSummary extends Fragment {
             if (!isChecked) return;
             if (checkedId == R.id.btnWeek) {
                 Toast.makeText(getContext(), "Showing weekly summary", Toast.LENGTH_SHORT).show();
-                // TODO: Query weekly data from database
             } else if (checkedId == R.id.btnMonth) {
                 Toast.makeText(getContext(), "Showing monthly summary", Toast.LENGTH_SHORT).show();
-                // TODO: Query monthly data from database
             }
         });
 
@@ -92,7 +90,6 @@ public class FragmentReportSummary extends Fragment {
         // Download report
         btnDownloadReport.setOnClickListener(v -> {
             Toast.makeText(getContext(), "Downloading CSV report...", Toast.LENGTH_SHORT).show();
-            // TODO: Implement CSV export logic from SQLite or Room DB
         });
 
         return view;
@@ -100,12 +97,10 @@ public class FragmentReportSummary extends Fragment {
 
     /** Mock data — replace with real DB query results later */
     private void loadMockUserData() {
-        // TODO: Replace with actual user info from DB or arguments
         tvUserName.setText("Ethan");
         tvUserAge.setText("Age 8");
         tvUserConditions.setText("ASD, ADHD");
 
-        // Replace with actual computed stats from DB
         tvTotalPoints.setText("150 XP");
         tvBadgesEarned.setText("3");
     }
@@ -122,18 +117,15 @@ public class FragmentReportSummary extends Fragment {
         int firstDayOfWeek = tempCal.get(Calendar.DAY_OF_WEEK) - 1; // 0-based
         int daysInMonth = tempCal.getActualMaximum(Calendar.DAY_OF_MONTH);
 
-        // Fill empty slots before day 1
         for (int i = 0; i < firstDayOfWeek; i++) {
             addEmptyDay();
         }
 
-        // Populate days
         for (int day = 1; day <= daysInMonth; day++) {
             addCalendarDay(day);
         }
     }
 
-    /** Adds a blank space in the calendar grid (for padding days) */
     private void addEmptyDay() {
         View empty = new View(getContext());
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
@@ -144,7 +136,6 @@ public class FragmentReportSummary extends Fragment {
         gridCalendar.addView(empty);
     }
 
-    /** Adds a day cell (with dynamic appearance for completed/today) */
     private void addCalendarDay(int day) {
         TextView tvDay = new TextView(getContext());
         tvDay.setText(String.valueOf(day));
@@ -157,8 +148,7 @@ public class FragmentReportSummary extends Fragment {
                 && calendar.get(Calendar.MONTH) == today.get(Calendar.MONTH)
                 && calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR));
 
-        // Mock completed days (for demo)
-        boolean isCompleted = (day % 3 == 0); // Every 3rd day as "completed"
+        boolean isCompleted = (day % 3 == 0); // mock completed
 
         if (isToday) {
             tvDay.setBackgroundResource(R.drawable.bg_calendar_day_today);
@@ -166,7 +156,6 @@ public class FragmentReportSummary extends Fragment {
             tvDay.setBackgroundResource(R.drawable.bg_calendar_day_completed);
         }
 
-        // Clickable day cells (optional)
         tvDay.setOnClickListener(v ->
                 Toast.makeText(getContext(), "Day " + day + " selected", Toast.LENGTH_SHORT).show()
         );
@@ -184,8 +173,7 @@ public class FragmentReportSummary extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Highlight home in bottom nav and setup click listeners
-        BottomNavHelper.setupBottomNav(this, "report");
+        // ✅ Ensures navbar highlights correctly
+        view.post(() -> BottomNavHelper.setupBottomNav(this, "report"));
     }
-
 }
