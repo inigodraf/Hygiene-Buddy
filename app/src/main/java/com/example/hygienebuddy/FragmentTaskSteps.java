@@ -45,6 +45,7 @@ public class FragmentTaskSteps extends Fragment {
     private String taskType;
 
     private Button btnQuiz;
+    private Button btnHome;
 
     public FragmentTaskSteps() {}
 
@@ -70,6 +71,7 @@ public class FragmentTaskSteps extends Fragment {
         progressStep = view.findViewById(R.id.progressStep);
         btnNext = view.findViewById(R.id.btnNext);
         btnQuiz = view.findViewById(R.id.btnQuiz);
+        btnHome = view.findViewById(R.id.btnHome);
 
         // Prepare a VideoView programmatically
         videoView = new VideoView(requireContext());
@@ -90,6 +92,7 @@ public class FragmentTaskSteps extends Fragment {
         btnNext.setOnClickListener(v -> goToNextStep());
 
         btnQuiz.setOnClickListener(v -> navigateToQuiz());
+        btnHome.setOnClickListener(v -> navigateToHome());
 
         // Play video (if available)
         btnPlayVideo.setOnClickListener(v -> playFacilitatorVideo());
@@ -156,6 +159,7 @@ public class FragmentTaskSteps extends Fragment {
             tvStepProgress.setText("Task Completed");
             btnNext.setVisibility(View.GONE);
             btnQuiz.setVisibility(View.VISIBLE);
+            btnHome.setVisibility(View.VISIBLE);
             ivStepImage.setImageResource(R.drawable.ic_placeholder_video);
             videoView.setVisibility(View.GONE);
             btnPlayVideo.setVisibility(View.GONE);
@@ -178,6 +182,17 @@ public class FragmentTaskSteps extends Fragment {
                 .addToBackStack(null)
                 .commit();
     }
+
+    private void navigateToHome() {
+        HomeDashboardFragment homeFragment = new HomeDashboardFragment();
+
+        requireActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, homeFragment)
+                .addToBackStack(null)
+                .commit();
+    }
+
 
     /** Loads a facilitator-uploaded video if it exists */
     private boolean loadFacilitatorVideo(String taskType, int stepNumber) {
