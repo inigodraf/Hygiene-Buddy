@@ -71,9 +71,10 @@ public class SettingsFragment extends Fragment {
         taskToothbrushing.setOnClickListener(v -> openUploadActivity("Toothbrushing"));
 
         // --- Manage Instructions Button ---
-        btnManageInstructions.setOnClickListener(v ->
-                Toast.makeText(getContext(), "Open Manage Instructions Screen", Toast.LENGTH_SHORT).show()
-        );
+        btnManageInstructions.setOnClickListener(v -> {
+            Intent intent = new Intent(getContext(), UploadVideoActivity.class);
+            startActivity(intent);
+        });
 
         // --- Reminder Handling ---
         btnAddReminder.setOnClickListener(v -> openReminderDialog());
@@ -99,8 +100,11 @@ public class SettingsFragment extends Fragment {
                         Uri videoUri = result.getData().getData();
                         if (videoUri != null) {
                             Toast.makeText(getContext(),
-                                    currentTaskSelected + " video uploaded: " + videoUri.getLastPathSegment(),
-                                    Toast.LENGTH_LONG).show();
+                                    "✅ " + currentTaskSelected + " video saved locally!",
+                                    Toast.LENGTH_SHORT).show();
+
+                            // Store the URI string locally (you can later put this in SQLite)
+                            saveVideoUri(currentTaskSelected, videoUri.toString());
 
                             previewUploadedVideo(videoUri);
                         }
@@ -109,23 +113,43 @@ public class SettingsFragment extends Fragment {
     }
 
     private void openUploadActivity(String taskName) {
-        Intent intent = new Intent(getContext(), UploadVideoActivity.class);
-        intent.putExtra("TASK_NAME", taskName);
-        startActivity(intent);
+        currentTaskSelected = taskName;
+
+        // Show chooser to either record or pick video
+        Intent pickIntent = new Intent(Intent.ACTION_PICK);
+        pickIntent.setType("video/*");
+
+        Intent recordIntent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
+        recordIntent.putExtra(android.provider.MediaStore.EXTRA_VIDEO_QUALITY, 1);
+
+        Intent chooserIntent = Intent.createChooser(pickIntent, "Select or Record " + taskName + " Video");
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{recordIntent});
+
+        videoPickerLauncher.launch(chooserIntent);
+    }
+
+    private void saveVideoUri(String task, String uriString) {
+        Context context = getContext();
+        if (context == null) return;
+
+        context.getSharedPreferences("VideoPrefs", Context.MODE_PRIVATE)
+                .edit()
+                .putString(task + "_video", uriString)
+                .apply();
     }
 
     private void previewUploadedVideo(Uri videoUri) {
         try {
-            MediaPlayer mediaPlayer = MediaPlayer.create(getContext(), videoUri);
-            if (mediaPlayer != null) {
-                mediaPlayer.start();
-                Toast.makeText(getContext(), "Playing sample of uploaded video...", Toast.LENGTH_SHORT).show();
-            }
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(videoUri, "video/*");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(intent);
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(getContext(), "Error previewing video", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "Error opening video preview", Toast.LENGTH_SHORT).show();
         }
     }
+
 
     // ---------------------------------------------------------------
     // REMINDER SYSTEM (ALARM MANAGER DEMO)
@@ -177,10 +201,8 @@ public class SettingsFragment extends Fragment {
     // REINFORCERS DISPLAY (RECYCLERVIEW)
     // ---------------------------------------------------------------
     private void setupReinforcers() {
-        reinforcersList.add("Sticker");
-        reinforcersList.add("Song");
-        reinforcersList.add("Cartoon Time");
-        reinforcersList.add("Treat");
+        reinforcersList.add("Sticker Option1");
+        reinforcersList.add("Sticker Option2");
 
         rvReinforcers.setLayoutManager(new GridLayoutManager(getContext(), 2));
         rvReinforcers.setAdapter(new ReinforcerAdapter(reinforcersList));
