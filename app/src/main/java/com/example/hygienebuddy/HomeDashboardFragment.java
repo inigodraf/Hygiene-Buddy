@@ -178,8 +178,8 @@ public class HomeDashboardFragment extends Fragment {
     private void loadMockUpcomingTasks() {
         layoutUpcomingTasks.removeAllViews();
 
-        String[] tasks = {"Handwashing", "Toothbrushing", "Hair Combing"};
-        String[] times = {"8:00 AM", "8:30 AM", "9:00 AM"};
+        String[] tasks = {"Handwashing", "Toothbrushing"};
+        String[] times = {"8:00 AM", "8:30 AM"};
 
         for (int i = 0; i < tasks.length; i++) {
             LinearLayout taskCard = new LinearLayout(getContext());
