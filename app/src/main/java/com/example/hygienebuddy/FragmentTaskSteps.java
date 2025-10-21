@@ -8,7 +8,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -29,7 +28,6 @@ public class FragmentTaskSteps extends Fragment {
     // UI elements
     private TextView tvTaskTitle, tvStepProgress, tvInstruction, tvMinutes, tvSeconds, tvNoVideo;
     private ImageView ivStepImage;
-    private ImageButton btnPlayVideo;
     private ProgressBar progressStep;
     private Button btnNext;
     private VideoView videoViewTask;
@@ -73,7 +71,6 @@ public class FragmentTaskSteps extends Fragment {
         tvSeconds = view.findViewById(R.id.tvSeconds);
         tvNoVideo = view.findViewById(R.id.tvNoVideo);
         ivStepImage = view.findViewById(R.id.ivStepImage);
-        btnPlayVideo = view.findViewById(R.id.btnPlayVideo);
         progressStep = view.findViewById(R.id.progressStep);
         btnNext = view.findViewById(R.id.btnNext);
         btnQuiz = view.findViewById(R.id.btnQuiz);
@@ -88,6 +85,9 @@ public class FragmentTaskSteps extends Fragment {
             taskType = getArguments().getString("taskType", "toothbrushing");
         }
 
+        // Configure VideoView to remove default controls and center content
+        setupVideoView();
+
         // Load steps and display the first one
         loadSteps(taskType);
         showStep(currentStepIndex);
@@ -97,9 +97,15 @@ public class FragmentTaskSteps extends Fragment {
 
         btnQuiz.setOnClickListener(v -> navigateToQuiz());
         btnHome.setOnClickListener(v -> navigateToHome());
+    }
 
-        // Play video (if available)
-        btnPlayVideo.setOnClickListener(v -> playCustomVideo());
+    /** Configure VideoView settings */
+    private void setupVideoView() {
+        // Remove default media controls
+        videoViewTask.setMediaController(null);
+
+        // VideoView will automatically center the video content
+        // within its container due to the FrameLayout gravity="center"
     }
 
     /** Loads task steps based on selected type */
@@ -114,11 +120,20 @@ public class FragmentTaskSteps extends Fragment {
             steps.add(new TaskStep(4, "Rinse your mouth and toothbrush.", R.drawable.ic_toothbrush, 0, 20, "toothbrushing"));
         } else if (type.equals("handwashing")) {
             tvTaskTitle.setText("Handwashing Routine");
-            steps.add(new TaskStep(1, "Wet your hands with clean water.", R.drawable.ic_handwash, 0, 10, "handwashing"));
-            steps.add(new TaskStep(2, "Apply soap to your hands.", R.drawable.ic_handwash, 0, 10, "handwashing"));
-            steps.add(new TaskStep(3, "Rub your hands together for 20 seconds.", R.drawable.ic_handwash, 0, 20, "handwashing"));
-            steps.add(new TaskStep(4, "Rinse your hands thoroughly.", R.drawable.ic_handwash, 0, 15, "handwashing"));
-            steps.add(new TaskStep(5, "Dry your hands with a clean towel.", R.drawable.ic_handwash, 0, 10, "handwashing"));
+            steps.add(new TaskStep(1, "Identify the necessary materials to be used (soap, water, towel).", R.drawable.ic_handwashing, 0, 5, "handwashing"));
+            steps.add(new TaskStep(2, "Turn on the faucet using your dominant hand.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
+            steps.add(new TaskStep(3, "Wet your hands under the running water.", R.drawable.ic_handwashing, 0, 10, "handwashing"));
+            steps.add(new TaskStep(4, "Turn off the faucet to save water.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
+            steps.add(new TaskStep(5, "Get the soap with your dominant hand from the soap dish.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
+            steps.add(new TaskStep(6, "Rub your hands together to create a rich lather.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
+            steps.add(new TaskStep(7, "Scrub all parts of your hands, including between your fingers and under your nails.", R.drawable.ic_handwashing, 0, 20, "handwashing"));
+            steps.add(new TaskStep(8, "Turn on the faucet again.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
+            steps.add(new TaskStep(9, "Rinse your hands thoroughly under running water.", R.drawable.ic_handwashing, 0, 10, "handwashing"));
+            steps.add(new TaskStep(10, "Turn off the faucet using your dominant hand.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
+            steps.add(new TaskStep(11, "Shake your hands gently to remove excess water.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
+            steps.add(new TaskStep(12, "Pick up the towel using your dominant hand.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
+            steps.add(new TaskStep(13, "Dry your hands thoroughly with the towel.", R.drawable.ic_handwashing, 0, 10, "handwashing"));
+            steps.add(new TaskStep(14, "Return the towel to its proper place.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
         }
 
         progressStep.setMax(steps.size());
@@ -139,10 +154,17 @@ public class FragmentTaskSteps extends Fragment {
         // Fallback to image if no video exists
         if (!videoLoaded) {
             videoViewTask.setVisibility(View.GONE);
-            btnPlayVideo.setVisibility(View.GONE);
             tvNoVideo.setVisibility(View.VISIBLE);
             ivStepImage.setVisibility(View.VISIBLE);
             ivStepImage.setImageResource(current.getImageResId());
+        } else {
+            // Video loaded successfully - hide image and show video
+            ivStepImage.setVisibility(View.GONE);
+            tvNoVideo.setVisibility(View.GONE);
+            videoViewTask.setVisibility(View.VISIBLE);
+
+            // Auto-play the video
+            autoPlayVideo();
         }
 
         // Start timer
@@ -156,6 +178,11 @@ public class FragmentTaskSteps extends Fragment {
     private void goToNextStep() {
         if (countDownTimer != null) countDownTimer.cancel();
 
+        // Stop current video playback
+        if (videoViewTask != null) {
+            videoViewTask.stopPlayback();
+        }
+
         if (currentStepIndex < steps.size() - 1) {
             currentStepIndex++;
             showStep(currentStepIndex);
@@ -167,7 +194,6 @@ public class FragmentTaskSteps extends Fragment {
             btnHome.setVisibility(View.VISIBLE);
             ivStepImage.setImageResource(R.drawable.ic_placeholder_video);
             videoViewTask.setVisibility(View.GONE);
-            btnPlayVideo.setVisibility(View.GONE);
             tvNoVideo.setVisibility(View.GONE);
         }
     }
@@ -199,7 +225,6 @@ public class FragmentTaskSteps extends Fragment {
                 .commit();
     }
 
-
     /** Loads a custom uploaded video if it exists for the specific task step */
     private boolean loadCustomVideo(String taskType, int stepNumber) {
         try {
@@ -210,26 +235,30 @@ public class FragmentTaskSteps extends Fragment {
                 Uri videoUri = Uri.fromFile(videoFile);
                 videoViewTask.setVideoURI(videoUri);
 
-                // Set up video completion listener
+                // Set up video completion listener for looping
                 videoViewTask.setOnCompletionListener(mp -> {
-                    btnPlayVideo.setVisibility(View.VISIBLE);
+                    // Loop the video automatically
+                    videoViewTask.start();
                 });
 
                 // Set up error listener for debugging
                 videoViewTask.setOnErrorListener((mp, what, extra) -> {
                     Log.e("VideoView", "Video error: what=" + what + ", extra=" + extra);
                     Toast.makeText(getContext(), "Error loading video", Toast.LENGTH_SHORT).show();
+                    // Fallback to image on error
+                    fallbackToImage();
                     return true;
                 });
 
                 // Set up prepared listener
                 videoViewTask.setOnPreparedListener(mp -> {
                     Log.d("VideoView", "Video prepared successfully");
-                    videoViewTask.seekTo(1); // Show preview frame
                     videoViewTask.setVisibility(View.VISIBLE);
-                    btnPlayVideo.setVisibility(View.VISIBLE);
                     tvNoVideo.setVisibility(View.GONE);
                     ivStepImage.setVisibility(View.GONE);
+
+                    // Video is centered automatically by the FrameLayout
+                    // No play button needed since we auto-play
                 });
 
                 return true;
@@ -244,11 +273,22 @@ public class FragmentTaskSteps extends Fragment {
         return false;
     }
 
-    /** Starts video playback */
-    private void playCustomVideo() {
+    /** Automatically plays the video when step is loaded */
+    private void autoPlayVideo() {
         if (videoViewTask != null && videoViewTask.getVisibility() == View.VISIBLE) {
             videoViewTask.start();
-            btnPlayVideo.setVisibility(View.GONE);
+            // No play button to hide since we removed it
+        }
+    }
+
+    /** Fallback to image when video fails to load */
+    private void fallbackToImage() {
+        if (currentStepIndex >= 0 && currentStepIndex < steps.size()) {
+            TaskStep current = steps.get(currentStepIndex);
+            videoViewTask.setVisibility(View.GONE);
+            tvNoVideo.setVisibility(View.VISIBLE);
+            ivStepImage.setVisibility(View.VISIBLE);
+            ivStepImage.setImageResource(current.getImageResId());
         }
     }
 

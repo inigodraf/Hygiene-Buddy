@@ -277,17 +277,19 @@ public class VideoManager {
 
         if (videoPath != null) {
             File videoFile = new File(videoPath);
-            if (videoFile.exists()) {
+            if (videoFile.exists() && videoFile.length() > 0) {
+                Log.d(TAG, "Video file found: " + videoPath + " (size: " + videoFile.length() + " bytes)");
                 return videoFile;
             } else {
-                // File doesn't exist, remove from preferences
+                // File doesn't exist or is empty, remove from preferences
                 preferences.edit()
                         .remove(videoKey)
                         .apply();
-                Log.w(TAG, "Step video file not found, removed from preferences: " + videoPath);
+                Log.w(TAG, "Step video file not found or empty, removed from preferences: " + videoPath);
             }
         }
 
+        Log.d(TAG, "No video file found for " + taskType + " step " + stepNumber);
         return null;
     }
 

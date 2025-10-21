@@ -64,28 +64,34 @@
             android:progressTint="#121417"
             android:layout_marginBottom="24dp" />
 
-        <!-- Video/Image -->
+        <!-- Video/Image Container -->
         <FrameLayout
             android:id="@+id/layoutMediaContainer"
             android:layout_width="match_parent"
             android:layout_height="200dp"
             android:layout_marginBottom="24dp"
-            android:background="#D3D3D3">
+            android:background="#D3D3D3"
+            android:gravity="center">
 
+            <!-- VideoView - Centered and without default controls -->
+            <VideoView
+                android:id="@+id/videoViewTask"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:visibility="gone" />
+
+            <!-- Fallback ImageView -->
             <ImageView
                 android:id="@+id/ivStepImage"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
                 android:src="@drawable/ic_placeholder_video"
-                android:contentDescription="video" />
+                android:contentDescription="Step illustration"
+                android:visibility="visible" />
 
-            <VideoView
-                android:id="@+id/videoViewTask"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:visibility="gone" />
-
+            <!-- No Video Message -->
             <TextView
                 android:id="@+id/tvNoVideo"
                 android:layout_width="wrap_content"
@@ -95,15 +101,8 @@
                 android:layout_gravity="center"
                 android:visibility="gone" />
 
-            <ImageButton
-                android:id="@+id/btnPlayVideo"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:layout_gravity="center"
-                android:background="@drawable/circle_primary"
-                android:src="@drawable/ic_play"
-                android:visibility="gone"
-                android:contentDescription="play button" />
+            <!-- REMOVED: Blue play button since we're auto-playing videos -->
+
         </FrameLayout>
 
         <!-- Instruction -->
