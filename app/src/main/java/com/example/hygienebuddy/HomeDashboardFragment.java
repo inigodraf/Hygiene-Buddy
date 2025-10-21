@@ -16,7 +16,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.navigation.NavController;
+import androidx.navigation.NavDestination;
 import androidx.navigation.Navigation;
 
 import java.text.SimpleDateFormat;
@@ -216,25 +218,28 @@ public class HomeDashboardFragment extends Fragment {
     /** Handles navigation and user clicks */
     private void setupListeners(View view) {
         ivReminder.setOnClickListener(v -> safeNavigate(R.id.fragmentTasks));
-        layoutChildProfile.setOnClickListener(v -> safeNavigate(R.id.fragmentBadges));
+        //layoutChildProfile.setOnClickListener(v -> safeNavigate(R.id.fragmentBadges));
+        layoutChildProfile.setOnClickListener(v -> safeNavigate(R.id.action_homeDashboardFragment_to_manageProfileFragment));
         layoutTaskProgress.setOnClickListener(v -> safeNavigate(R.id.fragmentReportSummary));
         layoutPoints.setOnClickListener(v -> safeNavigate(R.id.settingsFragment));
         layoutWeeklyStreak.setOnClickListener(v -> safeNavigate(R.id.fragmentTasks));
     }
 
     /** Safe navigation helper using main NavHostFragment */
-    private void safeNavigate(int destinationId) {
+    private void safeNavigate(int actionId) {
         try {
-            NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment);
-            int current = navController.getCurrentDestination() != null
-                    ? navController.getCurrentDestination().getId()
-                    : -1;
+            NavController navController = Navigation.findNavController(requireView());
+            NavDestination currentDestination = navController.getCurrentDestination();
 
-            if (current != destinationId) {
-                navController.navigate(destinationId);
+            if (currentDestination != null) {
+                navController.navigate(actionId);
+            } else {
+                Toast.makeText(requireContext(), "Current destination not found.", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
-            Toast.makeText(requireContext(), "Navigation failed. Check nav_graph.xml.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Navigation failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
         }
     }
+
 }

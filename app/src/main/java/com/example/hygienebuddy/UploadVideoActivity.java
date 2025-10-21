@@ -122,6 +122,8 @@ public class UploadVideoActivity extends AppCompatActivity {
                 Toast.makeText(this, "Video saved to: " + destFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
                 //finish();
                 previewVideo(Uri.fromFile(destFile));
+                videoPreview.setVideoURI(Uri.fromFile(destFile));
+                videoPreview.start();
 
             } catch (IOException e) {
                 e.printStackTrace();

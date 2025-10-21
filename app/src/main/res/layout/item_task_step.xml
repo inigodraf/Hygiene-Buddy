@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/item_background"
+    android:padding="12dp"
+    android:layout_marginBottom="4dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Step Icon -->
+    <ImageView
+        android:id="@+id/ivStepIcon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@drawable/ic_checklist"
+        android:contentDescription="Step icon"
+        android:layout_marginEnd="12dp" />
+
+    <!-- Step Details -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvStepText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Step 1: Instruction text"
+            android:textSize="16sp"
+            android:textColor="#000000"
+            android:layout_marginBottom="2dp" />
+
+        <TextView
+            android:id="@+id/tvStepDuration"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Duration: 30 seconds"
+            android:textSize="12sp"
+            android:textColor="#666666" />
+
+    </LinearLayout>
+
+    <!-- Video Status -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Video Status Icon -->
+        <ImageView
+            android:id="@+id/ivVideoStatus"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_placeholder_video"
+            android:contentDescription="Video status"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Upload Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnUploadStepVideo"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:text="Upload"
+            android:textSize="12sp"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:minWidth="0dp"
+            android:paddingHorizontal="12dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

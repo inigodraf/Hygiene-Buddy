@@ -32,7 +32,7 @@
                 android:gravity="center"
                 android:layout_marginBottom="24dp" />
 
-            <!-- Custom Instructions Card -->
+            <!-- Custom Instruction Videos Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -51,7 +51,7 @@
                         android:id="@+id/tvCustomInstructionsTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Custom Instructions"
+                        android:text="Custom Instruction Videos"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="#000000"
@@ -61,39 +61,25 @@
                         android:id="@+id/tvCustomInstructionsDesc"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Upload custom video instructions for each task step"
+                        android:text="Upload or record custom videos for hygiene tasks"
                         android:textSize="14sp"
                         android:textColor="#666666"
                         android:layout_marginBottom="16dp" />
 
-                    <LinearLayout
-                        android:id="@+id/layoutTasksList"
+                    <!-- Expandable Tasks List -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvTasks"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <include
-                            layout="@layout/item_task_setting"
-                            android:id="@+id/taskHandwashing"
-                            android:foreground="?attr/selectableItemBackground"
-                            android:clickable="true"
-                            android:focusable="true" />
-
-                        <include
-                            layout="@layout/item_task_setting"
-                            android:id="@+id/taskToothbrushing"
-                            android:foreground="?attr/selectableItemBackground"
-                            android:clickable="true"
-                            android:focusable="true" />
-                    </LinearLayout>
+                        android:nestedScrollingEnabled="false" />
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnManageInstructions"
+                        android:id="@+id/btnListVideos"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Manage Custom Instructions"
+                        android:text="List Existing Videos"
                         android:textSize="14sp"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Material3.Button.TextButton"
                         android:layout_marginTop="8dp" />
 
                 </LinearLayout>

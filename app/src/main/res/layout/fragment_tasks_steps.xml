@@ -80,6 +80,21 @@
                 android:src="@drawable/ic_placeholder_video"
                 android:contentDescription="video" />
 
+            <VideoView
+                android:id="@+id/videoViewTask"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvNoVideo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No video uploaded yet"
+                android:textColor="#888888"
+                android:layout_gravity="center"
+                android:visibility="gone" />
+
             <ImageButton
                 android:id="@+id/btnPlayVideo"
                 android:layout_width="60dp"

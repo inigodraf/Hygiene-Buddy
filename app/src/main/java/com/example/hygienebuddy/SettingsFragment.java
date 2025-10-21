@@ -1,13 +1,17 @@
 package com.example.hygienebuddy;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,11 +23,15 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -32,17 +40,26 @@ import java.util.List;
 public class SettingsFragment extends Fragment {
 
     private LinearLayout layoutTasksList, layoutRemindersList;
-    private RecyclerView rvReinforcers;
-    private MaterialButton btnManageInstructions, btnAddReminder, btnManageReinforcers;
+    private RecyclerView rvReinforcers, rvTasks;
+    private MaterialButton btnListVideos, btnAddReminder, btnManageReinforcers;
     private TextView tvNoReminders;
 
     // Data placeholders (to be replaced by database integration)
     private List<String> reminderList = new ArrayList<>();
     private List<String> reinforcersList = new ArrayList<>();
 
-    // Launcher for video upload
+    // Video management
+    private VideoManager videoManager;
     private ActivityResultLauncher<Intent> videoPickerLauncher;
+    private ActivityResultLauncher<Intent> videoRecorderLauncher;
     private String currentTaskSelected = "";
+    private int currentStepSelected = 0;
+
+    // Permission launcher
+    private ActivityResultLauncher<String[]> permissionLauncher;
+
+    // Expandable task adapter
+    private ExpandableTaskAdapter taskAdapter;
 
     public SettingsFragment() {}
 
@@ -52,29 +69,27 @@ public class SettingsFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_settings, container, false);
 
-        layoutTasksList = view.findViewById(R.id.layoutTasksList);
+        //layoutTasksList = view.findViewById(R.id.layoutTasksList);
         layoutRemindersList = view.findViewById(R.id.layoutRemindersList);
         rvReinforcers = view.findViewById(R.id.rvReinforcers);
-        btnManageInstructions = view.findViewById(R.id.btnManageInstructions);
+        rvTasks = view.findViewById(R.id.rvTasks);
+        btnListVideos = view.findViewById(R.id.btnListVideos);
         btnAddReminder = view.findViewById(R.id.btnAddReminder);
         btnManageReinforcers = view.findViewById(R.id.btnManageReinforcers);
         tvNoReminders = view.findViewById(R.id.tvNoReminders);
 
+        // Initialize VideoManager
+        videoManager = new VideoManager(requireContext());
+
         // --- Video Upload Handling ---
-        setupVideoPicker();
+        setupVideoLaunchers();
+        setupPermissionLauncher();
 
-        // --- Task Upload Buttons ---
-        View taskHandwashing = view.findViewById(R.id.taskHandwashing);
-        View taskToothbrushing = view.findViewById(R.id.taskToothbrushing);
+        // --- Setup Expandable Task List ---
+        setupExpandableTasks();
 
-        taskHandwashing.setOnClickListener(v -> openUploadActivity("Handwashing"));
-        taskToothbrushing.setOnClickListener(v -> openUploadActivity("Toothbrushing"));
-
-        // --- Manage Instructions Button ---
-        btnManageInstructions.setOnClickListener(v -> {
-            Intent intent = new Intent(getContext(), UploadVideoActivity.class);
-            startActivity(intent);
-        });
+        // --- Video Management Buttons ---
+        btnListVideos.setOnClickListener(v -> showExistingVideosDialog());
 
         // --- Reminder Handling ---
         btnAddReminder.setOnClickListener(v -> openReminderDialog());
@@ -90,64 +105,304 @@ public class SettingsFragment extends Fragment {
     }
 
     // ---------------------------------------------------------------
-    // VIDEO PICKER SETUP
+    // VIDEO MANAGEMENT SETUP
     // ---------------------------------------------------------------
-    private void setupVideoPicker() {
+    private void setupVideoLaunchers() {
+        // Gallery picker launcher
         videoPickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                         Uri videoUri = result.getData().getData();
-                        if (videoUri != null) {
-                            Toast.makeText(getContext(),
-                                    "✅ " + currentTaskSelected + " video saved locally!",
-                                    Toast.LENGTH_SHORT).show();
+                        if (videoUri != null && !currentTaskSelected.isEmpty()) {
+                            saveVideoToLocalStorage(videoUri);
+                        }
+                    }
+                });
 
-                            // Store the URI string locally (you can later put this in SQLite)
-                            saveVideoUri(currentTaskSelected, videoUri.toString());
-
-                            previewUploadedVideo(videoUri);
+        // Camera recorder launcher
+        videoRecorderLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        Uri videoUri = result.getData().getData();
+                        if (videoUri != null && !currentTaskSelected.isEmpty()) {
+                            saveVideoToLocalStorage(videoUri);
                         }
                     }
                 });
     }
 
-    private void openUploadActivity(String taskName) {
-        currentTaskSelected = taskName;
+    private void setupPermissionLauncher() {
+        permissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestMultiplePermissions(),
+                permissions -> {
+                    boolean allGranted = true;
+                    for (String permission : permissions.keySet()) {
+                        if (!permissions.get(permission)) {
+                            allGranted = false;
+                            break;
+                        }
+                    }
 
-        // Show chooser to either record or pick video
-        Intent pickIntent = new Intent(Intent.ACTION_PICK);
-        pickIntent.setType("video/*");
-
-        Intent recordIntent = new Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE);
-        recordIntent.putExtra(android.provider.MediaStore.EXTRA_VIDEO_QUALITY, 1);
-
-        Intent chooserIntent = Intent.createChooser(pickIntent, "Select or Record " + taskName + " Video");
-        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{recordIntent});
-
-        videoPickerLauncher.launch(chooserIntent);
+                    if (allGranted) {
+                        Toast.makeText(getContext(), "Permission granted! You can now upload videos.", Toast.LENGTH_SHORT).show();
+                        // Retry the action that was blocked
+                        if (!currentTaskSelected.isEmpty()) {
+                            // Determine which action to retry based on what was requested
+                            if (permissions.containsKey(Manifest.permission.READ_EXTERNAL_STORAGE) ||
+                                    permissions.containsKey(Manifest.permission.READ_MEDIA_VIDEO)) {
+                                uploadVideoFromGallery();
+                            } else if (permissions.containsKey(Manifest.permission.CAMERA)) {
+                                recordVideoWithCamera();
+                            }
+                        }
+                    } else {
+                        Toast.makeText(getContext(), "Permission denied. Video upload is not available.", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
-    private void saveVideoUri(String task, String uriString) {
-        Context context = getContext();
-        if (context == null) return;
+    // ---------------------------------------------------------------
+    // EXPANDABLE TASKS SETUP
+    // ---------------------------------------------------------------
+    private void setupExpandableTasks() {
+        // Create task data
+        List<ExpandableTaskAdapter.TaskData> tasks = new ArrayList<>();
 
-        context.getSharedPreferences("VideoPrefs", Context.MODE_PRIVATE)
-                .edit()
-                .putString(task + "_video", uriString)
-                .apply();
+        // Handwashing task
+        List<TaskStep> handwashingSteps = new ArrayList<>();
+        handwashingSteps.add(new TaskStep(1, "Identify the necessary materials to be used (soap, water, towel).", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
+        handwashingSteps.add(new TaskStep(2, "Turn on the faucet using your dominant hand.", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
+        handwashingSteps.add(new TaskStep(3, "Wet your hands under the running water.", R.drawable.ic_handwashing, 0, 10, "handwashing")); // 10s
+        handwashingSteps.add(new TaskStep(4, "Turn off the faucet to save water.", R.drawable.ic_handwashing, 0, 3, "handwashing")); // 3s
+        handwashingSteps.add(new TaskStep(5, "Get the soap with your dominant hand from the soap dish.", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
+        handwashingSteps.add(new TaskStep(6, "Rub your hands together to create a rich lather.", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
+        handwashingSteps.add(new TaskStep(7, "Scrub all parts of your hands, including between your fingers and under your nails.", R.drawable.ic_handwashing, 0, 20, "handwashing")); // 20s (main scrubbing)
+        handwashingSteps.add(new TaskStep(8, "Turn on the faucet again.", R.drawable.ic_handwashing, 0, 3, "handwashing")); // 3s
+        handwashingSteps.add(new TaskStep(9, "Rinse your hands thoroughly under running water.", R.drawable.ic_handwashing, 0, 10, "handwashing")); // 10s
+        handwashingSteps.add(new TaskStep(10, "Turn off the faucet using your dominant hand.", R.drawable.ic_handwashing, 0, 3, "handwashing")); // 3s
+        handwashingSteps.add(new TaskStep(11, "Shake your hands gently to remove excess water.", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
+        handwashingSteps.add(new TaskStep(12, "Pick up the towel using your dominant hand.", R.drawable.ic_handwashing, 0, 3, "handwashing")); // 3s
+        handwashingSteps.add(new TaskStep(13, "Dry your hands thoroughly with the towel.", R.drawable.ic_handwashing, 0, 10, "handwashing")); // 10s
+        handwashingSteps.add(new TaskStep(14, "Return the towel to its proper place.", R.drawable.ic_handwashing, 0, 3, "handwashing")); // 3s
+        tasks.add(new ExpandableTaskAdapter.TaskData("Handwashing", "handwashing", handwashingSteps));
+
+        // Toothbrushing task
+        List<TaskStep> toothbrushingSteps = new ArrayList<>();
+        toothbrushingSteps.add(new TaskStep(1, "Wet your toothbrush with water.", R.drawable.ic_toothbrush, 0, 15, "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(2, "Apply toothpaste — about the size of a pea.", R.drawable.ic_toothbrush, 0, 15, "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(3, "Brush your teeth gently for 2 minutes.", R.drawable.ic_toothbrush, 2, 0, "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(4, "Rinse your mouth and toothbrush.", R.drawable.ic_toothbrush, 0, 20, "toothbrushing"));
+        tasks.add(new ExpandableTaskAdapter.TaskData("Toothbrushing", "toothbrushing", toothbrushingSteps));
+
+        // Setup adapter
+        taskAdapter = new ExpandableTaskAdapter(requireContext(), new ExpandableTaskAdapter.OnStepVideoUploadListener() {
+            @Override
+            public void onStepVideoUpload(String taskType, int stepNumber) {
+                selectStepForVideo(taskType, stepNumber);
+            }
+        });
+
+        rvTasks.setLayoutManager(new LinearLayoutManager(requireContext()));
+        rvTasks.setAdapter(taskAdapter);
+        taskAdapter.setTasks(tasks);
+    }
+
+    private void selectStepForVideo(String taskType, int stepNumber) {
+        currentTaskSelected = taskType;
+        currentStepSelected = stepNumber;
+
+        // Show dialog to choose upload method
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Upload Video for " + capitalizeFirst(taskType) + " - Step " + stepNumber)
+                .setMessage("Choose how you want to add a video for this step:")
+                .setPositiveButton("From Gallery", (dialog, which) -> uploadVideoFromGallery())
+                .setNegativeButton("Record New", (dialog, which) -> recordVideoWithCamera())
+                .setNeutralButton("Cancel", null)
+                .show();
+    }
+
+    private void uploadVideoFromGallery() {
+        if (currentTaskSelected.isEmpty()) {
+            Toast.makeText(getContext(), "Please select a task first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!checkStoragePermission()) {
+            requestStoragePermission();
+            return;
+        }
+
+        Intent pickIntent = new Intent(Intent.ACTION_PICK);
+        pickIntent.setType("video/*");
+        videoPickerLauncher.launch(pickIntent);
+    }
+
+    private void recordVideoWithCamera() {
+        if (currentTaskSelected.isEmpty()) {
+            Toast.makeText(getContext(), "Please select a task first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (!checkCameraPermission()) {
+            requestCameraPermission();
+            return;
+        }
+
+        Intent recordIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+        recordIntent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1);
+        recordIntent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 300); // 5 minutes max
+        videoRecorderLauncher.launch(recordIntent);
+    }
+
+    private void saveVideoToLocalStorage(Uri videoUri) {
+        boolean success = videoManager.saveStepVideo(currentTaskSelected, currentStepSelected, videoUri);
+
+        if (success) {
+            Toast.makeText(getContext(),
+                    "✅ " + capitalizeFirst(currentTaskSelected) + " Step " + currentStepSelected + " video saved locally!",
+                    Toast.LENGTH_SHORT).show();
+
+            // Preview the uploaded video
+            previewUploadedVideo(videoManager.getStepVideoUri(currentTaskSelected, currentStepSelected));
+
+            // Refresh the adapter to show updated video status
+            if (taskAdapter != null) {
+                taskAdapter.notifyDataSetChanged();
+            }
+
+            // Debug: Log video status
+            boolean hasVideo = videoManager.hasStepVideo(currentTaskSelected, currentStepSelected);
+            android.util.Log.d("SettingsFragment", "Video saved and verified: " + hasVideo);
+        } else {
+            Toast.makeText(getContext(),
+                    "❌ Failed to save video. Please try again.",
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void previewUploadedVideo(Uri videoUri) {
-        try {
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(videoUri, "video/*");
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(intent);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(getContext(), "Error opening video preview", Toast.LENGTH_SHORT).show();
+        if (videoUri != null) {
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(videoUri, "video/*");
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                // Check if there's an app that can handle this intent
+                if (intent.resolveActivity(requireContext().getPackageManager()) != null) {
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(getContext(), "No video player app found", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                Toast.makeText(getContext(), "Error opening video preview: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         }
+    }
+
+    private void showExistingVideosDialog() {
+        StringBuilder message = new StringBuilder("Uploaded step videos:\n\n");
+        boolean hasVideos = false;
+
+        // Check handwashing steps
+        int[] handwashingSteps = videoManager.getStoredStepVideos("handwashing");
+        if (handwashingSteps.length > 0) {
+            message.append("Handwashing:\n");
+            for (int step : handwashingSteps) {
+                long fileSize = videoManager.getStepVideoFileSize("handwashing", step);
+                String sizeText = formatFileSize(fileSize);
+                message.append("  • Step ").append(step).append(" (").append(sizeText).append(")\n");
+            }
+            message.append("\n");
+            hasVideos = true;
+        }
+
+        // Check toothbrushing steps
+        int[] toothbrushingSteps = videoManager.getStoredStepVideos("toothbrushing");
+        if (toothbrushingSteps.length > 0) {
+            message.append("Toothbrushing:\n");
+            for (int step : toothbrushingSteps) {
+                long fileSize = videoManager.getStepVideoFileSize("toothbrushing", step);
+                String sizeText = formatFileSize(fileSize);
+                message.append("  • Step ").append(step).append(" (").append(sizeText).append(")\n");
+            }
+            hasVideos = true;
+        }
+
+        if (!hasVideos) {
+            Toast.makeText(getContext(), "No step videos uploaded yet", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Existing Step Videos")
+                .setMessage(message.toString())
+                .setPositiveButton("OK", null)
+                .show();
+    }
+
+    private boolean checkStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        }
+    }
+
+    private boolean checkCameraPermission() {
+        return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestStoragePermission() {
+        String permission;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permission = Manifest.permission.READ_MEDIA_VIDEO;
+        } else {
+            permission = Manifest.permission.READ_EXTERNAL_STORAGE;
+        }
+
+        if (ActivityCompat.shouldShowRequestPermissionRationale(requireActivity(), permission)) {
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Storage Permission Needed")
+                    .setMessage("This app needs access to your storage to upload videos from your gallery.")
+                    .setPositiveButton("Grant", (dialog, which) -> {
+                        permissionLauncher.launch(new String[]{permission});
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        } else {
+            permissionLauncher.launch(new String[]{permission});
+        }
+    }
+
+    private void requestCameraPermission() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(requireActivity(), Manifest.permission.CAMERA)) {
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Camera Permission Needed")
+                    .setMessage("This app needs access to your camera to record videos.")
+                    .setPositiveButton("Grant", (dialog, which) -> {
+                        permissionLauncher.launch(new String[]{Manifest.permission.CAMERA});
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        } else {
+            permissionLauncher.launch(new String[]{Manifest.permission.CAMERA});
+        }
+    }
+
+    private String capitalizeFirst(String str) {
+        if (str == null || str.isEmpty()) return str;
+        return str.substring(0, 1).toUpperCase() + str.substring(1);
+    }
+
+    private String formatFileSize(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        String pre = "KMGTPE".charAt(exp - 1) + "";
+        return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
     }
 
 
