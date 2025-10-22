@@ -81,4 +81,46 @@
 
     <string name="take_quiz">Take Quiz</string>
 
+    <!-- Task Steps Localization -->
+    <string name="toothbrushing_title">Toothbrushing Routine</string>
+    <string name="handwashing_title">Handwashing Routine</string>
+
+    <string-array name="toothbrushing_steps">
+        <item>Wet your toothbrush with water.</item>
+        <item>Apply toothpaste — about the size of a pea.</item>
+        <item>Brush your teeth gently for 2 minutes.</item>
+        <item>Rinse your mouth and toothbrush.</item>
+    </string-array>
+
+    <string-array name="handwashing_steps">
+        <item>Identify the necessary materials to be used (soap, water, towel).</item>
+        <item>Turn on the faucet using your dominant hand.</item>
+        <item>Wet your hands under the running water.</item>
+        <item>Turn off the faucet to save water.</item>
+        <item>Get the soap with your dominant hand from the soap dish.</item>
+        <item>Rub your hands together to create a rich lather.</item>
+        <item>Scrub all parts of your hands, including between your fingers and under your nails.</item>
+        <item>Turn on the faucet again.</item>
+        <item>Rinse your hands thoroughly under running water.</item>
+        <item>Turn off the faucet using your dominant hand.</item>
+        <item>Shake your hands gently to remove excess water.</item>
+        <item>Pick up the towel using your dominant hand.</item>
+        <item>Dry your hands thoroughly with the towel.</item>
+        <item>Return the towel to its proper place.</item>
+    </string-array>
+
+    <string name="ui_step_of">Step %1$d of %2$d</string>
+    <string name="ui_finish">Finish</string>
+    <string name="ui_next">Next</string>
+    <string name="ui_task_completed">Task Completed</string>
+    <string name="ui_great_job">Great job! You\'ve completed the task!</string>
+    <string name="ui_no_video">No video uploaded yet</string>
+    <string name="ui_minutes">Minutes</string>
+    <string name="ui_seconds">Seconds</string>
+    <string name="back_to_home">Back to Home</string>
+
+    <!-- Language Toggle -->
+    <string name="ui_language_english">English</string>
+    <string name="ui_language_filipino">Filipino</string>
+
 </resources>

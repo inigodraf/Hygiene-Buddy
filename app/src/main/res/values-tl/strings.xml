@@ -1,0 +1,53 @@
+<resources>
+    <string name="app_name">Hygiene Buddy</string>
+
+    <string name="next_button">Susunod ></string>
+
+    <string name="tasks_title">Mga Gawain</string>
+    <string name="choose_task">Pumili ng Gawain</string>
+    <string name="toothbrushing_task">Pagsisipilyo</string>
+    <string name="handwashing_task">Paghuhugas ng Kamay</string>
+
+    <!-- Task Steps Localization (Filipino) -->
+    <string name="toothbrushing_title">Routine sa Pagsisipilyo</string>
+    <string name="handwashing_title">Routine sa Paghuhugas ng Kamay</string>
+
+    <string-array name="toothbrushing_steps">
+        <item>Basain ang sipilyo gamit ang tubig.</item>
+        <item>Maglagay ng toothpaste — kasinlaki ng gisantes.</item>
+        <item>Marahang magsipilyo ng 2 minuto.</item>
+        <item>Banlawan ang bibig at ang sipilyo.</item>
+    </string-array>
+
+    <string-array name="handwashing_steps">
+        <item>Tukuyin ang mga kailangang gamit (sabon, tubig, tuwalya).</item>
+        <item>Buksan ang gripo gamit ang iyong dominanteng kamay.</item>
+        <item>Basain ang mga kamay sa dumadaloy na tubig.</item>
+        <item>Patayin ang gripo upang makatipid sa tubig.</item>
+        <item>Kunin ang sabon gamit ang iyong dominanteng kamay mula sa sabonan.</item>
+        <item>Kuskusin ang mga kamay upang bumula nang husto.</item>
+        <item>Kuskusin ang lahat ng bahagi ng kamay, kasama ang pagitan ng mga daliri at ilalim ng kuko.</item>
+        <item>Buksan muli ang gripo.</item>
+        <item>Banlawan nang mabuti ang mga kamay sa dumadaloy na tubig.</item>
+        <item>Patayin ang gripo gamit ang iyong dominanteng kamay.</item>
+        <item>Iling ang mga kamay upang alisin ang sobrang tubig.</item>
+        <item>Kunin ang tuwalya gamit ang iyong dominanteng kamay.</item>
+        <item>Patuyuin ang mga kamay gamit ang tuwalya.</item>
+        <item>Ibalik ang tuwalya sa tamang lagayan.</item>
+    </string-array>
+
+    <string name="ui_step_of">Hakbang %1$d ng %2$d</string>
+    <string name="ui_finish">Tapos</string>
+    <string name="ui_next">Susunod</string>
+    <string name="ui_task_completed">Tapos na ang Gawain</string>
+    <string name="ui_great_job">Magaling! Natapos mo ang gawain!</string>
+    <string name="ui_no_video">Wala pang na-upload na video</string>
+    <string name="ui_minutes">Minuto</string>
+    <string name="ui_seconds">Segundo</string>
+    <string name="back_to_home">Bumalik sa Home</string>
+
+    <!-- Language Toggle -->
+    <string name="ui_language_english">English</string>
+    <string name="ui_language_filipino">Filipino</string>
+</resources>
+

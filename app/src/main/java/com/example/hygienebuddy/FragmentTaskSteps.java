@@ -8,16 +8,18 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.VideoView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import android.content.res.Resources;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,9 +29,12 @@ public class FragmentTaskSteps extends Fragment {
 
     // UI elements
     private TextView tvTaskTitle, tvStepProgress, tvInstruction, tvMinutes, tvSeconds, tvNoVideo;
+    private TextView tvMinutesLabel, tvSecondsLabel;
     private ImageView ivStepImage;
+    private ImageView btnSpeaker;
+    private ImageButton btnLangToggle;
     private ProgressBar progressStep;
-    private Button btnNext;
+    private Button btnNext, btnQuiz, btnHome;
     private VideoView videoViewTask;
 
     // Step data
@@ -38,17 +43,13 @@ public class FragmentTaskSteps extends Fragment {
 
     // Timer
     private CountDownTimer countDownTimer;
-    private boolean isTimerRunning = false;
     private long remainingTimeMillis = 0;
 
-    // Task type (passed via Bundle)
+    // Task type
     private String taskType;
 
     // Video management
     private VideoManager videoManager;
-
-    private Button btnQuiz;
-    private Button btnHome;
 
     public FragmentTaskSteps() {}
 
@@ -69,8 +70,12 @@ public class FragmentTaskSteps extends Fragment {
         tvInstruction = view.findViewById(R.id.tvInstruction);
         tvMinutes = view.findViewById(R.id.tvMinutes);
         tvSeconds = view.findViewById(R.id.tvSeconds);
+        tvMinutesLabel = view.findViewById(R.id.tvMinutesLabel);
+        tvSecondsLabel = view.findViewById(R.id.tvSecondsLabel);
         tvNoVideo = view.findViewById(R.id.tvNoVideo);
         ivStepImage = view.findViewById(R.id.ivStepImage);
+        btnSpeaker = view.findViewById(R.id.btnSpeaker);
+        btnLangToggle = view.findViewById(R.id.btnLangToggle);
         progressStep = view.findViewById(R.id.progressStep);
         btnNext = view.findViewById(R.id.btnNext);
         btnQuiz = view.findViewById(R.id.btnQuiz);
@@ -85,110 +90,107 @@ public class FragmentTaskSteps extends Fragment {
             taskType = getArguments().getString("taskType", "toothbrushing");
         }
 
-        // Configure VideoView to remove default controls and center content
+        // Configure VideoView
         setupVideoView();
 
-        // Load steps and display the first one
-        loadSteps(taskType);
-        showStep(currentStepIndex);
+        // Load steps and display the first one using current locale
+        reloadLocalizedResourcesPreserveIndex(false);
 
         // "Next" button
         btnNext.setOnClickListener(v -> goToNextStep());
-
         btnQuiz.setOnClickListener(v -> navigateToQuiz());
         btnHome.setOnClickListener(v -> navigateToHome());
+
+        // Single-flag language toggle
+        btnLangToggle.setOnClickListener(v -> {
+            String currentLang = LocaleManager.getLanguage(requireContext());
+            if ("en".equals(currentLang)) {
+                LocaleManager.setLanguage(requireContext(), "tl");
+            } else {
+                LocaleManager.setLanguage(requireContext(), "en");
+            }
+            reloadLocalizedResourcesPreserveIndex(true);
+            updateLangToggleIcon();
+        });
+
+        // Set initial flag icon
+        updateLangToggleIcon();
     }
 
-    /** Configure VideoView settings */
+    /** Configure VideoView */
     private void setupVideoView() {
-        // Remove default media controls
         videoViewTask.setMediaController(null);
-
-        // VideoView will automatically center the video content
-        // within its container due to the FrameLayout gravity="center"
     }
 
-    /** Loads task steps based on selected type */
+    /** Loads task steps based on selected type using localized resources */
     private void loadSteps(String type) {
         steps = new ArrayList<>();
-
         if (type.equals("toothbrushing")) {
-            tvTaskTitle.setText("Toothbrushing Routine");
-            steps.add(new TaskStep(1, "Wet your toothbrush with water.", R.drawable.ic_toothbrush, 0, 15, "toothbrushing"));
-            steps.add(new TaskStep(2, "Apply toothpaste — about the size of a pea.", R.drawable.ic_toothbrush, 0, 15, "toothbrushing"));
-            steps.add(new TaskStep(3, "Brush your teeth gently for 2 minutes.", R.drawable.ic_toothbrush, 2, 0, "toothbrushing"));
-            steps.add(new TaskStep(4, "Rinse your mouth and toothbrush.", R.drawable.ic_toothbrush, 0, 20, "toothbrushing"));
+            tvTaskTitle.setText(getLocalizedString(R.string.toothbrushing_title));
+            String[] arr = getLocalizedResources().getStringArray(R.array.toothbrushing_steps);
+            for (int i = 0; i < arr.length; i++) {
+                int minutes = (i == 2) ? 2 : 0;
+                int seconds = (i == 2) ? 0 : (i == 0 ? 15 : (i == 1 ? 15 : 20));
+                steps.add(new TaskStep(i + 1, arr[i], R.drawable.ic_toothbrush, minutes, seconds, "toothbrushing"));
+            }
         } else if (type.equals("handwashing")) {
-            tvTaskTitle.setText("Handwashing Routine");
-            steps.add(new TaskStep(1, "Identify the necessary materials to be used (soap, water, towel).", R.drawable.ic_handwashing, 0, 5, "handwashing"));
-            steps.add(new TaskStep(2, "Turn on the faucet using your dominant hand.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
-            steps.add(new TaskStep(3, "Wet your hands under the running water.", R.drawable.ic_handwashing, 0, 10, "handwashing"));
-            steps.add(new TaskStep(4, "Turn off the faucet to save water.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
-            steps.add(new TaskStep(5, "Get the soap with your dominant hand from the soap dish.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
-            steps.add(new TaskStep(6, "Rub your hands together to create a rich lather.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
-            steps.add(new TaskStep(7, "Scrub all parts of your hands, including between your fingers and under your nails.", R.drawable.ic_handwashing, 0, 20, "handwashing"));
-            steps.add(new TaskStep(8, "Turn on the faucet again.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
-            steps.add(new TaskStep(9, "Rinse your hands thoroughly under running water.", R.drawable.ic_handwashing, 0, 10, "handwashing"));
-            steps.add(new TaskStep(10, "Turn off the faucet using your dominant hand.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
-            steps.add(new TaskStep(11, "Shake your hands gently to remove excess water.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
-            steps.add(new TaskStep(12, "Pick up the towel using your dominant hand.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
-            steps.add(new TaskStep(13, "Dry your hands thoroughly with the towel.", R.drawable.ic_handwashing, 0, 10, "handwashing"));
-            steps.add(new TaskStep(14, "Return the towel to its proper place.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
+            tvTaskTitle.setText(getLocalizedString(R.string.handwashing_title));
+            String[] arr = getLocalizedResources().getStringArray(R.array.handwashing_steps);
+            int[] secondsByIndex = new int[] {5,5,10,3,5,5,20,3,10,3,5,3,10,3};
+            for (int i = 0; i < arr.length; i++) {
+                int minutes = 0;
+                int seconds = secondsByIndex[i];
+                steps.add(new TaskStep(i + 1, arr[i], R.drawable.ic_handwashing, minutes, seconds, "handwashing"));
+            }
         }
-
         progressStep.setMax(steps.size());
     }
 
-    /** Displays the current step's data and loads the correct video */
+    /** Displays the current step */
     private void showStep(int index) {
         if (index < 0 || index >= steps.size()) return;
         TaskStep current = steps.get(index);
 
-        tvStepProgress.setText(String.format(Locale.getDefault(), "Step %d of %d", current.getStepNumber(), steps.size()));
+        tvStepProgress.setText(String.format(Locale.getDefault(),
+                getLocalizedString(R.string.ui_step_of), current.getStepNumber(), steps.size()));
         tvInstruction.setText(current.getInstruction());
         progressStep.setProgress(current.getStepNumber());
 
-        // Try to load the custom video for this step
+        // Video or fallback image
         boolean videoLoaded = loadCustomVideo(taskType, current.getStepNumber());
-
-        // Fallback to image if no video exists
         if (!videoLoaded) {
             videoViewTask.setVisibility(View.GONE);
             tvNoVideo.setVisibility(View.VISIBLE);
             ivStepImage.setVisibility(View.VISIBLE);
             ivStepImage.setImageResource(current.getImageResId());
         } else {
-            // Video loaded successfully - hide image and show video
             ivStepImage.setVisibility(View.GONE);
             tvNoVideo.setVisibility(View.GONE);
             videoViewTask.setVisibility(View.VISIBLE);
-
-            // Auto-play the video
             autoPlayVideo();
         }
 
         // Start timer
         startTimer((current.getMinutes() * 60L + current.getSeconds()) * 1000);
 
-        // Change button text for last step
-        btnNext.setText(index == steps.size() - 1 ? "Finish" : "Next");
+        // Buttons and labels
+        btnNext.setText(index == steps.size() - 1 ? getLocalizedString(R.string.ui_finish)
+                : getLocalizedString(R.string.ui_next));
+        tvMinutesLabel.setText(getLocalizedString(R.string.ui_minutes));
+        tvSecondsLabel.setText(getLocalizedString(R.string.ui_seconds));
     }
 
-    /** Moves to the next step or finishes the routine */
+    /** Next step */
     private void goToNextStep() {
         if (countDownTimer != null) countDownTimer.cancel();
-
-        // Stop current video playback
-        if (videoViewTask != null) {
-            videoViewTask.stopPlayback();
-        }
+        if (videoViewTask != null) videoViewTask.stopPlayback();
 
         if (currentStepIndex < steps.size() - 1) {
             currentStepIndex++;
             showStep(currentStepIndex);
         } else {
-            tvInstruction.setText("Great job! You've completed the task!");
-            tvStepProgress.setText("Task Completed");
+            tvInstruction.setText(getLocalizedString(R.string.ui_great_job));
+            tvStepProgress.setText(getLocalizedString(R.string.ui_task_completed));
             btnNext.setVisibility(View.GONE);
             btnQuiz.setVisibility(View.VISIBLE);
             btnHome.setVisibility(View.VISIBLE);
@@ -198,90 +200,57 @@ public class FragmentTaskSteps extends Fragment {
         }
     }
 
-    private void navigateToQuiz() {
-        // Replace with your actual quiz fragment class
-        FragmentQuiz fragmentQuiz = new FragmentQuiz();
-
-        // Pass any necessary data to the quiz fragment
-        Bundle args = new Bundle();
-        args.putString("taskType", taskType);
-        fragmentQuiz.setArguments(args);
-
-        // Perform fragment transaction
-        requireActivity().getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.fragment_container, fragmentQuiz)
-                .addToBackStack(null)
-                .commit();
+    /** Reloads localized resources without restarting fragment */
+    private void reloadLocalizedResourcesPreserveIndex(boolean preserveIndex) {
+        loadSteps(taskType);
+        if (!preserveIndex) {
+            currentStepIndex = 0;
+        } else if (currentStepIndex >= steps.size()) {
+            currentStepIndex = steps.size() - 1;
+        }
+        showStep(currentStepIndex);
     }
 
-    private void navigateToHome() {
-        HomeDashboardFragment homeFragment = new HomeDashboardFragment();
-
-        requireActivity().getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.fragment_container, homeFragment)
-                .addToBackStack(null)
-                .commit();
+    /** Returns localized Resources */
+    private Resources getLocalizedResources() {
+        return LocaleManager.getLocalizedResources(requireContext());
     }
 
-    /** Loads a custom uploaded video if it exists for the specific task step */
+    /** Returns localized string */
+    private String getLocalizedString(int resId) {
+        return getLocalizedResources().getString(resId);
+    }
+
+    /** Update flag icon based on current language */
+    private void updateLangToggleIcon() {
+        String lang = LocaleManager.getLanguage(requireContext());
+        if ("tl".equals(lang)) {
+            btnLangToggle.setImageResource(R.drawable.ic_flag_ph);
+        } else {
+            btnLangToggle.setImageResource(R.drawable.ic_flag_us);
+        }
+    }
+
+    // --- Video Handling ---
     private boolean loadCustomVideo(String taskType, int stepNumber) {
         try {
-            // Get the raw file for VideoView (VideoView works better with file paths)
             File videoFile = videoManager.getStepVideoFile(taskType, stepNumber);
-
             if (videoFile != null && videoFile.exists()) {
                 Uri videoUri = Uri.fromFile(videoFile);
                 videoViewTask.setVideoURI(videoUri);
-
-                // Set up video completion listener for looping
-                videoViewTask.setOnCompletionListener(mp -> {
-                    // Loop the video automatically
-                    videoViewTask.start();
-                });
-
-                // Set up error listener for debugging
-                videoViewTask.setOnErrorListener((mp, what, extra) -> {
-                    Log.e("VideoView", "Video error: what=" + what + ", extra=" + extra);
-                    Toast.makeText(getContext(), "Error loading video", Toast.LENGTH_SHORT).show();
-                    // Fallback to image on error
-                    fallbackToImage();
-                    return true;
-                });
-
-                // Set up prepared listener
-                videoViewTask.setOnPreparedListener(mp -> {
-                    Log.d("VideoView", "Video prepared successfully");
-                    videoViewTask.setVisibility(View.VISIBLE);
-                    tvNoVideo.setVisibility(View.GONE);
-                    ivStepImage.setVisibility(View.GONE);
-
-                    // Video is centered automatically by the FrameLayout
-                    // No play button needed since we auto-play
-                });
-
+                videoViewTask.setOnCompletionListener(mp -> videoViewTask.start());
+                videoViewTask.setOnErrorListener((mp, what, extra) -> { fallbackToImage(); return true; });
+                videoViewTask.setOnPreparedListener(mp -> { videoViewTask.setVisibility(View.VISIBLE); tvNoVideo.setVisibility(View.GONE); ivStepImage.setVisibility(View.GONE); });
                 return true;
-            } else {
-                Log.d("VideoView", "No video file found for " + taskType + " step " + stepNumber);
             }
-        } catch (Exception e) {
-            Log.e("VideoView", "Error loading video: " + e.getMessage());
-            e.printStackTrace();
-        }
-
+        } catch (Exception e) { e.printStackTrace(); }
         return false;
     }
 
-    /** Automatically plays the video when step is loaded */
     private void autoPlayVideo() {
-        if (videoViewTask != null && videoViewTask.getVisibility() == View.VISIBLE) {
-            videoViewTask.start();
-            // No play button to hide since we removed it
-        }
+        if (videoViewTask != null && videoViewTask.getVisibility() == View.VISIBLE) videoViewTask.start();
     }
 
-    /** Fallback to image when video fails to load */
     private void fallbackToImage() {
         if (currentStepIndex >= 0 && currentStepIndex < steps.size()) {
             TaskStep current = steps.get(currentStepIndex);
@@ -292,7 +261,7 @@ public class FragmentTaskSteps extends Fragment {
         }
     }
 
-    /** Starts the step countdown timer */
+    /** Timer */
     private void startTimer(long durationMillis) {
         if (durationMillis <= 0) {
             tvMinutes.setText("00");
@@ -301,7 +270,6 @@ public class FragmentTaskSteps extends Fragment {
         }
 
         remainingTimeMillis = durationMillis;
-
         countDownTimer = new CountDownTimer(durationMillis, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
@@ -309,7 +277,6 @@ public class FragmentTaskSteps extends Fragment {
                 int totalSeconds = (int) (millisUntilFinished / 1000);
                 int minutes = totalSeconds / 60;
                 int seconds = totalSeconds % 60;
-
                 tvMinutes.setText(String.format(Locale.getDefault(), "%02d", minutes));
                 tvSeconds.setText(String.format(Locale.getDefault(), "%02d", seconds));
             }
@@ -320,8 +287,28 @@ public class FragmentTaskSteps extends Fragment {
                 tvSeconds.setText("00");
             }
         }.start();
+    }
 
-        isTimerRunning = true;
+    /** Navigation */
+    private void navigateToQuiz() {
+        FragmentQuiz fragmentQuiz = new FragmentQuiz();
+        Bundle args = new Bundle();
+        args.putString("taskType", taskType);
+        fragmentQuiz.setArguments(args);
+        requireActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, fragmentQuiz)
+                .addToBackStack(null)
+                .commit();
+    }
+
+    private void navigateToHome() {
+        HomeDashboardFragment homeFragment = new HomeDashboardFragment();
+        requireActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.fragment_container, homeFragment)
+                .addToBackStack(null)
+                .commit();
     }
 
     @Override
