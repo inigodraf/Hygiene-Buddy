@@ -102,10 +102,10 @@ public class TaskStepAdapter extends RecyclerView.Adapter<TaskStepAdapter.StepVi
             Log.d("TaskStepAdapter", "Step " + step.getStepNumber() + " has video: " + hasVideo);
 
             if (hasVideo) {
-                ivVideoStatus.setImageResource(R.drawable.ic_checklist_filled);
+                ivVideoStatus.setImageResource(R.drawable.ic_videocam);
                 btnUploadStepVideo.setText("Replace");
             } else {
-                ivVideoStatus.setImageResource(R.drawable.ic_placeholder_video);
+                ivVideoStatus.setImageResource(R.drawable.ic_videocam_off);
                 btnUploadStepVideo.setText("Upload");
             }
         }

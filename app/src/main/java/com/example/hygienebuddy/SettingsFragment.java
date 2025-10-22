@@ -172,11 +172,11 @@ public class SettingsFragment extends Fragment {
 
         // Handwashing task
         List<TaskStep> handwashingSteps = new ArrayList<>();
-        handwashingSteps.add(new TaskStep(1, "Identify the necessary materials to be used (soap, water, towel).", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
+        handwashingSteps.add(new TaskStep(1, "Identify the necessary materials to be used.", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
         handwashingSteps.add(new TaskStep(2, "Turn on the faucet using your dominant hand.", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
         handwashingSteps.add(new TaskStep(3, "Wet your hands under the running water.", R.drawable.ic_handwashing, 0, 10, "handwashing")); // 10s
         handwashingSteps.add(new TaskStep(4, "Turn off the faucet to save water.", R.drawable.ic_handwashing, 0, 3, "handwashing")); // 3s
-        handwashingSteps.add(new TaskStep(5, "Get the soap with your dominant hand from the soap dish.", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
+        handwashingSteps.add(new TaskStep(5, "Get the soap with your dominant hand from the soap dish.", R.drawable.ic_handwashing, 0, 3, "handwashing")); // 5s
         handwashingSteps.add(new TaskStep(6, "Rub your hands together to create a rich lather.", R.drawable.ic_handwashing, 0, 5, "handwashing")); // 5s
         handwashingSteps.add(new TaskStep(7, "Scrub all parts of your hands, including between your fingers and under your nails.", R.drawable.ic_handwashing, 0, 20, "handwashing")); // 20s (main scrubbing)
         handwashingSteps.add(new TaskStep(8, "Turn on the faucet again.", R.drawable.ic_handwashing, 0, 3, "handwashing")); // 3s
@@ -190,11 +190,40 @@ public class SettingsFragment extends Fragment {
 
         // Toothbrushing task
         List<TaskStep> toothbrushingSteps = new ArrayList<>();
-        toothbrushingSteps.add(new TaskStep(1, "Wet your toothbrush with water.", R.drawable.ic_toothbrush, 0, 15, "toothbrushing"));
-        toothbrushingSteps.add(new TaskStep(2, "Apply toothpaste — about the size of a pea.", R.drawable.ic_toothbrush, 0, 15, "toothbrushing"));
-        toothbrushingSteps.add(new TaskStep(3, "Brush your teeth gently for 2 minutes.", R.drawable.ic_toothbrush, 2, 0, "toothbrushing"));
-        toothbrushingSteps.add(new TaskStep(4, "Rinse your mouth and toothbrush.", R.drawable.ic_toothbrush, 0, 20, "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(1,  "Get your toothbrush case.", R.drawable.ic_toothbrushing, 0, 5,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(2,  "Unzip the case.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(3,  "Take out the toothpaste.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(4,  "Unscrew the toothpaste cap.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(5,  "Place the cap on the countertop.", R.drawable.ic_toothbrushing, 0, 2,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(6,  "Turn on the faucet.", R.drawable.ic_toothbrushing, 0, 2,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(7,  "Take out your toothbrush.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(8,  "Wet the bristles of the toothbrush.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(9,  "Put toothpaste on the toothbrush.", R.drawable.ic_toothbrushing, 0, 4,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(10, "Place the toothpaste on the countertop.", R.drawable.ic_toothbrushing, 0, 2,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(11, "Bring the toothbrush with toothpaste up to your mouth.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+
+        // Main brushing phase (scientifically ~2 minutes total, 20s per section)
+        toothbrushingSteps.add(new TaskStep(12, "Brush teeth: Left back — top, outside then inside.", R.drawable.ic_toothbrushing, 0, 20, "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(13, "Brush teeth: Left back — bottom, outside then inside.", R.drawable.ic_toothbrushing, 0, 20, "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(14, "Brush teeth: Front — top, outside then inside.", R.drawable.ic_toothbrushing, 0, 20, "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(15, "Brush teeth: Front — bottom, outside then inside.", R.drawable.ic_toothbrushing, 0, 20, "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(16, "Brush teeth: Right back — top, outside then inside.", R.drawable.ic_toothbrushing, 0, 20, "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(17, "Brush teeth: Right back — bottom, outside then inside.", R.drawable.ic_toothbrushing, 0, 20, "toothbrushing"));
+
+        toothbrushingSteps.add(new TaskStep(18, "Spit the toothpaste into the sink.", R.drawable.ic_toothbrushing, 0, 4,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(19, "Rinse the toothbrush under running water.", R.drawable.ic_toothbrushing, 0, 4,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(20, "Shake off excess water from the toothbrush.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(21, "Put the toothbrush back in the toothbrush case.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(22, "Get your drinking cup from the case.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(23, "Rinse your mouth with water.", R.drawable.ic_toothbrushing, 0, 5,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(24, "Spit the water into the sink.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(25, "Rinse the cup with water.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(26, "Wipe the cup dry.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(27, "Put the cup back into the toothbrush case.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(28, "Put the toothpaste cap back on the tube.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
+        toothbrushingSteps.add(new TaskStep(29, "Put the toothpaste into the toothbrush case.", R.drawable.ic_toothbrushing, 0, 3,  "toothbrushing"));
         tasks.add(new ExpandableTaskAdapter.TaskData("Toothbrushing", "toothbrushing", toothbrushingSteps));
+
 
         // Setup adapter
         taskAdapter = new ExpandableTaskAdapter(requireContext(), new ExpandableTaskAdapter.OnStepVideoUploadListener() {

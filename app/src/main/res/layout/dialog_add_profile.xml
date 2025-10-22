@@ -1,60 +1,117 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/layoutAddProfile"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:background="@drawable/form_background"
-    android:gravity="center">
+    android:padding="16dp"
+    android:background="@android:color/white">
 
-    <!-- Dialog Title -->
-    <TextView
-        android:id="@+id/tvDialogTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Add New Profile"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:textColor="#000000"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Profile Name Input -->
-    <EditText
-        android:id="@+id/etProfileName"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Enter profile name"
-        android:inputType="textPersonName"
-        android:padding="12dp"
-        android:background="@drawable/form_background"
-        android:textColor="#000000"
-        android:textSize="16sp"
-        android:layout_marginBottom="24dp" />
-
-    <!-- Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="end">
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
 
-        <Button
-            android:id="@+id/btnCancel"
-            android:layout_width="wrap_content"
+        <!-- Profile Image -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Cancel"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:layout_marginBottom="24dp">
+
+            <ImageView
+                android:id="@+id/ivProfileImage"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:src="@drawable/ic_default_user"
+                android:scaleType="centerCrop"
+                android:padding="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Profile Image" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tap to change photo"
+                android:textSize="12sp"
+                android:textColor="#666666"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+
+        <!-- Name Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Name"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPersonName"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Age Dropdown -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilAge"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Age"
+            android:layout_marginBottom="16dp">
+
+            <AutoCompleteTextView
+                android:id="@+id/actvAge"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none"
+                android:focusable="false"
+                android:clickable="true" />
+        </com.google.android.material.textfield.TextInputLayout>
+        <!-- Condition Dropdown -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Condition(s)"
+            android:textSize="16sp"
+            android:textStyle="bold"
             android:textColor="#000000"
-            android:background="?attr/selectableItemBackground"
-            android:layout_marginEnd="16dp" />
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp" />
 
-        <Button
-            android:id="@+id/btnAddProfile"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/layoutConditions"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Add"
-            android:textColor="#FFFFFF"
-            android:background="@color/blue" />
-    </LinearLayout>
+            android:orientation="vertical"
+            android:padding="8dp"
+            android:background="@drawable/section_bg"
+            android:layout_marginBottom="16dp">
 
-</LinearLayout>
+            <CheckBox
+                android:id="@+id/cbASD"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Autism Spectrum Disorder (ASD)" />
+
+            <CheckBox
+                android:id="@+id/cbADHD"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Attention-Deficit/Hyperactivity Disorder (ADHD)" />
+
+            <CheckBox
+                android:id="@+id/cbDownSyndrome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Down Syndrome" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

@@ -9,16 +9,19 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.button.MaterialButton;
+
 import java.util.List;
 
 public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ProfileViewHolder> {
 
-    private List<ProfileModel> profiles;
-    private OnProfileClickListener listener;
+    private final List<ProfileModel> profiles;
+    private final OnProfileClickListener listener;
 
     public interface OnProfileClickListener {
         void onProfileClick(ProfileModel profile, int position);
-        void onProfileLongClick(ProfileModel profile, int position);
+        void onEditClick(ProfileModel profile, int position);
+        void onDeleteClick(ProfileModel profile, int position);
     }
 
     public ProfileAdapter(List<ProfileModel> profiles, OnProfileClickListener listener) {
@@ -37,17 +40,26 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ProfileV
     @Override
     public void onBindViewHolder(@NonNull ProfileViewHolder holder, int position) {
         ProfileModel profile = profiles.get(position);
+
         holder.tvProfileName.setText(profile.getName());
-        holder.ivProfileAvatar.setImageResource(profile.getAvatarResId());
+        holder.tvProfileAge.setText("Age: " + profile.getAge());
+        holder.tvProfileCondition.setText("Condition: " + profile.getCondition());
 
-        // Show "+" overlay if it's the "Add New" card
-        holder.ivAddIcon.setVisibility(profile.getName().equals("Add New") ? View.VISIBLE : View.GONE);
+        // Set the profile image (if any)
+        if (profile.getImageUri() != null) {
+            holder.ivProfileImage.setImageURI(profile.getImageUri());
+        } else {
+            holder.ivProfileImage.setImageResource(R.drawable.default_avatar);
+        }
 
+        // Card click (optional if you want it to open details)
         holder.itemView.setOnClickListener(v -> listener.onProfileClick(profile, position));
-        holder.itemView.setOnLongClickListener(v -> {
-            listener.onProfileLongClick(profile, position);
-            return true;
-        });
+
+        // Edit button click
+        holder.btnEdit.setOnClickListener(v -> listener.onEditClick(profile, position));
+
+        // Delete button click
+        holder.btnDelete.setOnClickListener(v -> listener.onDeleteClick(profile, position));
     }
 
     @Override
@@ -56,14 +68,18 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ProfileV
     }
 
     public static class ProfileViewHolder extends RecyclerView.ViewHolder {
-        ImageView ivProfileAvatar, ivAddIcon;
-        TextView tvProfileName;
+        ImageView ivProfileImage;
+        TextView tvProfileName, tvProfileAge, tvProfileCondition;
+        MaterialButton btnEdit, btnDelete;
 
         public ProfileViewHolder(@NonNull View itemView) {
             super(itemView);
-            ivProfileAvatar = itemView.findViewById(R.id.ivProfileAvatar);
-            ivAddIcon = itemView.findViewById(R.id.ivAddIcon);
+            ivProfileImage = itemView.findViewById(R.id.ivProfileImage);
             tvProfileName = itemView.findViewById(R.id.tvProfileName);
+            tvProfileAge = itemView.findViewById(R.id.tvProfileAge);
+            tvProfileCondition = itemView.findViewById(R.id.tvProfileCondition);
+            btnEdit = itemView.findViewById(R.id.btnEdit);
+            btnDelete = itemView.findViewById(R.id.btnDelete);
         }
     }
 }

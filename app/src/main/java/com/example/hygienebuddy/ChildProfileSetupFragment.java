@@ -54,6 +54,15 @@ public class ChildProfileSetupFragment extends Fragment {
                               @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        // Check if setup is already completed
+        SharedPreferences prefs = requireActivity().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
+        boolean setupCompleted = prefs.getBoolean("child_setup_completed", false);
+        if (setupCompleted) {
+            // Skip setup and go directly to dashboard
+            navigateToDashboard();
+            return;
+        }
+
         // Bind views
         ivChildAvatar = view.findViewById(R.id.ivChildAvatar);
         btnEditAvatar = view.findViewById(R.id.btnEditAvatar);
@@ -83,12 +92,10 @@ public class ChildProfileSetupFragment extends Fragment {
         // Save & Continue button click
         btnSaveContinue.setOnClickListener(v -> saveChildProfile());
 
-        btnBack.setOnClickListener(v -> {
-            requireActivity()
-                    .getSupportFragmentManager()
-                    .popBackStack(); // goes back to FacilitatorSetupFragment
-        });
-
+        // Back button → go back to previous fragment
+        btnBack.setOnClickListener(v -> requireActivity()
+                .getSupportFragmentManager()
+                .popBackStack());
     }
 
     private void openImageChooser() {
@@ -145,10 +152,28 @@ public class ChildProfileSetupFragment extends Fragment {
         editor.putString("child_conditions", conditions.toString().trim());
         editor.apply();
 
+        // Save to database so Manage Profile sees it
+        UserProfileDatabaseHelper dbHelper = new UserProfileDatabaseHelper(requireContext());
+        long result = dbHelper.insertProfile(childName, Integer.parseInt(childAge), String.valueOf(selectedImageUri), conditions.toString());
+        if (result != -1) {
+            Toast.makeText(requireContext(), "Profile saved successfully!", Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(requireContext(), "Failed to save profile to database", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Mark setup as completed
+        SharedPreferences appPrefs = requireActivity().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
+        appPrefs.edit().putBoolean("child_setup_completed", true).apply();
+
         // Confirmation
         Toast.makeText(requireContext(), "Child profile saved successfully!", Toast.LENGTH_SHORT).show();
 
-        // Navigate directly to DashboardFragment
+        // Navigate to Dashboard
+        navigateToDashboard();
+    }
+
+    private void navigateToDashboard() {
         HomeDashboardFragment dashboardFragment = new HomeDashboardFragment();
         requireActivity().getSupportFragmentManager()
                 .beginTransaction()

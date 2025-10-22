@@ -1,6 +1,8 @@
 package com.example.hygienebuddy;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -23,30 +25,25 @@ public class OnboardingActivity extends AppCompatActivity {
         onboardingViewPager = findViewById(R.id.onboardingViewPager);
         tabIndicator = findViewById(R.id.tabIndicator);
 
-        // ensure swiping allowed
         onboardingViewPager.setUserInputEnabled(true);
 
-        // adapter
         onboardingAdapter = new OnboardingAdapter(this);
         onboardingViewPager.setAdapter(onboardingAdapter);
-
-        // keep pages alive (optional)
         onboardingViewPager.setOffscreenPageLimit(onboardingAdapter.getItemCount());
 
-        // attach dots
         new TabLayoutMediator(tabIndicator, onboardingViewPager,
-                (tab, position) -> { /* no labels */ }
-        ).attach();
+                (tab, position) -> { /* no labels */ }).attach();
     }
 
-    /** Called by fragments to go to next page */
-    public void goToNextPage() {
-        if (onboardingAdapter == null) return;
-        int current = onboardingViewPager.getCurrentItem();
-        int total = onboardingAdapter.getItemCount();
-        if (current < total - 1) {
-            onboardingViewPager.setCurrentItem(current + 1, true);
-        }
+    /** Called by the last onboarding fragment */
+    public void completeOnboarding() {
+        // Mark onboarding completed
+        SharedPreferences prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
+        prefs.edit().putBoolean("onboarding_completed", true).apply();
+
+        // Navigate to facilitator setup
+        startActivity(new Intent(this, MainActivity.class));
+        finish();
     }
 
     /** Called by fragments to jump to last page */
@@ -55,9 +52,11 @@ public class OnboardingActivity extends AppCompatActivity {
         onboardingViewPager.setCurrentItem(onboardingAdapter.getItemCount() - 1, true);
     }
 
-    /** Called by the last fragment to start MainActivity */
-    public void goToMain() {
-        startActivity(new Intent(OnboardingActivity.this, MainActivity.class));
-        finish();
+    /** move to next page programmatically */
+    public void goToNextPage() {
+        int current = onboardingViewPager.getCurrentItem();
+        if (current < onboardingAdapter.getItemCount() - 1) {
+            onboardingViewPager.setCurrentItem(current + 1, true);
+        }
     }
 }

@@ -13,7 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class SplashActivity extends AppCompatActivity {
 
-    private static final int SPLASH_DURATION = 3500; // total ~3.5s
+    private static final int SPLASH_DURATION = 3500; // ~3.5s
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,14 +23,13 @@ public class SplashActivity extends AppCompatActivity {
         ImageView logoImage = findViewById(R.id.logoImage);
         TextView appName = findViewById(R.id.appName);
 
-        // Wait 1s, then slide logo to the left
+        // Slide logo after 1s
         new Handler().postDelayed(() -> {
             TranslateAnimation slideLeft = new TranslateAnimation(0, -logoImage.getWidth(), 0, 0);
             slideLeft.setDuration(800);
             slideLeft.setFillAfter(true);
             logoImage.startAnimation(slideLeft);
 
-            // Fade in app name
             new Handler().postDelayed(() -> {
                 AlphaAnimation fadeIn = new AlphaAnimation(0, 1);
                 fadeIn.setDuration(800);
@@ -40,30 +39,22 @@ public class SplashActivity extends AppCompatActivity {
 
         }, 1000);
 
-        // Fade out app name, then decide next screen
-        new Handler().postDelayed(() -> {
-            AlphaAnimation fadeOut = new AlphaAnimation(1, 0);
-            fadeOut.setDuration(600);
-            appName.startAnimation(fadeOut);
-            appName.setAlpha(0);
+        // After splash, navigate properly
+        new Handler().postDelayed(this::navigateNext, SPLASH_DURATION);
+    }
 
-            // After fade-out ends, check setup status
-            new Handler().postDelayed(() -> {
-                // Retrieve setup state (default: false = not set up)
-                SharedPreferences prefs = getSharedPreferences("HygieneBuddyPrefs", MODE_PRIVATE);
-                boolean isSetup = prefs.getBoolean("isSetup", false);
+    private void navigateNext() {
+        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+        boolean onboardingCompleted = prefs.getBoolean("onboarding_completed", false);
 
-                Intent nextIntent;
-                if (isSetup) {
-                    nextIntent = new Intent(SplashActivity.this, OnboardingActivity.class); // replace with your dashboard
-                } else {
-                    nextIntent = new Intent(SplashActivity.this, OnboardingActivity.class); // your onboarding/setup
-                }
+        Intent nextIntent;
+        if (!onboardingCompleted) {
+            nextIntent = new Intent(this, OnboardingActivity.class);
+        } else {
+            nextIntent = new Intent(this, MainActivity.class);
+        }
 
-                startActivity(nextIntent);
-                finish();
-            }, 600);
-
-        }, SPLASH_DURATION);
+        startActivity(nextIntent);
+        finish();
     }
 }

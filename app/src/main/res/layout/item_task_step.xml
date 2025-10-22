@@ -16,7 +16,7 @@
         android:id="@+id/ivStepIcon"
         android:layout_width="32dp"
         android:layout_height="32dp"
-        android:src="@drawable/ic_checklist"
+        android:src="@drawable/ic_upload"
         android:contentDescription="Step icon"
         android:layout_marginEnd="12dp" />
 
@@ -32,7 +32,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Step 1: Instruction text"
-            android:textSize="16sp"
+            android:textSize="13sp"
             android:textColor="#000000"
             android:layout_marginBottom="2dp" />
 
@@ -58,7 +58,7 @@
             android:id="@+id/ivVideoStatus"
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:src="@drawable/ic_placeholder_video"
+            android:src="@drawable/ic_videocam_off"
             android:contentDescription="Video status"
             android:layout_marginEnd="8dp" />
 
@@ -68,10 +68,14 @@
             android:layout_width="wrap_content"
             android:layout_height="32dp"
             android:text="Upload"
-            android:textSize="12sp"
-            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:textSize="10sp"
+            android:gravity="center"
+            android:paddingHorizontal="12dp"
             android:minWidth="0dp"
-            android:paddingHorizontal="12dp" />
+            android:minHeight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            style="@style/Widget.Material3.Button.OutlinedButton"/>
 
     </LinearLayout>
 
