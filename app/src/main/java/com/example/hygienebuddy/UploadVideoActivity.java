@@ -14,9 +14,12 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
+import android.view.View;
+import android.view.ViewGroup;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -30,6 +33,7 @@ public class UploadVideoActivity extends AppCompatActivity {
     private ImageView btnBack;
     private TextView tvTaskTitle;
     private VideoView videoPreview;
+    private View videoContainer;
     private Button btnUploadVideo, btnSaveVideo;
     private Uri selectedVideoUri;
     private String taskName = "";
@@ -54,6 +58,7 @@ public class UploadVideoActivity extends AppCompatActivity {
         btnBack = findViewById(R.id.btnBack);
         tvTaskTitle = findViewById(R.id.tvTaskTitle);
         videoPreview = findViewById(R.id.videoPreview);
+        videoContainer = findViewById(R.id.layoutVideoContainer);
         btnUploadVideo = findViewById(R.id.btnUploadVideo);
         btnSaveVideo = findViewById(R.id.btnSaveVideo);
 
@@ -71,6 +76,11 @@ public class UploadVideoActivity extends AppCompatActivity {
 
         // Save video button
         btnSaveVideo.setOnClickListener(v -> saveVideoLocally());
+
+        // Resize container to 16:9 after layout
+        if (videoContainer != null) {
+            videoContainer.post(this::resizeVideoContainer);
+        }
     }
 
     /* private void openGallery() {
@@ -90,6 +100,19 @@ public class UploadVideoActivity extends AppCompatActivity {
         videoPreview.setVideoURI(videoUri);
         videoPreview.setOnPreparedListener(MediaPlayer::start);
         videoPreview.setOnCompletionListener(mp -> mp.seekTo(0));
+    }
+
+    private void resizeVideoContainer() {
+        if (videoContainer == null) return;
+        int width = videoContainer.getWidth();
+        if (width == 0) {
+            videoContainer.post(this::resizeVideoContainer);
+            return;
+        }
+        int height = Math.max((int)(width * 9f / 16f), 200);
+        ViewGroup.LayoutParams lp = videoContainer.getLayoutParams();
+        lp.height = height;
+        videoContainer.setLayoutParams(lp);
     }
 
     private void saveVideoLocally() {
@@ -133,6 +156,29 @@ public class UploadVideoActivity extends AppCompatActivity {
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "Unexpected error occurred", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (selectedVideoUri != null) {
+            outState.putString("selectedVideoUri", selectedVideoUri.toString());
+        }
+        outState.putString("taskName", taskName);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        String uri = savedInstanceState.getString("selectedVideoUri");
+        taskName = savedInstanceState.getString("taskName", taskName);
+        if (taskName != null && !taskName.isEmpty()) {
+            tvTaskTitle.setText("Upload " + taskName + " Video");
+        }
+        if (uri != null) {
+            selectedVideoUri = Uri.parse(uri);
+            previewVideo(selectedVideoUri);
         }
     }
 

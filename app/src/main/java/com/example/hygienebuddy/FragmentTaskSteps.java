@@ -93,8 +93,15 @@ public class FragmentTaskSteps extends Fragment {
         // Configure VideoView
         setupVideoView();
 
-        // Load steps and display the first one using current locale
-        reloadLocalizedResourcesPreserveIndex(false);
+        // Restore state if available
+        if (savedInstanceState != null) {
+            taskType = savedInstanceState.getString("taskType", taskType);
+            currentStepIndex = savedInstanceState.getInt("currentStepIndex", 0);
+            remainingTimeMillis = savedInstanceState.getLong("remainingTimeMillis", 0);
+        }
+
+        // Load steps and display using current locale, preserving index if restored
+        reloadLocalizedResourcesPreserveIndex(savedInstanceState != null);
 
         // "Next" button
         btnNext.setOnClickListener(v -> goToNextStep());
@@ -115,6 +122,12 @@ public class FragmentTaskSteps extends Fragment {
 
         // Set initial flag icon
         updateLangToggleIcon();
+
+        // Resize media container responsively after layout
+        View mediaContainer = view.findViewById(R.id.layoutMediaContainer);
+        if (mediaContainer != null) {
+            mediaContainer.post(this::resizeMediaContainer);
+        }
     }
 
     /** Configure VideoView */
@@ -287,6 +300,29 @@ public class FragmentTaskSteps extends Fragment {
                 tvSeconds.setText("00");
             }
         }.start();
+    }
+
+    private void resizeMediaContainer() {
+        View container = getView() != null ? getView().findViewById(R.id.layoutMediaContainer) : null;
+        if (container == null) return;
+        int width = container.getWidth();
+        if (width == 0) {
+            container.post(this::resizeMediaContainer);
+            return;
+        }
+        // Maintain 16:9 aspect ratio
+        int height = Math.max((int) (width * 9f / 16f), 200);
+        ViewGroup.LayoutParams lp = container.getLayoutParams();
+        lp.height = height;
+        container.setLayoutParams(lp);
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString("taskType", taskType);
+        outState.putInt("currentStepIndex", currentStepIndex);
+        outState.putLong("remainingTimeMillis", remainingTimeMillis);
     }
 
     /** Navigation */

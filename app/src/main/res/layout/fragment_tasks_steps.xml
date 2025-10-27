@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="12dp">
 
         <!-- Title + Speaker Icon -->
         <RelativeLayout
@@ -28,7 +28,7 @@
                 android:gravity="center"
                 android:text="@string/task_title_placeholder"
                 android:textColor="@color/black"
-                android:textSize="24sp"
+                android:textSize="22sp"
                 android:textStyle="bold" />
 
             <ImageView
@@ -49,33 +49,33 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/step_progress_placeholder"
-            android:textSize="16sp"
+            android:textSize="15sp"
             android:gravity="center"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="12dp" />
 
         <!-- Progress Bar -->
         <ProgressBar
             android:id="@+id/progressStep"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="8dp"
+            android:layout_height="6dp"
             android:progress="0"
             android:max="100"
             android:progressTint="#121417"
-            android:layout_marginBottom="24dp" />
+            android:layout_marginBottom="16dp" />
 
-        <!-- Video/Image Container -->
+        <!-- Video/Image Container (Bigger for landscape) -->
         <FrameLayout
             android:id="@+id/layoutMediaContainer"
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="320dp"
             android:layout_marginBottom="24dp"
             android:background="#D3D3D3"
             android:gravity="center">
 
             <VideoView
                 android:id="@+id/videoViewTask"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_gravity="center"
                 android:visibility="gone" />
@@ -108,19 +108,18 @@
             android:textSize="18sp"
             android:textColor="@color/black"
             android:gravity="center"
-            android:layout_marginBottom="32dp"
+            android:layout_marginBottom="24dp"
             android:lineSpacingExtra="4dp" />
 
-        <!-- Timer -->
+        <!-- Timer (Adjusted spacing) -->
         <LinearLayout
             android:id="@+id/layoutTimer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
-            android:layout_marginBottom="32dp">
+            android:layout_marginBottom="24dp">
 
-            <!-- Minutes -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -133,7 +132,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="00"
-                    android:textSize="32sp"
+                    android:textSize="28sp"
                     android:textStyle="bold"
                     android:textColor="@color/black" />
 
@@ -142,21 +141,19 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/ui_minutes"
-                    android:textSize="14sp"
+                    android:textSize="12sp"
                     android:textColor="#808080" />
             </LinearLayout>
 
-            <!-- Separator -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text=":"
-                android:textSize="32sp"
+                android:textSize="28sp"
                 android:textStyle="bold"
                 android:textColor="@color/black"
-                android:layout_marginHorizontal="8dp" />
+                android:layout_marginHorizontal="6dp" />
 
-            <!-- Seconds -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -169,7 +166,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="30"
-                    android:textSize="32sp"
+                    android:textSize="28sp"
                     android:textStyle="bold"
                     android:textColor="@color/black" />
 
@@ -178,7 +175,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/ui_seconds"
-                    android:textSize="14sp"
+                    android:textSize="12sp"
                     android:textColor="#808080" />
             </LinearLayout>
         </LinearLayout>
@@ -194,7 +191,7 @@
             android:background="@drawable/button_primary"
             android:textColor="@color/white"
             android:paddingVertical="12dp"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="12dp" />
 
         <Button
             android:id="@+id/btnQuiz"
@@ -206,7 +203,7 @@
             android:background="@drawable/button_primary"
             android:textColor="@color/white"
             android:paddingVertical="12dp"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="12dp"
             android:visibility="gone" />
 
         <Button
@@ -219,19 +216,19 @@
             android:background="@drawable/button_primary"
             android:textColor="@color/white"
             android:paddingVertical="12dp"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="12dp"
             android:visibility="gone" />
 
         <!-- Bottom-left Language Toggle -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="12dp">
 
             <ImageButton
                 android:id="@+id/btnLangToggle"
                 android:layout_width="32dp"
-                android:layout_height="20dp"
+                android:layout_height="35dp"
                 android:layout_gravity="start|bottom"
                 android:background="@android:color/transparent"
                 android:padding="0dp"
