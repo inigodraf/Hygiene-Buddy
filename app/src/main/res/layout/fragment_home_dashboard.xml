@@ -298,15 +298,31 @@
             </LinearLayout>
 
             <!-- Upcoming Tasks -->
-            <TextView
-                android:id="@+id/tvUpcomingHeader"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="UPCOMING TASKS"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:textColor="@color/black"
-                android:layout_marginBottom="8dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_reminder"
+                    android:contentDescription="Clock icon"
+                    android:layout_marginEnd="8dp"
+                    app:tint="#000000" />
+
+                <TextView
+                    android:id="@+id/tvUpcomingHeader"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="UPCOMING TASKS"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:textColor="@color/black" />
+            </LinearLayout>
 
             <!-- Dynamic task list container -->
             <LinearLayout

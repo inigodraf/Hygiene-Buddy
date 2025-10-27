@@ -119,22 +119,22 @@
                         android:textColor="#666666"
                         android:layout_marginBottom="16dp" />
 
-                    <LinearLayout
-                        android:id="@+id/layoutRemindersList"
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvReminders"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical">
+                        android:layout_marginBottom="8dp" />
 
-                        <TextView
-                            android:id="@+id/tvNoReminders"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="No reminders set"
-                            android:textSize="14sp"
-                            android:textColor="#999999"
-                            android:gravity="center"
-                            android:padding="16dp" />
-                    </LinearLayout>
+                    <TextView
+                        android:id="@+id/tvNoReminders"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="No reminders set"
+                        android:textSize="14sp"
+                        android:textColor="#999999"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:visibility="gone" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnAddReminder"

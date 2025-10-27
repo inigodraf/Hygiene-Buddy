@@ -1,71 +1,70 @@
 package com.example.hygienebuddy;
 
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.media.RingtoneManager;
-import android.net.Uri;
 import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
 
 public class ReminderReceiver extends BroadcastReceiver {
-    private static final String CHANNEL_ID = "hygiene_reminder_channel";
+
+    private static final String CHANNEL_ID = "reminder_channel";
+    private static final String CHANNEL_NAME = "Hygiene Reminders";
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        String text = intent.getStringExtra("reminder_text");
-        if (text == null) text = "It’s time for your hygiene task!";
+        String taskName = intent.getStringExtra("taskName");
+        int reminderId = intent.getIntExtra("reminderId", -1);
 
-        // 🔔 Create a Notification Channel (required for Android 8+)
+        // Create notification channel for Android 8.0+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "Hygiene Reminders",
+                    CHANNEL_NAME,
                     NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription("Reminders for Hygiene Buddy tasks");
-            channel.enableVibration(true);
-            channel.enableLights(true);
-
-            NotificationManager manager = context.getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(channel);
+            NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
             }
         }
 
-        // 🎵 Default notification sound
-        Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-
-        // 📱 Intent to open the app when notification is tapped
-        Intent openIntent = new Intent(context, MainActivity.class);
-        openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-
+        // Create intent to open Task Steps screen
+        Intent taskIntent = new Intent(context, MainActivity.class);
+        taskIntent.putExtra("openTask", taskName.toLowerCase());
+        taskIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 context,
-                0,
-                openIntent,
+                reminderId,
+                taskIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        // 🧩 Build the Notification
+        // Build notification
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_reminder) // ensure you have a valid drawable icon
-                .setContentTitle("Hygiene Buddy Reminder")
-                .setContentText(text)
+                .setSmallIcon(R.drawable.ic_reminder)
+                .setContentTitle("Reminder: " + taskName)
+                .setContentText("It's time to " + taskName.toLowerCase() + "!")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
+                .setDefaults(Notification.DEFAULT_SOUND | Notification.DEFAULT_VIBRATE)
                 .setContentIntent(pendingIntent)
-                .setSound(soundUri)
-                .setVibrate(new long[]{0, 500, 300, 500}); // vibrate pattern
+                .setAutoCancel(true);
 
-        // 🚀 Show the notification
-        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (manager != null) {
-            manager.notify((int) System.currentTimeMillis(), builder.build());
+        // Show notification
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (notificationManager != null) {
+            notificationManager.notify(reminderId, builder.build());
+        }
+
+        // If daily reminder, schedule next occurrence
+        String frequency = intent.getStringExtra("frequency");
+        if ("daily".equals(frequency)) {
+            ReminderManager.scheduleReminder(context, reminderId, taskName, intent.getStringExtra("time"), frequency);
         }
     }
 }

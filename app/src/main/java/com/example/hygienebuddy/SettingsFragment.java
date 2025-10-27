@@ -33,20 +33,30 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import android.app.TimePickerDialog;
+import android.widget.TimePicker;
+
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
 public class SettingsFragment extends Fragment {
 
-    private LinearLayout layoutTasksList, layoutRemindersList;
+    private LinearLayout layoutTasksList;
     private RecyclerView rvReinforcers, rvTasks;
     private MaterialButton btnListVideos, btnAddReminder, btnManageReinforcers;
     private TextView tvNoReminders;
 
     // Data placeholders (to be replaced by database integration)
-    private List<String> reminderList = new ArrayList<>();
     private List<String> reinforcersList = new ArrayList<>();
+
+    // Reminder management
+    private RecyclerView rvReminders;
+    private ReminderDatabaseHelper reminderDbHelper;
+    private ReminderAdapter reminderAdapter;
+    private List<ReminderModel> reminderList;
 
     // Video management
     private VideoManager videoManager;
@@ -70,13 +80,17 @@ public class SettingsFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_settings, container, false);
 
         //layoutTasksList = view.findViewById(R.id.layoutTasksList);
-        layoutRemindersList = view.findViewById(R.id.layoutRemindersList);
+        //layoutRemindersList = view.findViewById(R.id.layoutRemindersList);
         rvReinforcers = view.findViewById(R.id.rvReinforcers);
         rvTasks = view.findViewById(R.id.rvTasks);
+        rvReminders = view.findViewById(R.id.rvReminders);
         btnListVideos = view.findViewById(R.id.btnListVideos);
         btnAddReminder = view.findViewById(R.id.btnAddReminder);
         btnManageReinforcers = view.findViewById(R.id.btnManageReinforcers);
         tvNoReminders = view.findViewById(R.id.tvNoReminders);
+
+        // Initialize reminder database
+        reminderDbHelper = new ReminderDatabaseHelper(requireContext());
 
         // Initialize VideoManager
         videoManager = new VideoManager(requireContext());
@@ -92,8 +106,9 @@ public class SettingsFragment extends Fragment {
         btnListVideos.setOnClickListener(v -> showExistingVideosDialog());
 
         // --- Reminder Handling ---
-        btnAddReminder.setOnClickListener(v -> openReminderDialog());
-        displayReminders();
+        setupRemindersRecyclerView();
+        btnAddReminder.setOnClickListener(v -> showAddReminderDialog());
+        loadReminders();
 
         // --- Reinforcers Handling ---
         setupReinforcers();
@@ -438,47 +453,217 @@ public class SettingsFragment extends Fragment {
     // ---------------------------------------------------------------
     // REMINDER SYSTEM (ALARM MANAGER DEMO)
     // ---------------------------------------------------------------
-    private void openReminderDialog() {
-        String newReminder = "Handwashing Reminder - " + System.currentTimeMillis();
-        reminderList.add(newReminder);
-
-        scheduleReminder();
-        displayReminders();
+    private void setupRemindersRecyclerView() {
+        rvReminders.setLayoutManager(new LinearLayoutManager(getContext()));
+        reminderList = new ArrayList<>();
+        reminderAdapter = new ReminderAdapter(reminderList, new ReminderAdapter.OnReminderClickListener() {
+            @Override
+            public void onDeleteClick(int position, ReminderModel reminder) {
+                deleteReminder(reminder.getId());
+            }
+        });
+        rvReminders.setAdapter(reminderAdapter);
     }
 
-    private void displayReminders() {
-        layoutRemindersList.removeAllViews();
+    private void loadReminders() {
+        reminderList.clear();
+        reminderList.addAll(reminderDbHelper.getAllReminders());
+        reminderAdapter.notifyDataSetChanged();
+        updateRemindersVisibility();
+    }
+
+    private void updateRemindersVisibility() {
         if (reminderList.isEmpty()) {
             tvNoReminders.setVisibility(View.VISIBLE);
-            return;
-        }
-        tvNoReminders.setVisibility(View.GONE);
-
-        for (String reminder : reminderList) {
-            TextView tv = new TextView(getContext());
-            tv.setText(reminder);
-            tv.setTextSize(14f);
-            tv.setPadding(8, 8, 8, 8);
-            layoutRemindersList.addView(tv);
+            rvReminders.setVisibility(View.GONE);
+        } else {
+            tvNoReminders.setVisibility(View.GONE);
+            rvReminders.setVisibility(View.VISIBLE);
         }
     }
 
-    private void scheduleReminder() {
-        Context context = getContext();
-        if (context == null) return;
+    private void showAddReminderDialog() {
+        String[] taskOptions = {"Toothbrushing", "Handwashing"};
 
-        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(context, ReminderReceiver.class);
-        intent.putExtra("reminder_text", "Time for your hygiene task!");
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Add Reminder")
+                .setItems(taskOptions, (dialog, which) -> {
+                    String taskName = taskOptions[which];
+                    showFrequencyPicker(taskName);
+                })
+                .show();
+    }
 
+    private void showFrequencyPicker(String taskName) {
+        String[] frequencyOptions = {"Once", "Daily", "Weekly", "Custom Interval", "Multiple Times per Day"};
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Select Frequency")
+                .setItems(frequencyOptions, (dialog, which) -> {
+                    String frequency = frequencyOptions[which].toLowerCase().replace(" ", "");
+                    if (frequency.equals("custominterval")) {
+                        showCustomIntervalPicker(taskName);
+                    } else if (frequency.equals("multipletimesperday")) {
+                        showMultipleTimesPicker(taskName);
+                    } else if (frequency.equals("weekly")) {
+                        showWeeklyDaysPicker(taskName);
+                    } else {
+                        showTimePicker(taskName, frequency);
+                    }
+                })
+                .show();
+    }
+
+
+    private void showCustomIntervalPicker(String taskName) {
+        String[] intervalOptions = {"Every 2 days", "Every 3 days", "Every 4 days", "Every 5 days", "Every 6 days", "Every 7 days"};
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Select Custom Interval")
+                .setItems(intervalOptions, (dialog, which) -> {
+                    int interval = which + 2; // 2, 3, 4, 5, 6, 7 days
+                    showTimePicker(taskName, "custom",  interval, null);
+                })
+                .show();
+    }
+
+    private void showWeeklyDaysPicker(String taskName) {
+        String[] days = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+        boolean[] selectedDays = new boolean[7];
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Select Days of Week")
+                .setMultiChoiceItems(days, selectedDays, (dialog, which, isChecked) -> {
+                    selectedDays[which] = isChecked;
+                })
+                .setPositiveButton("Next", (dialog, which) -> {
+                    List<String> selectedDayNames = new ArrayList<>();
+                    String[] dayCodes = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+                    for (int i = 0; i < selectedDays.length; i++) {
+                        if (selectedDays[i]) {
+                            selectedDayNames.add(dayCodes[i]);
+                        }
+                    }
+                    if (selectedDayNames.isEmpty()) {
+                        Toast.makeText(getContext(), "Please select at least one day", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    String daysOfWeek = String.join(",", selectedDayNames);
+                    showTimePicker(taskName, "weekly", 0, daysOfWeek);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showMultipleTimesPicker(String taskName) {
+        List<String> times = new ArrayList<>();
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Add Times")
+                .setMessage("Add multiple times for this reminder. Tap 'Add Time' to add each time slot.")
+                .setPositiveButton("Add Time", (dialog, which) -> {
+                    addTimeToMultipleTimes(taskName, times);
+                })
+                .setNegativeButton("Done", (dialog, which) -> {
+                    if (times.isEmpty()) {
+                        Toast.makeText(getContext(), "Please add at least one time", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    String timesPerDay = String.join(",", times);
+                    saveReminder(taskName, times.get(0), "multiple", 0, null, timesPerDay);
+                })
+                .show();
+    }
+
+    private void addTimeToMultipleTimes(String taskName, List<String> times) {
         Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.SECOND, 10);
+        TimePickerDialog timePickerDialog = new TimePickerDialog(
+                requireContext(),
+                (view, hourOfDay, minute) -> {
+                    String time = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
+                    times.add(time);
 
-        if (alarmManager != null) {
-            alarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
-            Toast.makeText(context, "Reminder scheduled (demo)", Toast.LENGTH_SHORT).show();
+                    // Show dialog again to add more times or finish
+                    new MaterialAlertDialogBuilder(requireContext())
+                            .setTitle("Time Added: " + time)
+                            .setMessage("Add another time or finish?")
+                            .setPositiveButton("Add Another", (dialog, which) -> {
+                                addTimeToMultipleTimes(taskName, times);
+                            })
+                            .setNegativeButton("Done", (dialog, which) -> {
+                                String timesPerDay = String.join(",", times);
+                                saveReminder(taskName, times.get(0), "multiple", 0, null, timesPerDay);
+                            })
+                            .show();
+                },
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE),
+                false
+        );
+        timePickerDialog.show();
+    }
+
+    private void showTimePicker(String taskName, String frequency) {
+        showTimePicker(taskName, frequency, 0, null);
+    }
+
+    private void showTimePicker(String taskName, String frequency, int customInterval, String daysOfWeek) {
+        Calendar calendar = Calendar.getInstance();
+        TimePickerDialog timePickerDialog = new TimePickerDialog(
+                requireContext(),
+                (view, hourOfDay, minute) -> {
+                    String time = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
+                    saveReminder(taskName, time, frequency, customInterval, daysOfWeek, null);
+                },
+                calendar.get(Calendar.HOUR_OF_DAY),
+                calendar.get(Calendar.MINUTE),
+                false
+        );
+        timePickerDialog.show();
+    }
+
+    private void saveReminder(String taskName, String time, String frequency) {
+        saveReminder(taskName, time, frequency, 0, null, null);
+    }
+
+    private void saveReminder(String taskName, String time, String frequency, int customInterval, String daysOfWeek, String timesPerDay) {
+        ReminderModel reminder = new ReminderModel();
+        reminder.setTaskName(taskName);
+        reminder.setTime(time);
+        reminder.setFrequency(frequency);
+        reminder.setActive(true);
+
+        if (customInterval > 0) {
+            reminder.setCustomInterval(customInterval);
         }
+        if (daysOfWeek != null) {
+            reminder.setDaysOfWeek(daysOfWeek);
+        }
+        if (timesPerDay != null) {
+            reminder.setTimesPerDay(timesPerDay);
+        }
+
+        long id = reminderDbHelper.insertReminder(reminder);
+        if (id > 0) {
+            reminder.setId((int) id);
+            ReminderManager.scheduleReminder(requireContext(), reminder);
+            loadReminders();
+            Toast.makeText(getContext(), "Reminder added successfully", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void deleteReminder(int reminderId) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Delete Reminder")
+                .setMessage("Are you sure you want to delete this reminder?")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    ReminderManager.cancelReminder(requireContext(), reminderId);
+                    reminderDbHelper.deleteReminder(reminderId);
+                    loadReminders();
+                    Toast.makeText(getContext(), "Reminder deleted", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     // ---------------------------------------------------------------
@@ -546,3 +731,4 @@ public class SettingsFragment extends Fragment {
         view.post(() -> BottomNavHelper.setupBottomNav(this, "settings"));
     }
 }
+
