@@ -16,16 +16,14 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.navigation.NavController;
+import androidx.navigation.NavDestination;
 import androidx.navigation.Navigation;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 
 public class HomeDashboardFragment extends Fragment {
@@ -52,9 +50,6 @@ public class HomeDashboardFragment extends Fragment {
     // Today’s date
     private TextView tvTodayDate;
 
-    // Reminder database
-    private ReminderDatabaseHelper reminderDbHelper;
-
     // Containers for clickable navigation
     private LinearLayout layoutChildProfile, layoutTaskProgress, layoutPoints, layoutWeeklyStreak;
 
@@ -69,9 +64,6 @@ public class HomeDashboardFragment extends Fragment {
 
         View view = inflater.inflate(R.layout.fragment_home_dashboard, container, false);
 
-        // Initialize reminder database
-        reminderDbHelper = new ReminderDatabaseHelper(requireContext());
-
         // Bind UI elements
         bindViews(view);
 
@@ -80,21 +72,12 @@ public class HomeDashboardFragment extends Fragment {
         loadChildProfile(); //Dynamic profile: name, age, conditions
         loadMockTaskProgress();
         loadMockStreakData();
-        loadUpcomingReminders(); // Changed from loadMockUpcomingTasks()
+        loadMockUpcomingTasks();
 
         // Handle clicks & interactivity
         setupListeners(view);
 
         return view;
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        // Refresh reminders when returning to this screen
-        if (reminderDbHelper != null) {
-            loadUpcomingReminders();
-        }
     }
 
     @Override
@@ -193,64 +176,33 @@ public class HomeDashboardFragment extends Fragment {
     }
 
 
-    /** Load actual reminders from database and display them */
-    private void loadUpcomingReminders() {
+    /** Mock: dynamically adds upcoming task cards */
+    private void loadMockUpcomingTasks() {
         layoutUpcomingTasks.removeAllViews();
 
-        // Fetch active reminders from database
-        List<ReminderModel> reminders = reminderDbHelper.getActiveReminders();
+        String[] tasks = {"Handwashing", "Toothbrushing"};
+        String[] times = {"8:00 AM", "8:30 AM"};
 
-        if (reminders == null || reminders.isEmpty()) {
-            // Show placeholder text if no reminders
-            TextView noRemindersText = new TextView(getContext());
-            noRemindersText.setText("No upcoming tasks. Set reminders in Settings.");
-            noRemindersText.setTextSize(14);
-            noRemindersText.setTextColor(getResources().getColor(R.color.subtitle_text));
-            noRemindersText.setGravity(android.view.Gravity.CENTER);
-            noRemindersText.setPadding(20, 16, 20, 16);
-
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-            layoutUpcomingTasks.addView(noRemindersText, params);
-            return;
-        }
-
-        // Sort reminders by time (nearest first)
-        Collections.sort(reminders, new Comparator<ReminderModel>() {
-            @Override
-            public int compare(ReminderModel r1, ReminderModel r2) {
-                return r1.getTime().compareTo(r2.getTime());
-            }
-        });
-
-        // Display up to 5 upcoming reminders
-        int maxDisplay = Math.min(reminders.size(), 5);
-        for (int i = 0; i < maxDisplay; i++) {
-            ReminderModel reminder = reminders.get(i);
-
+        for (int i = 0; i < tasks.length; i++) {
             LinearLayout taskCard = new LinearLayout(getContext());
             taskCard.setOrientation(LinearLayout.VERTICAL);
             taskCard.setPadding(20, 16, 20, 16);
             taskCard.setBackgroundResource(R.drawable.rounded_card_light);
 
             TextView tvTaskName = new TextView(getContext());
-            tvTaskName.setText(reminder.getTaskName());
+            tvTaskName.setText(tasks[i]);
             tvTaskName.setTextSize(16);
             tvTaskName.setTextColor(getResources().getColor(R.color.black));
             tvTaskName.setTypeface(null, Typeface.BOLD);
 
             TextView tvTaskTime = new TextView(getContext());
-            String timeDisplay = formatReminderTimeDisplay(reminder);
-            tvTaskTime.setText("Scheduled: " + timeDisplay);
+            tvTaskTime.setText("Scheduled at " + times[i]);
             tvTaskTime.setTextSize(14);
             tvTaskTime.setTextColor(getResources().getColor(R.color.subtitle_text));
 
             taskCard.addView(tvTaskName);
             taskCard.addView(tvTaskTime);
 
-            // Make task card clickable to navigate to tasks screen
             taskCard.setOnClickListener(v -> safeNavigate(R.id.fragmentTasks));
 
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -262,97 +214,32 @@ public class HomeDashboardFragment extends Fragment {
         }
     }
 
-    /** Format time for display (convert 24-hour to 12-hour with AM/PM) */
-    private String formatTime(String time24) {
-        try {
-            SimpleDateFormat inputFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
-            SimpleDateFormat outputFormat = new SimpleDateFormat("h:mm a", Locale.getDefault());
-            Date date = inputFormat.parse(time24);
-            return outputFormat.format(date);
-        } catch (ParseException e) {
-            return time24; // Return original if parsing fails
-        }
-    }
-
-    /** Format reminder time display for dashboard */
-    private String formatReminderTimeDisplay(ReminderModel reminder) {
-        String time = formatTime(reminder.getTime());
-        String frequency = reminder.getFrequency();
-
-        switch (frequency) {
-            case "once":
-                return time + " (Once)";
-            case "daily":
-                return time + " (Daily)";
-            case "weekly":
-                String days = reminder.getDaysOfWeek();
-                if (days != null && !days.isEmpty()) {
-                    return time + " (" + days + ")";
-                }
-                return time + " (Weekly)";
-            case "custom":
-                int interval = reminder.getCustomInterval();
-                if (interval > 0) {
-                    return time + " (Every " + interval + " days)";
-                }
-                return time + " (Custom)";
-            case "multiple":
-                String timesPerDay = reminder.getTimesPerDay();
-                if (timesPerDay != null && !timesPerDay.isEmpty()) {
-                    String[] times = timesPerDay.split(",");
-                    if (times.length > 1) {
-                        return times.length + " times daily";
-                    }
-                }
-                return time + " (Multiple)";
-            default:
-                return time + " (" + capitalize(frequency) + ")";
-        }
-    }
-
-    private String capitalize(String text) {
-        if (text == null || text.isEmpty()) {
-            return text;
-        }
-        return text.substring(0, 1).toUpperCase(Locale.getDefault()) + text.substring(1).toLowerCase(Locale.getDefault());
-    }
 
     /** Handles navigation and user clicks */
     private void setupListeners(View view) {
         ivReminder.setOnClickListener(v -> safeNavigate(R.id.fragmentTasks));
-        layoutChildProfile.setOnClickListener(v -> navigateToManageProfile());
+        //layoutChildProfile.setOnClickListener(v -> safeNavigate(R.id.fragmentBadges));
+        layoutChildProfile.setOnClickListener(v -> safeNavigate(R.id.action_homeDashboardFragment_to_manageProfileFragment));
         layoutTaskProgress.setOnClickListener(v -> safeNavigate(R.id.fragmentReportSummary));
         layoutPoints.setOnClickListener(v -> safeNavigate(R.id.settingsFragment));
         layoutWeeklyStreak.setOnClickListener(v -> safeNavigate(R.id.fragmentTasks));
     }
 
-    /** Navigate to ManageProfileFragment */
-    private void navigateToManageProfile() {
-        try {
-            ManageProfileFragment manageProfileFragment = new ManageProfileFragment();
-            requireActivity().getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.fragment_container, manageProfileFragment)
-                    .addToBackStack(null)
-                    .commit();
-        } catch (Exception e) {
-            Toast.makeText(requireContext(), "Failed to open profile management", Toast.LENGTH_SHORT).show();
-        }
-    }
-
     /** Safe navigation helper using main NavHostFragment */
-    private void safeNavigate(int destinationId) {
+    private void safeNavigate(int actionId) {
         try {
-            NavController navController = Navigation.findNavController(requireActivity(), R.id.nav_host_fragment);
-            int current = navController.getCurrentDestination() != null
-                    ? navController.getCurrentDestination().getId()
-                    : -1;
+            NavController navController = Navigation.findNavController(requireView());
+            NavDestination currentDestination = navController.getCurrentDestination();
 
-            if (current != destinationId) {
-                navController.navigate(destinationId);
+            if (currentDestination != null) {
+                navController.navigate(actionId);
+            } else {
+                Toast.makeText(requireContext(), "Current destination not found.", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
-            Toast.makeText(requireContext(), "Navigation failed. Check nav_graph.xml.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Navigation failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
         }
     }
+
 }
