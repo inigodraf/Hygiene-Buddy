@@ -46,14 +46,13 @@
 
     </LinearLayout>
 
-    <!-- Video Status -->
+    <!-- Video Status & Upload -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
-        <!-- Video Status Icon -->
         <ImageView
             android:id="@+id/ivVideoStatus"
             android:layout_width="20dp"
@@ -62,7 +61,6 @@
             android:contentDescription="Video status"
             android:layout_marginEnd="8dp" />
 
-        <!-- Upload Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUploadStepVideo"
             android:layout_width="wrap_content"
@@ -75,8 +73,7 @@
             android:minHeight="0dp"
             android:insetTop="0dp"
             android:insetBottom="0dp"
-            style="@style/Widget.Material3.Button.OutlinedButton"/>
-
+            style="@style/Widget.Material3.Button.OutlinedButton" />
     </LinearLayout>
 
 </LinearLayout>

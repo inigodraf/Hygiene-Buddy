@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -13,7 +14,6 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.VideoView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -36,6 +36,11 @@ public class FragmentTaskSteps extends Fragment {
     private ProgressBar progressStep;
     private Button btnNext, btnQuiz, btnHome;
     private VideoView videoViewTask;
+
+    // 👁️ Eye tracker UI
+    private EyeTrackerHelper eyeTrackerHelper;
+    private SurfaceView eyeTrackerPreview;
+    private TextView tvFocusWarning;
 
     // Step data
     private List<TaskStep> steps;
@@ -82,6 +87,10 @@ public class FragmentTaskSteps extends Fragment {
         btnHome = view.findViewById(R.id.btnHome);
         videoViewTask = view.findViewById(R.id.videoViewTask);
 
+        // 👁️ Eye tracking UI
+        eyeTrackerPreview = view.findViewById(R.id.eyeTrackerPreview);
+        tvFocusWarning = view.findViewById(R.id.tvFocusWarning);
+
         // Initialize VideoManager
         videoManager = new VideoManager(requireContext());
 
@@ -103,12 +112,12 @@ public class FragmentTaskSteps extends Fragment {
         // Load steps and display using current locale, preserving index if restored
         reloadLocalizedResourcesPreserveIndex(savedInstanceState != null);
 
-        // "Next" button
+        // Buttons
         btnNext.setOnClickListener(v -> goToNextStep());
         btnQuiz.setOnClickListener(v -> navigateToQuiz());
         btnHome.setOnClickListener(v -> navigateToHome());
 
-        // Single-flag language toggle
+        // Language toggle
         btnLangToggle.setOnClickListener(v -> {
             String currentLang = LocaleManager.getLanguage(requireContext());
             if ("en".equals(currentLang)) {
@@ -123,7 +132,7 @@ public class FragmentTaskSteps extends Fragment {
         // Set initial flag icon
         updateLangToggleIcon();
 
-        // Resize media container responsively after layout
+        // Responsive layout fix
         View mediaContainer = view.findViewById(R.id.layoutMediaContainer);
         if (mediaContainer != null) {
             mediaContainer.post(this::resizeMediaContainer);
@@ -169,7 +178,6 @@ public class FragmentTaskSteps extends Fragment {
         tvInstruction.setText(current.getInstruction());
         progressStep.setProgress(current.getStepNumber());
 
-        // Video or fallback image
         boolean videoLoaded = loadCustomVideo(taskType, current.getStepNumber());
         if (!videoLoaded) {
             videoViewTask.setVisibility(View.GONE);
@@ -183,10 +191,11 @@ public class FragmentTaskSteps extends Fragment {
             autoPlayVideo();
         }
 
-        // Start timer
         startTimer((current.getMinutes() * 60L + current.getSeconds()) * 1000);
 
-        // Buttons and labels
+        // 👁️ Start eye tracking for this step
+        startEyeTracking();
+
         btnNext.setText(index == steps.size() - 1 ? getLocalizedString(R.string.ui_finish)
                 : getLocalizedString(R.string.ui_next));
         tvMinutesLabel.setText(getLocalizedString(R.string.ui_minutes));
@@ -195,6 +204,7 @@ public class FragmentTaskSteps extends Fragment {
 
     /** Next step */
     private void goToNextStep() {
+        stopEyeTracking(); // 👁️ Stop tracking before switching
         if (countDownTimer != null) countDownTimer.cancel();
         if (videoViewTask != null) videoViewTask.stopPlayback();
 
@@ -213,38 +223,26 @@ public class FragmentTaskSteps extends Fragment {
         }
     }
 
-    /** Reloads localized resources without restarting fragment */
     private void reloadLocalizedResourcesPreserveIndex(boolean preserveIndex) {
         loadSteps(taskType);
-        if (!preserveIndex) {
-            currentStepIndex = 0;
-        } else if (currentStepIndex >= steps.size()) {
-            currentStepIndex = steps.size() - 1;
-        }
+        if (!preserveIndex) currentStepIndex = 0;
+        else if (currentStepIndex >= steps.size()) currentStepIndex = steps.size() - 1;
         showStep(currentStepIndex);
     }
 
-    /** Returns localized Resources */
     private Resources getLocalizedResources() {
         return LocaleManager.getLocalizedResources(requireContext());
     }
 
-    /** Returns localized string */
     private String getLocalizedString(int resId) {
         return getLocalizedResources().getString(resId);
     }
 
-    /** Update flag icon based on current language */
     private void updateLangToggleIcon() {
         String lang = LocaleManager.getLanguage(requireContext());
-        if ("tl".equals(lang)) {
-            btnLangToggle.setImageResource(R.drawable.ic_flag_ph);
-        } else {
-            btnLangToggle.setImageResource(R.drawable.ic_flag_us);
-        }
+        btnLangToggle.setImageResource("tl".equals(lang) ? R.drawable.ic_flag_ph : R.drawable.ic_flag_us);
     }
 
-    // --- Video Handling ---
     private boolean loadCustomVideo(String taskType, int stepNumber) {
         try {
             File videoFile = videoManager.getStepVideoFile(taskType, stepNumber);
@@ -253,7 +251,11 @@ public class FragmentTaskSteps extends Fragment {
                 videoViewTask.setVideoURI(videoUri);
                 videoViewTask.setOnCompletionListener(mp -> videoViewTask.start());
                 videoViewTask.setOnErrorListener((mp, what, extra) -> { fallbackToImage(); return true; });
-                videoViewTask.setOnPreparedListener(mp -> { videoViewTask.setVisibility(View.VISIBLE); tvNoVideo.setVisibility(View.GONE); ivStepImage.setVisibility(View.GONE); });
+                videoViewTask.setOnPreparedListener(mp -> {
+                    videoViewTask.setVisibility(View.VISIBLE);
+                    tvNoVideo.setVisibility(View.GONE);
+                    ivStepImage.setVisibility(View.GONE);
+                });
                 return true;
             }
         } catch (Exception e) { e.printStackTrace(); }
@@ -274,7 +276,6 @@ public class FragmentTaskSteps extends Fragment {
         }
     }
 
-    /** Timer */
     private void startTimer(long durationMillis) {
         if (durationMillis <= 0) {
             tvMinutes.setText("00");
@@ -310,22 +311,58 @@ public class FragmentTaskSteps extends Fragment {
             container.post(this::resizeMediaContainer);
             return;
         }
-        // Maintain 16:9 aspect ratio
         int height = Math.max((int) (width * 9f / 16f), 200);
         ViewGroup.LayoutParams lp = container.getLayoutParams();
         lp.height = height;
         container.setLayoutParams(lp);
     }
 
-    @Override
-    public void onSaveInstanceState(@NonNull Bundle outState) {
-        super.onSaveInstanceState(outState);
-        outState.putString("taskType", taskType);
-        outState.putInt("currentStepIndex", currentStepIndex);
-        outState.putLong("remainingTimeMillis", remainingTimeMillis);
+    // 👁️ Start/Stop Eye Tracking
+    private void startEyeTracking() {
+        if (eyeTrackerHelper != null) {
+            eyeTrackerHelper.stop();
+        }
+
+        if (androidx.core.content.ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.CAMERA)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            androidx.core.app.ActivityCompat.requestPermissions(
+                    requireActivity(),
+                    new String[]{android.Manifest.permission.CAMERA},
+                    101
+            );
+            return;
+        }
+
+        eyeTrackerHelper = new EyeTrackerHelper(requireContext(), getViewLifecycleOwner(), new EyeTrackerHelper.EyeTrackerListener() {
+            @Override
+            public void onUserLookAway() {
+                requireActivity().runOnUiThread(() -> tvFocusWarning.setVisibility(View.VISIBLE));
+            }
+
+            @Override
+            public void onUserLookBack() {
+                requireActivity().runOnUiThread(() -> tvFocusWarning.setVisibility(View.GONE));
+            }
+        });
+
+        eyeTrackerHelper.startEyeTracking(eyeTrackerPreview);
     }
 
-    /** Navigation */
+    private void stopEyeTracking() {
+        if (eyeTrackerHelper != null) {
+            eyeTrackerHelper.stop();
+            eyeTrackerHelper = null;
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (countDownTimer != null) countDownTimer.cancel();
+        if (videoViewTask != null) videoViewTask.stopPlayback();
+        stopEyeTracking();
+    }
+
     private void navigateToQuiz() {
         FragmentQuiz fragmentQuiz = new FragmentQuiz();
         Bundle args = new Bundle();
@@ -345,12 +382,5 @@ public class FragmentTaskSteps extends Fragment {
                 .replace(R.id.fragment_container, homeFragment)
                 .addToBackStack(null)
                 .commit();
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        if (countDownTimer != null) countDownTimer.cancel();
-        if (videoViewTask != null) videoViewTask.stopPlayback();
     }
 }

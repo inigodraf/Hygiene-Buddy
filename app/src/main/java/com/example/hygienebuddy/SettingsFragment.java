@@ -18,7 +18,9 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
+import android.content.SharedPreferences;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -64,6 +66,13 @@ public class SettingsFragment extends Fragment {
     private ActivityResultLauncher<Intent> videoRecorderLauncher;
     private String currentTaskSelected = "";
     private int currentStepSelected = 0;
+
+    // Language settings
+    private RadioGroup rgLanguageOptions;
+    private RadioButton rbEnglish, rbFilipino;
+    private SharedPreferences preferences;
+    private SharedPreferences.Editor editor;
+
 
     // Permission launcher
     private ActivityResultLauncher<String[]> permissionLauncher;
@@ -115,7 +124,39 @@ public class SettingsFragment extends Fragment {
         btnManageReinforcers.setOnClickListener(v ->
                 Toast.makeText(getContext(), "Manage Reinforcers Clicked", Toast.LENGTH_SHORT).show()
         );
+        // --- Language Settings ---
+                rgLanguageOptions = view.findViewById(R.id.rgLanguageOptions);
+                rbEnglish = view.findViewById(R.id.rbEnglish);
+                rbFilipino = view.findViewById(R.id.rbFilipino);
 
+                preferences = requireContext().getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+                editor = preferences.edit();
+
+        // Load saved language
+                String savedLang = preferences.getString("language", "English");
+                if (savedLang.equals("Filipino")) {
+                    rbFilipino.setChecked(true);
+                } else {
+                    rbEnglish.setChecked(true);
+                }
+
+        // Handle user changing language
+                rgLanguageOptions.setOnCheckedChangeListener((group, checkedId) -> {
+                    String selectedLang;
+                    if (checkedId == R.id.rbFilipino) {
+                        selectedLang = "Filipino";
+                    } else {
+                        selectedLang = "English";
+                    }
+
+                    editor.putString("language", selectedLang);
+                    editor.apply();
+
+                    Toast.makeText(getContext(), "Language set to " + selectedLang, Toast.LENGTH_SHORT).show();
+
+                    // Optional: if you want to refresh UI texts after translation support
+                    // requireActivity().recreate();
+                });
         return view;
     }
 
@@ -730,5 +771,8 @@ public class SettingsFragment extends Fragment {
         // ✅ Delay setup until view hierarchy is ready
         view.post(() -> BottomNavHelper.setupBottomNav(this, "settings"));
     }
+
+
+
 }
 
