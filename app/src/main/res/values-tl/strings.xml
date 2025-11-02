@@ -13,11 +13,23 @@
     <string name="handwashing_title">Routine sa Paghuhugas ng Kamay</string>
 
     <string-array name="toothbrushing_steps">
+        <item>Kunin ang iyong sipilyo.</item>
         <item>Basain ang sipilyo gamit ang tubig.</item>
-        <item>Maglagay ng toothpaste — kasinlaki ng gisantes.</item>
-        <item>Marahang magsipilyo ng 2 minuto.</item>
-        <item>Banlawan ang bibig at ang sipilyo.</item>
+        <item>Buksan ang takip ng toothpaste.</item>
+        <item>Maglagay ng kaunting toothpaste sa sipilyo.</item>
+        <item>Isara ang takip ng toothpaste.</item>
+        <item>Simulang sipilyuhin ang mga ngipin sa itaas na harap.</item>
+        <item>Sipilyuhin ang mga ngipin sa itaas na kaliwang bahagi.</item>
+        <item>Sipilyuhin ang mga ngipin sa itaas na kanang bahagi.</item>
+        <item>Sipilyuhin ang mga ngipin sa ibabang harap.</item>
+        <item>Sipilyuhin ang mga ngipin sa ibabang kaliwang bahagi.</item>
+        <item>Sipilyuhin ang mga ngipin sa ibabang kanang bahagi.</item>
+        <item>Marahang sipilyuhin ang dila.</item>
+        <item>Idura ang toothpaste sa lababo.</item>
+        <item>Banlawan ang bibig gamit ang tubig.</item>
+        <item>Banlawan ang sipilyo at ibalik ito sa lalagyan.</item>
     </string-array>
+
 
     <string-array name="handwashing_steps">
         <item>Tukuyin ang mga kailangang gamit (sabon, tubig, tuwalya).</item>

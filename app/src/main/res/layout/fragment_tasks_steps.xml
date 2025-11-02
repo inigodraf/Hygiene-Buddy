@@ -17,13 +17,13 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="12dp">
+            android:padding="16dp">
 
             <!-- Title + Speaker Icon -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp">
+                android:layout_marginBottom="12dp">
 
                 <TextView
                     android:id="@+id/tvTaskTitle"
@@ -68,11 +68,11 @@
                 android:progressTint="#121417"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Video/Image Container -->
+            <!-- Main Task Video (larger 400dp height) -->
             <FrameLayout
                 android:id="@+id/layoutMediaContainer"
                 android:layout_width="match_parent"
-                android:layout_height="320dp"
+                android:layout_height="400dp"
                 android:layout_marginBottom="24dp"
                 android:background="#D3D3D3"
                 android:gravity="center">
@@ -112,116 +112,89 @@
                 android:textSize="18sp"
                 android:textColor="@color/black"
                 android:gravity="center"
-                android:layout_marginBottom="24dp"
+                android:layout_marginBottom="10dp"
                 android:lineSpacingExtra="4dp" />
 
-            <!-- Timer -->
+            <!-- 👁 Small Camera Preview (square + higher) -->
             <LinearLayout
-                android:id="@+id/layoutTimer"
+                android:id="@+id/layoutCameraPreview"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:gravity="center"
-                android:layout_marginBottom="24dp">
+                android:layout_marginTop="0dp"
+                android:layout_marginBottom="50dp">
 
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
+                <FrameLayout
+                    android:layout_width="180dp"
+                    android:layout_height="180dp"
+                    android:layout_gravity="center"
+                    android:background="#D3D3D3"
+                    android:elevation="5dp"
+                    android:translationY="10dp">
 
-                    <TextView
-                        android:id="@+id/tvMinutes"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="00"
-                        android:textSize="28sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/black" />
+                    <androidx.camera.view.PreviewView
+                        android:id="@+id/eyeTrackerPreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="fitCenter"
+                        android:adjustViewBounds="true"
+                        android:layout_gravity="center" />
 
-                    <TextView
-                        android:id="@+id/tvMinutesLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/ui_minutes"
-                        android:textSize="12sp"
-                        android:textColor="#808080" />
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=":"
-                    android:textSize="28sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/black"
-                    android:layout_marginHorizontal="6dp" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/tvSeconds"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="30"
-                        android:textSize="28sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/black" />
-
-                    <TextView
-                        android:id="@+id/tvSecondsLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/ui_seconds"
-                        android:textSize="12sp"
-                        android:textColor="#808080" />
-                </LinearLayout>
+                    <com.example.hygienebuddy.GraphicOverlay
+                        android:id="@+id/graphicOverlay"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+                </FrameLayout>
             </LinearLayout>
 
-            <!-- Buttons -->
-            <Button
-                android:id="@+id/btnNext"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/next_button"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:background="@drawable/button_primary"
-                android:textColor="@color/white"
-                android:paddingVertical="12dp"
-                android:layout_marginBottom="12dp" />
 
-            <Button
-                android:id="@+id/btnQuiz"
+            <!-- Buttons (moved slightly lower) -->
+            <LinearLayout
+                android:id="@+id/layoutButtons"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/take_quiz"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:background="@drawable/button_primary"
-                android:textColor="@color/white"
-                android:paddingVertical="12dp"
-                android:layout_marginBottom="12dp"
-                android:visibility="gone" />
+                android:orientation="vertical"
+                android:layout_marginTop="20dp">
 
-            <Button
-                android:id="@+id/btnHome"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/back_to_home"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:background="@drawable/button_primary"
-                android:textColor="@color/white"
-                android:paddingVertical="12dp"
-                android:layout_marginBottom="12dp"
-                android:visibility="gone" />
+                <Button
+                    android:id="@+id/btnNext"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/next_button"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/button_primary"
+                    android:textColor="@color/white"
+                    android:paddingVertical="12dp"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/btnQuiz"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/take_quiz"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/button_primary"
+                    android:textColor="@color/white"
+                    android:paddingVertical="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btnHome"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/back_to_home"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/button_primary"
+                    android:textColor="@color/white"
+                    android:paddingVertical="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:visibility="gone" />
+            </LinearLayout>
 
             <!-- Language Toggle -->
             <FrameLayout
@@ -241,13 +214,6 @@
             </FrameLayout>
         </LinearLayout>
     </ScrollView>
-
-    <!-- 👁 Eye Tracker Preview (hidden) -->
-    <SurfaceView
-        android:id="@+id/eyeTrackerPreview"
-        android:layout_width="1dp"
-        android:layout_height="1dp"
-        android:visibility="gone" />
 
     <!-- ⚠ Focus Warning Banner -->
     <TextView

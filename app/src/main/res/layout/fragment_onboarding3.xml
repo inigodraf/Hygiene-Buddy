@@ -1,4 +1,7 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#DCF5F8">
@@ -6,45 +9,54 @@
     <!-- Top Header -->
     <LinearLayout
         android:id="@+id/topHeader"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="30dp"
-        android:background="#DCF5F8">
+        android:paddingHorizontal="24dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="8dp"
+        android:background="#DCF5F8"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <TextView
             android:id="@+id/appTitle"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Hygiene Buddy"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="#121417"
-            android:textFontWeight="700" />
-
+            android:textColor="#121417" />
     </LinearLayout>
 
-    <!-- Logo in center -->
-
-    <!-- Bottom White Container -->
+    <!-- Center Logo (auto-scaled) -->
     <ImageView
         android:id="@+id/logoImage"
-        android:layout_width="500dp"
-        android:layout_height="600dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:adjustViewBounds="true"
         android:contentDescription="Onboarding Logo"
         android:scaleType="fitCenter"
-        android:src="@drawable/app_logo" />
+        android:src="@drawable/app_logo"
+        app:layout_constraintTop_toBottomOf="@id/topHeader"
+        app:layout_constraintBottom_toTopOf="@id/bottomContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.4"
+        app:layout_constraintDimensionRatio="3:4" />
 
+    <!-- Bottom White Container -->
     <LinearLayout
         android:id="@+id/bottomContainer"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="24dp"
         android:background="@android:color/white"
-        android:layout_alignParentBottom="true">
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <TextView
             android:id="@+id/onboardingTitle"
@@ -53,9 +65,7 @@
             android:text="Support Every Step of the Way"
             android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="#121417"
-            android:gravity="left"
-            android:textFontWeight="700" />
+            android:textColor="#121417" />
 
         <TextView
             android:id="@+id/onboardingSubtitle"
@@ -64,8 +74,7 @@
             android:layout_marginTop="8dp"
             android:text="Personalized caregiver and teacher tools provide consistent guidance for children."
             android:textSize="14sp"
-            android:textColor="#272C2A"
-            android:gravity="left"/>
+            android:textColor="#272C2A" />
 
         <Button
             android:id="@+id/btnGetStarted"
@@ -76,9 +85,7 @@
             android:text="Get Started"
             android:textAllCaps="false"
             android:textColor="@android:color/white"
-            android:paddingVertical="15dp"
-            android:textFontWeight="750" />
-
+            android:paddingVertical="14dp" />
     </LinearLayout>
 
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

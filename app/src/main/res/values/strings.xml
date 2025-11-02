@@ -86,10 +86,21 @@
     <string name="handwashing_title">Handwashing Routine</string>
 
     <string-array name="toothbrushing_steps">
-        <item>Wet your toothbrush with water.</item>
-        <item>Apply toothpaste — about the size of a pea.</item>
-        <item>Brush your teeth gently for 2 minutes.</item>
-        <item>Rinse your mouth and toothbrush.</item>
+        <item>Pick up your toothbrush.</item>
+        <item>Rinse the toothbrush with water.</item>
+        <item>Open the toothpaste cap.</item>
+        <item>Squeeze a small amount of toothpaste onto the brush.</item>
+        <item>Close the toothpaste cap.</item>
+        <item>Start brushing your top front teeth.</item>
+        <item>Brush the top side teeth (left side).</item>
+        <item>Brush the top side teeth (right side).</item>
+        <item>Brush the bottom front teeth.</item>
+        <item>Brush the bottom side teeth (left side).</item>
+        <item>Brush the bottom side teeth (right side).</item>
+        <item>Gently brush your tongue.</item>
+        <item>Spit out the toothpaste into the sink.</item>
+        <item>Rinse your mouth with water.</item>
+        <item>Rinse your toothbrush and put it back in its holder.</item>
     </string-array>
 
     <string-array name="handwashing_steps">

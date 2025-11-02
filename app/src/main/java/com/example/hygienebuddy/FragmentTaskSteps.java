@@ -2,10 +2,7 @@ package com.example.hygienebuddy;
 
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.CountDownTimer;
-import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -17,6 +14,9 @@ import android.widget.VideoView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.camera.view.PreviewView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import android.content.res.Resources;
@@ -28,8 +28,7 @@ import java.util.Locale;
 public class FragmentTaskSteps extends Fragment {
 
     // UI elements
-    private TextView tvTaskTitle, tvStepProgress, tvInstruction, tvMinutes, tvSeconds, tvNoVideo;
-    private TextView tvMinutesLabel, tvSecondsLabel;
+    private TextView tvTaskTitle, tvStepProgress, tvInstruction, tvNoVideo;
     private ImageView ivStepImage;
     private ImageView btnSpeaker;
     private ImageButton btnLangToggle;
@@ -37,18 +36,15 @@ public class FragmentTaskSteps extends Fragment {
     private Button btnNext, btnQuiz, btnHome;
     private VideoView videoViewTask;
 
-    // 👁️ Eye tracker UI
+    // 👁️ Eye tracking UI
     private EyeTrackerHelper eyeTrackerHelper;
-    private SurfaceView eyeTrackerPreview;
+    private PreviewView eyeTrackerPreview;
+    private GraphicOverlay graphicOverlay;
     private TextView tvFocusWarning;
 
     // Step data
     private List<TaskStep> steps;
     private int currentStepIndex = 0;
-
-    // Timer
-    private CountDownTimer countDownTimer;
-    private long remainingTimeMillis = 0;
 
     // Task type
     private String taskType;
@@ -69,14 +65,10 @@ public class FragmentTaskSteps extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Bind views
+        // Bind UI
         tvTaskTitle = view.findViewById(R.id.tvTaskTitle);
         tvStepProgress = view.findViewById(R.id.tvStepProgress);
         tvInstruction = view.findViewById(R.id.tvInstruction);
-        tvMinutes = view.findViewById(R.id.tvMinutes);
-        tvSeconds = view.findViewById(R.id.tvSeconds);
-        tvMinutesLabel = view.findViewById(R.id.tvMinutesLabel);
-        tvSecondsLabel = view.findViewById(R.id.tvSecondsLabel);
         tvNoVideo = view.findViewById(R.id.tvNoVideo);
         ivStepImage = view.findViewById(R.id.ivStepImage);
         btnSpeaker = view.findViewById(R.id.btnSpeaker);
@@ -87,30 +79,21 @@ public class FragmentTaskSteps extends Fragment {
         btnHome = view.findViewById(R.id.btnHome);
         videoViewTask = view.findViewById(R.id.videoViewTask);
 
-        // 👁️ Eye tracking UI
+        // Eye tracking
         eyeTrackerPreview = view.findViewById(R.id.eyeTrackerPreview);
+        graphicOverlay = view.findViewById(R.id.graphicOverlay);
         tvFocusWarning = view.findViewById(R.id.tvFocusWarning);
 
-        // Initialize VideoManager
         videoManager = new VideoManager(requireContext());
 
-        // Get taskType from bundle
-        if (getArguments() != null) {
+        // Get task type from arguments
+        if (getArguments() != null)
             taskType = getArguments().getString("taskType", "toothbrushing");
-        }
 
-        // Configure VideoView
         setupVideoView();
 
-        // Restore state if available
-        if (savedInstanceState != null) {
-            taskType = savedInstanceState.getString("taskType", taskType);
-            currentStepIndex = savedInstanceState.getInt("currentStepIndex", 0);
-            remainingTimeMillis = savedInstanceState.getLong("remainingTimeMillis", 0);
-        }
-
-        // Load steps and display using current locale, preserving index if restored
-        reloadLocalizedResourcesPreserveIndex(savedInstanceState != null);
+        // Load steps
+        reloadLocalizedResourcesPreserveIndex(false);
 
         // Buttons
         btnNext.setOnClickListener(v -> goToNextStep());
@@ -120,23 +103,16 @@ public class FragmentTaskSteps extends Fragment {
         // Language toggle
         btnLangToggle.setOnClickListener(v -> {
             String currentLang = LocaleManager.getLanguage(requireContext());
-            if ("en".equals(currentLang)) {
-                LocaleManager.setLanguage(requireContext(), "tl");
-            } else {
-                LocaleManager.setLanguage(requireContext(), "en");
-            }
+            LocaleManager.setLanguage(requireContext(), currentLang.equals("en") ? "tl" : "en");
             reloadLocalizedResourcesPreserveIndex(true);
             updateLangToggleIcon();
         });
 
-        // Set initial flag icon
         updateLangToggleIcon();
 
-        // Responsive layout fix
+        // Adjust media container
         View mediaContainer = view.findViewById(R.id.layoutMediaContainer);
-        if (mediaContainer != null) {
-            mediaContainer.post(this::resizeMediaContainer);
-        }
+        if (mediaContainer != null) mediaContainer.post(this::resizeMediaContainer);
     }
 
     /** Configure VideoView */
@@ -144,31 +120,26 @@ public class FragmentTaskSteps extends Fragment {
         videoViewTask.setMediaController(null);
     }
 
-    /** Loads task steps based on selected type using localized resources */
+    /** Load localized task steps */
     private void loadSteps(String type) {
         steps = new ArrayList<>();
         if (type.equals("toothbrushing")) {
             tvTaskTitle.setText(getLocalizedString(R.string.toothbrushing_title));
             String[] arr = getLocalizedResources().getStringArray(R.array.toothbrushing_steps);
             for (int i = 0; i < arr.length; i++) {
-                int minutes = (i == 2) ? 2 : 0;
-                int seconds = (i == 2) ? 0 : (i == 0 ? 15 : (i == 1 ? 15 : 20));
-                steps.add(new TaskStep(i + 1, arr[i], R.drawable.ic_toothbrush, minutes, seconds, "toothbrushing"));
+                steps.add(new TaskStep(i + 1, arr[i], R.drawable.ic_toothbrush, 0, 0, "toothbrushing"));
             }
         } else if (type.equals("handwashing")) {
             tvTaskTitle.setText(getLocalizedString(R.string.handwashing_title));
             String[] arr = getLocalizedResources().getStringArray(R.array.handwashing_steps);
-            int[] secondsByIndex = new int[] {5,5,10,3,5,5,20,3,10,3,5,3,10,3};
             for (int i = 0; i < arr.length; i++) {
-                int minutes = 0;
-                int seconds = secondsByIndex[i];
-                steps.add(new TaskStep(i + 1, arr[i], R.drawable.ic_handwashing, minutes, seconds, "handwashing"));
+                steps.add(new TaskStep(i + 1, arr[i], R.drawable.ic_handwashing, 0, 0, "handwashing"));
             }
         }
         progressStep.setMax(steps.size());
     }
 
-    /** Displays the current step */
+    /** Show current step */
     private void showStep(int index) {
         if (index < 0 || index >= steps.size()) return;
         TaskStep current = steps.get(index);
@@ -191,21 +162,16 @@ public class FragmentTaskSteps extends Fragment {
             autoPlayVideo();
         }
 
-        startTimer((current.getMinutes() * 60L + current.getSeconds()) * 1000);
-
         // 👁️ Start eye tracking for this step
         startEyeTracking();
 
         btnNext.setText(index == steps.size() - 1 ? getLocalizedString(R.string.ui_finish)
                 : getLocalizedString(R.string.ui_next));
-        tvMinutesLabel.setText(getLocalizedString(R.string.ui_minutes));
-        tvSecondsLabel.setText(getLocalizedString(R.string.ui_seconds));
     }
 
-    /** Next step */
+    /** Go to next step */
     private void goToNextStep() {
-        stopEyeTracking(); // 👁️ Stop tracking before switching
-        if (countDownTimer != null) countDownTimer.cancel();
+        stopEyeTracking();
         if (videoViewTask != null) videoViewTask.stopPlayback();
 
         if (currentStepIndex < steps.size() - 1) {
@@ -223,6 +189,7 @@ public class FragmentTaskSteps extends Fragment {
         }
     }
 
+    /** Reload localized steps */
     private void reloadLocalizedResourcesPreserveIndex(boolean preserveIndex) {
         loadSteps(taskType);
         if (!preserveIndex) currentStepIndex = 0;
@@ -250,7 +217,10 @@ public class FragmentTaskSteps extends Fragment {
                 Uri videoUri = Uri.fromFile(videoFile);
                 videoViewTask.setVideoURI(videoUri);
                 videoViewTask.setOnCompletionListener(mp -> videoViewTask.start());
-                videoViewTask.setOnErrorListener((mp, what, extra) -> { fallbackToImage(); return true; });
+                videoViewTask.setOnErrorListener((mp, what, extra) -> {
+                    fallbackToImage();
+                    return true;
+                });
                 videoViewTask.setOnPreparedListener(mp -> {
                     videoViewTask.setVisibility(View.VISIBLE);
                     tvNoVideo.setVisibility(View.GONE);
@@ -258,7 +228,9 @@ public class FragmentTaskSteps extends Fragment {
                 });
                 return true;
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return false;
     }
 
@@ -276,33 +248,6 @@ public class FragmentTaskSteps extends Fragment {
         }
     }
 
-    private void startTimer(long durationMillis) {
-        if (durationMillis <= 0) {
-            tvMinutes.setText("00");
-            tvSeconds.setText("00");
-            return;
-        }
-
-        remainingTimeMillis = durationMillis;
-        countDownTimer = new CountDownTimer(durationMillis, 1000) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-                remainingTimeMillis = millisUntilFinished;
-                int totalSeconds = (int) (millisUntilFinished / 1000);
-                int minutes = totalSeconds / 60;
-                int seconds = totalSeconds % 60;
-                tvMinutes.setText(String.format(Locale.getDefault(), "%02d", minutes));
-                tvSeconds.setText(String.format(Locale.getDefault(), "%02d", seconds));
-            }
-
-            @Override
-            public void onFinish() {
-                tvMinutes.setText("00");
-                tvSeconds.setText("00");
-            }
-        }.start();
-    }
-
     private void resizeMediaContainer() {
         View container = getView() != null ? getView().findViewById(R.id.layoutMediaContainer) : null;
         if (container == null) return;
@@ -317,15 +262,13 @@ public class FragmentTaskSteps extends Fragment {
         container.setLayoutParams(lp);
     }
 
-    // 👁️ Start/Stop Eye Tracking
+    // 👁️ Start Eye Tracking
     private void startEyeTracking() {
-        if (eyeTrackerHelper != null) {
-            eyeTrackerHelper.stop();
-        }
+        if (eyeTrackerHelper != null) eyeTrackerHelper.stop();
 
-        if (androidx.core.content.ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.CAMERA)
+        if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.CAMERA)
                 != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            androidx.core.app.ActivityCompat.requestPermissions(
+            ActivityCompat.requestPermissions(
                     requireActivity(),
                     new String[]{android.Manifest.permission.CAMERA},
                     101
@@ -333,19 +276,21 @@ public class FragmentTaskSteps extends Fragment {
             return;
         }
 
-        eyeTrackerHelper = new EyeTrackerHelper(requireContext(), getViewLifecycleOwner(), new EyeTrackerHelper.EyeTrackerListener() {
-            @Override
-            public void onUserLookAway() {
-                requireActivity().runOnUiThread(() -> tvFocusWarning.setVisibility(View.VISIBLE));
-            }
+        eyeTrackerHelper = new EyeTrackerHelper(requireContext(), getViewLifecycleOwner(),
+                new EyeTrackerHelper.EyeTrackerListener() {
+                    @Override
+                    public void onUserLookAway() {
+                        requireActivity().runOnUiThread(() -> tvFocusWarning.setVisibility(View.VISIBLE));
+                    }
 
-            @Override
-            public void onUserLookBack() {
-                requireActivity().runOnUiThread(() -> tvFocusWarning.setVisibility(View.GONE));
-            }
-        });
+                    @Override
+                    public void onUserLookBack() {
+                        requireActivity().runOnUiThread(() -> tvFocusWarning.setVisibility(View.GONE));
+                    }
+                });
 
-        eyeTrackerHelper.startEyeTracking(eyeTrackerPreview);
+        // ✅ Updated version with overlay support
+        eyeTrackerHelper.startEyeTracking(eyeTrackerPreview, graphicOverlay);
     }
 
     private void stopEyeTracking() {
@@ -358,7 +303,6 @@ public class FragmentTaskSteps extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        if (countDownTimer != null) countDownTimer.cancel();
         if (videoViewTask != null) videoViewTask.stopPlayback();
         stopEyeTracking();
     }

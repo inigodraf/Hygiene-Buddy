@@ -1,4 +1,6 @@
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F9E9B5">
@@ -6,11 +8,15 @@
     <!-- Top Header -->
     <LinearLayout
         android:id="@+id/topHeader"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="30dp"
-        android:background="#F9E9B5">
+        android:paddingHorizontal="24dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="8dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <TextView
             android:id="@+id/appTitle"
@@ -20,8 +26,7 @@
             android:text="Hygiene Buddy"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="#121417"
-            android:textFontWeight="700"/>
+            android:textColor="#121417" />
 
         <TextView
             android:id="@+id/btnSkip"
@@ -31,31 +36,36 @@
             android:textSize="16sp"
             android:textColor="#7C7C7C"
             android:clickable="true"
-            android:focusable="true"
-            android:textFontWeight="700"/>
+            android:focusable="true" />
     </LinearLayout>
 
-    <!-- Logo in center -->
-
-    <!-- Bottom White Container -->
-
+    <!-- Centered Logo (auto scales across devices) -->
     <ImageView
         android:id="@+id/logoImage"
-        android:layout_width="500dp"
-        android:layout_height="600dp"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:adjustViewBounds="true"
-        android:contentDescription="Onboarding Logo"
         android:scaleType="fitCenter"
-        android:src="@drawable/app_logo" />
+        android:src="@drawable/app_logo"
+        android:contentDescription="App logo"
+        app:layout_constraintTop_toBottomOf="@id/topHeader"
+        app:layout_constraintBottom_toTopOf="@id/bottomContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.4"
+        app:layout_constraintDimensionRatio="3:4" />
 
+    <!-- Bottom White Container -->
     <LinearLayout
         android:id="@+id/bottomContainer"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="24dp"
         android:background="@android:color/white"
-        android:layout_alignParentBottom="true">
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <TextView
             android:id="@+id/onboardingTitle"
@@ -64,9 +74,7 @@
             android:text="Building Healthy Routines Together"
             android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="#121417"
-            android:gravity="left"
-            android:textFontWeight="700"/>
+            android:textColor="#121417" />
 
         <TextView
             android:id="@+id/onboardingSubtitle"
@@ -75,8 +83,7 @@
             android:layout_marginTop="8dp"
             android:text="A fun and supportive app that helps neurodivergent children with hygiene routines."
             android:textSize="14sp"
-            android:textColor="#272C2A"
-            android:gravity="left"/>
+            android:textColor="#272C2A" />
 
         <Button
             android:id="@+id/btnNext"
@@ -84,11 +91,10 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:backgroundTint="#000000"
-            android:paddingVertical="15dp"
+            android:paddingVertical="14dp"
             android:text="Next"
             android:textAllCaps="false"
-            android:textColor="@android:color/white"
-            android:textFontWeight="750" />
+            android:textColor="@android:color/white" />
     </LinearLayout>
 
-</RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
