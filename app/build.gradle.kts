@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.vision.common)
     implementation(libs.play.services.tasks)
     implementation(libs.camera.core)
+    implementation(libs.media3.ui)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

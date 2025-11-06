@@ -186,6 +186,10 @@ public class FragmentTaskSteps extends Fragment {
             ivStepImage.setImageResource(R.drawable.ic_placeholder_video);
             videoViewTask.setVisibility(View.GONE);
             tvNoVideo.setVisibility(View.GONE);
+            // Record task completion for badge progress/unlocks
+            try {
+                new BadgeManager(requireContext()).recordTaskCompletion(taskType);
+            } catch (Exception ignored) {}
         }
     }
 

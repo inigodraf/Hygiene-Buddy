@@ -10,6 +10,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
@@ -38,6 +39,12 @@ public class BadgeAdapter extends RecyclerView.Adapter<BadgeAdapter.BadgeViewHol
         holder.tvBadgeTitle.setText(badge.getTitle());
         holder.tvBadgeDescription.setText(badge.getDescription());
 
+        // Themed badge icon (prefer explicit imageKey when available)
+        int iconRes = (badge.getImageKey() != null && !badge.getImageKey().isEmpty())
+                ? BadgeThemeManager.getBadgeIconResByKey(context, badge.getImageKey())
+                : BadgeThemeManager.getBadgeIconRes(context, badge.getTitle());
+        holder.ivBadgeIcon.setImageResource(iconRes);
+
         if (badge.isEarned()) {
             // Show earned badge details
             holder.layoutProgress.setVisibility(View.GONE);
@@ -58,9 +65,19 @@ public class BadgeAdapter extends RecyclerView.Adapter<BadgeAdapter.BadgeViewHol
 
         holder.itemView.setOnClickListener(v -> {
             if (badge.isEarned()) {
-                Toast.makeText(context, "You earned the \"" + badge.getTitle() + "\" badge!", Toast.LENGTH_SHORT).show();
+                if (context instanceof FragmentActivity) {
+                    RewardPopupDialogFragment dialog = RewardPopupDialogFragment.newInstance(
+                            badge.getTitle(),
+                            badge.getDescription(),
+                            badge.getImageKey(),
+                            badge.getEarnedDate()
+                    );
+                    dialog.show(((FragmentActivity) context).getSupportFragmentManager(), "reward_popup");
+                } else {
+                    Toast.makeText(context, "You earned the \"" + badge.getTitle() + "\" badge!", Toast.LENGTH_SHORT).show();
+                }
             } else {
-                Toast.makeText(context, "Keep going! You're close to earning \"" + badge.getTitle() + "\"!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "This badge is locked. Keep completing tasks to unlock it!", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -74,7 +91,7 @@ public class BadgeAdapter extends RecyclerView.Adapter<BadgeAdapter.BadgeViewHol
         TextView tvBadgeTitle, tvBadgeDescription, tvProgressText, tvEarnedDate;
         View layoutProgress;
         ProgressBar progressBar;
-        ImageView ivStatusIndicator;
+        ImageView ivStatusIndicator, ivBadgeIcon;
 
         public BadgeViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -85,6 +102,7 @@ public class BadgeAdapter extends RecyclerView.Adapter<BadgeAdapter.BadgeViewHol
             tvProgressText = itemView.findViewById(R.id.tvProgressText);
             tvEarnedDate = itemView.findViewById(R.id.tvEarnedDate);
             ivStatusIndicator = itemView.findViewById(R.id.ivStatusIndicator);
+            ivBadgeIcon = itemView.findViewById(R.id.ivBadgeIcon);
         }
     }
 }

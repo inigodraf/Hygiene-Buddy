@@ -5,9 +5,14 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -19,6 +24,18 @@ public class FragmentBadges extends Fragment {
 
     private RecyclerView rvEarnedBadges, rvAllBadges;
     private TextView tvMotivationMessage;
+    private List<BadgeModel> cachedAllBadges;
+    private List<BadgeModel> cachedEarnedBadges;
+    private BadgeAdapter earnedAdapter;
+    private BadgeAdapter allAdapter;
+    private BadgeRepository badgeRepository;
+    private final BroadcastReceiver themeChangedReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (earnedAdapter != null) earnedAdapter.notifyDataSetChanged();
+            if (allAdapter != null) allAdapter.notifyDataSetChanged();
+        }
+    };
 
     @Nullable
     @Override
@@ -33,27 +50,27 @@ public class FragmentBadges extends Fragment {
         rvEarnedBadges.setLayoutManager(new LinearLayoutManager(getContext()));
         rvAllBadges.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        // Sample data (replace later with actual logic or SQLite data)
-        List<BadgeModel> allBadges = getMockBadges();
-        List<BadgeModel> earnedBadges = new ArrayList<>();
-
-        for (BadgeModel badge : allBadges) {
+        // Repository-backed data
+        badgeRepository = new BadgeRepository(requireContext());
+        cachedAllBadges = badgeRepository.getAllBadges();
+        cachedEarnedBadges = new ArrayList<>();
+        for (BadgeModel badge : cachedAllBadges) {
             if (badge.isEarned()) {
-                earnedBadges.add(badge);
+                cachedEarnedBadges.add(badge);
             }
         }
 
         // Set adapters
-        BadgeAdapter earnedAdapter = new BadgeAdapter(getContext(), earnedBadges);
-        BadgeAdapter allAdapter = new BadgeAdapter(getContext(), allBadges);
+        earnedAdapter = new BadgeAdapter(getContext(), cachedEarnedBadges);
+        allAdapter = new BadgeAdapter(getContext(), cachedAllBadges);
         rvEarnedBadges.setAdapter(earnedAdapter);
         rvAllBadges.setAdapter(allAdapter);
 
         // Motivation text
-        if (earnedBadges.isEmpty()) {
+        if (cachedEarnedBadges.isEmpty()) {
             tvMotivationMessage.setText("You're just getting started! Complete tasks to earn your first badge!");
         } else {
-            tvMotivationMessage.setText("You're doing great! You've earned " + earnedBadges.size() + " badge(s)! Keep going!");
+            tvMotivationMessage.setText("You're doing great! You've earned " + cachedEarnedBadges.size() + " badge(s)! Keep going!");
         }
 
         return view;
@@ -67,14 +84,39 @@ public class FragmentBadges extends Fragment {
         view.post(() -> BottomNavHelper.setupBottomNav(this, "badges"));
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh from DB and rebind to reflect theme changes
+        refreshBadges();
+    }
 
-    private List<BadgeModel> getMockBadges() {
-        List<BadgeModel> badges = new ArrayList<>();
-        badges.add(new BadgeModel("First Step", "Completed your first hygiene task!", true, "2025-10-01", 0, 0));
-        badges.add(new BadgeModel("Consistency Champ", "Completed tasks for 5 consecutive days!", false, null, 3, 5));
-        badges.add(new BadgeModel("Super Cleaner", "Completed all hygiene routines this week!", false, null, 4, 7));
-        badges.add(new BadgeModel("Helper Star", "Assisted a friend during hygiene time!", true, "2025-09-28", 0, 0));
-        return badges;
+    @Override
+    public void onStart() {
+        super.onStart();
+        ContextCompat.registerReceiver(requireContext(), themeChangedReceiver, new IntentFilter(BadgeThemeManager.ACTION_BADGE_THEME_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        try {
+            requireContext().unregisterReceiver(themeChangedReceiver);
+        } catch (Exception ignored) {}
+    }
+
+
+    private void refreshBadges() {
+        if (badgeRepository == null) return;
+        cachedAllBadges = badgeRepository.getAllBadges();
+        cachedEarnedBadges.clear();
+        for (BadgeModel badge : cachedAllBadges) {
+            if (badge.isEarned()) {
+                cachedEarnedBadges.add(badge);
+            }
+        }
+        if (earnedAdapter != null) earnedAdapter.notifyDataSetChanged();
+        if (allAdapter != null) allAdapter.notifyDataSetChanged();
     }
 }
 

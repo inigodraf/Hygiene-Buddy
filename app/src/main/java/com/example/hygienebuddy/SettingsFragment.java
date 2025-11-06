@@ -17,6 +17,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.RadioGroup;
+import android.widget.RadioButton;
 import android.widget.Toast;
 import android.widget.VideoView;
 import android.media.MediaCodec;
@@ -51,9 +53,11 @@ import java.util.Locale;
 
 public class SettingsFragment extends Fragment {
 
-    private RecyclerView rvReinforcers, rvTasks, rvReminders;
-    private MaterialButton btnListVideos, btnAddReminder, btnManageReinforcers;
+    private RecyclerView rvTasks, rvReminders;
+    private MaterialButton btnListVideos, btnAddReminder;
     private TextView tvNoReminders;
+    private RadioGroup rgBadgeTheme;
+    private RadioButton rbBubbleQuest, rbCleanHeroes;
 
     // Video management
     private VideoManager videoManager;
@@ -89,13 +93,14 @@ public class SettingsFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_settings, container, false);
 
-        rvReinforcers = view.findViewById(R.id.rvReinforcers);
         rvTasks = view.findViewById(R.id.rvTasks);
         rvReminders = view.findViewById(R.id.rvReminders);
         btnListVideos = view.findViewById(R.id.btnListVideos);
         btnAddReminder = view.findViewById(R.id.btnAddReminder);
-        btnManageReinforcers = view.findViewById(R.id.btnManageReinforcers);
         tvNoReminders = view.findViewById(R.id.tvNoReminders);
+        rgBadgeTheme = view.findViewById(R.id.rgBadgeTheme);
+        rbBubbleQuest = view.findViewById(R.id.rbBubbleQuest);
+        rbCleanHeroes = view.findViewById(R.id.rbCleanHeroes);
 
         // Initialize helpers
         reminderDbHelper = new ReminderDatabaseHelper(requireContext());
@@ -114,10 +119,9 @@ public class SettingsFragment extends Fragment {
         btnAddReminder.setOnClickListener(v -> showAddReminderDialog());
         loadReminders();
 
-        setupReinforcers();
-        btnManageReinforcers.setOnClickListener(v ->
-                Toast.makeText(getContext(), "Manage Reinforcers Clicked", Toast.LENGTH_SHORT).show()
-        );
+
+        // Badge Theme setup
+        setupBadgeThemeSelector();
 
         View btnImportVoice = view.findViewById(R.id.btnImportVoice);
         if (btnImportVoice != null)
@@ -125,6 +129,24 @@ public class SettingsFragment extends Fragment {
 
 
         return view;
+    }
+
+    private void setupBadgeThemeSelector() {
+        if (rgBadgeTheme == null || rbBubbleQuest == null || rbCleanHeroes == null) return;
+        BadgeThemeManager.Theme current = BadgeThemeManager.getCurrentTheme(requireContext());
+        if (current == BadgeThemeManager.Theme.CLEAN_HEROES) {
+            rbCleanHeroes.setChecked(true);
+        } else {
+            rbBubbleQuest.setChecked(true);
+        }
+
+        rgBadgeTheme.setOnCheckedChangeListener((group, checkedId) -> {
+            BadgeThemeManager.Theme selected = checkedId == R.id.rbCleanHeroes
+                    ? BadgeThemeManager.Theme.CLEAN_HEROES
+                    : BadgeThemeManager.Theme.BUBBLE_QUEST;
+            BadgeThemeManager.setCurrentTheme(requireContext(), selected);
+            Toast.makeText(getContext(), "Badge theme set to " + (selected == BadgeThemeManager.Theme.CLEAN_HEROES ? "Clean Heroes" : "Bubble Quest"), Toast.LENGTH_SHORT).show();
+        });
     }
 
     // ---------------------------------------------------------------
@@ -455,13 +477,6 @@ public class SettingsFragment extends Fragment {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
-    }
-
-    private void setupReinforcers() {
-        reinforcersList.add("Sticker Option 1");
-        reinforcersList.add("Sticker Option 2");
-        rvReinforcers.setLayoutManager(new GridLayoutManager(getContext(), 2));
-        rvReinforcers.setAdapter(new ReinforcerAdapter(reinforcersList));
     }
 
     static class ReinforcerAdapter extends RecyclerView.Adapter<ReinforcerAdapter.ViewHolder> {

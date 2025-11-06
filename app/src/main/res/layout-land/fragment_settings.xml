@@ -126,51 +126,6 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Reinforcers -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_marginHorizontal="32dp"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="3dp"
-                app:cardUseCompatPadding="true">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:id="@+id/tvReinforcersTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Reinforcers"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="#000000"
-                        android:layout_marginBottom="8dp" />
-
-                    <TextView
-                        android:id="@+id/tvReinforcersDesc"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Choose preferred reinforcers (rewards)."
-                        android:textSize="14sp"
-                        android:textColor="#666666"
-                        android:layout_marginBottom="16dp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnManageReinforcers"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Manage Rewards"
-                        android:textSize="14sp"
-                        style="@style/Widget.Material3.Button.OutlinedButton" />
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-
             <!-- Voice Cloning -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"

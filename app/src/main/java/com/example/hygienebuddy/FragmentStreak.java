@@ -155,6 +155,10 @@ public class FragmentStreak extends Fragment {
         // Update streak count
         currentStreakCount = calculateCurrentStreak();
         tvCurrentStreak.setText(String.valueOf(currentStreakCount));
+        // Notify BadgeManager of current streak for badge unlocks/progress
+        try {
+            new BadgeManager(requireContext()).updateDailyStreak(currentStreakCount);
+        } catch (Exception ignored) {}
     }
 
     private void addEmptyCell() {
