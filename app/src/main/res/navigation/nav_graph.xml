@@ -13,6 +13,10 @@
         <action
             android:id="@+id/action_homeDashboardFragment_to_manageProfileFragment"
             app:destination="@id/manageProfileFragment" />
+
+        <action
+            android:id="@+id/action_homeDashboardFragment_to_fragmentReportSummary"
+            app:destination="@id/fragmentReportSummary" />
     </fragment>
 
     <!-- Child Profile Setup -->
@@ -21,17 +25,17 @@
         android:name="com.example.hygienebuddy.ChildProfileSetupFragment"
         android:label="Manage Profile" >
 
-    <action
-        android:id="@+id/action_childProfileSetupFragment_to_homeDashboardFragment"
-        app:destination="@id/homeDashboardFragment"
-        app:popUpTo="@id/childProfileSetupFragment"
-        app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_childProfileSetupFragment_to_homeDashboardFragment"
+            app:destination="@id/homeDashboardFragment"
+            app:popUpTo="@id/childProfileSetupFragment"
+            app:popUpToInclusive="true" />
     </fragment>
 
     <fragment
-    android:id="@+id/manageProfileFragment"
-    android:name="com.example.hygienebuddy.ManageProfileFragment"
-    android:label="Manage Profile" />
+        android:id="@+id/manageProfileFragment"
+        android:name="com.example.hygienebuddy.ManageProfileFragment"
+        android:label="Manage Profile" />
 
     <!-- Tasks -->
     <fragment

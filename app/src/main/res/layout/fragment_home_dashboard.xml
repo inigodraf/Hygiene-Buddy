@@ -245,13 +245,16 @@
                     android:textColor="@color/black" />
 
                 <TextView
+                    android:id="@+id/tvViewAllStreak"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="View All"
                     android:textColor="#12A3ED"
                     android:textSize="14sp"
                     android:paddingStart="16dp"
-                    android:paddingEnd="8dp" />
+                    android:paddingEnd="8dp"
+                    android:clickable="true"
+                    android:focusable="true" />
             </LinearLayout>
 
             <LinearLayout

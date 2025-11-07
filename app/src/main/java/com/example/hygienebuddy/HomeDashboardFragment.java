@@ -16,6 +16,8 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 import androidx.navigation.NavController;
 import androidx.navigation.NavDestination;
@@ -46,7 +48,7 @@ public class HomeDashboardFragment extends Fragment {
 
     // Streak section
     private LinearLayout layoutStreakDays;
-    private TextView tvCompletedTotal, tvLongestStreak;
+    private TextView tvCompletedTotal, tvLongestStreak, tvViewAllStreak;
 
     // Upcoming tasks section
     private LinearLayout layoutUpcomingTasks;
@@ -215,6 +217,7 @@ public class HomeDashboardFragment extends Fragment {
         layoutStreakDays = view.findViewById(R.id.layoutStreakDays);
         tvCompletedTotal = view.findViewById(R.id.tvCompletedTotal);
         tvLongestStreak = view.findViewById(R.id.tvLongestStreak);
+        tvViewAllStreak = view.findViewById(R.id.tvViewAllStreak);
         layoutUpcomingTasks = view.findViewById(R.id.layoutUpcomingTasks);
         tvTodayDate = view.findViewById(R.id.tvTodayDate);
 
@@ -757,7 +760,11 @@ public class HomeDashboardFragment extends Fragment {
             com.google.android.material.dialog.MaterialAlertDialogBuilder dialogBuilder =
                     new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                             .setView(dialogContainer)
-                            .setPositiveButton("Close", null);
+                            .setPositiveButton("Close", null)
+                            .setNeutralButton("Manage Reminders", (dialog, which) -> {
+                                // Navigate to Settings screen
+                                navigateToFragment(new SettingsFragment());
+                            });
 
             dialogBuilder.show();
 
@@ -862,6 +869,11 @@ public class HomeDashboardFragment extends Fragment {
         if (layoutWeeklyStreak != null) {
             layoutWeeklyStreak.setOnClickListener(v -> navigateToFragment(new FragmentTasks()));
         }
+
+        // "View All" button in streak section - navigate to Report Summary
+        if (tvViewAllStreak != null) {
+            tvViewAllStreak.setOnClickListener(v -> navigateToReportSummary());
+        }
     }
 
     /** Navigate to ManageProfileFragment */
@@ -877,6 +889,55 @@ public class HomeDashboardFragment extends Fragment {
             android.util.Log.e("HomeDashboard", "Error navigating to ManageProfile: " + e.getMessage(), e);
             if (getContext() != null) {
                 Toast.makeText(requireContext(), "Failed to open profile management", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    /** Navigate to Report Summary using the same approach as BottomNavHelper */
+    private void navigateToReportSummary() {
+        if (!isAdded()) {
+            android.util.Log.e("HomeDashboard", "Cannot navigate - fragment not added");
+            return;
+        }
+
+        try {
+            FragmentActivity activity = requireActivity();
+
+            // Use the same navigation approach as BottomNavHelper
+            // First try to find fragment_container (used by BottomNavHelper)
+            View fragmentContainer = activity.findViewById(R.id.fragment_container);
+            if (fragmentContainer != null) {
+                FragmentManager fm = activity.getSupportFragmentManager();
+                FragmentTransaction ft = fm.beginTransaction();
+                ft.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out);
+                ft.replace(R.id.fragment_container, new FragmentReportSummary());
+                ft.addToBackStack(null);
+                ft.commit();
+                android.util.Log.d("HomeDashboard", "Navigated to Report Summary using fragment_container (BottomNavHelper style)");
+                return;
+            }
+
+            // If fragment_container doesn't exist, use NavController (for NavHostFragment setup)
+            View view = getView();
+            if (view != null) {
+                try {
+                    NavController navController = Navigation.findNavController(view);
+                    navController.navigate(R.id.action_homeDashboardFragment_to_fragmentReportSummary);
+                    android.util.Log.d("HomeDashboard", "Navigated to Report Summary using NavController");
+                    return;
+                } catch (Exception e) {
+                    android.util.Log.w("HomeDashboard", "NavController navigation failed: " + e.getMessage());
+                }
+            }
+
+            // Last resort: Try to use BottomNavHelper's navigate method directly
+            android.util.Log.w("HomeDashboard", "Standard navigation failed, trying alternative approach");
+            Toast.makeText(requireContext(), "Failed to open Report Summary", Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            android.util.Log.e("HomeDashboard", "Error navigating to Report Summary: " + e.getMessage(), e);
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "Failed to open Report Summary", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -912,7 +973,7 @@ public class HomeDashboardFragment extends Fragment {
             } else if (fragment instanceof FragmentTasks) {
                 navController.navigate(R.id.fragmentTasks);
             } else if (fragment instanceof FragmentReportSummary) {
-                navController.navigate(R.id.fragmentReportSummary);
+                navController.navigate(R.id.action_homeDashboardFragment_to_fragmentReportSummary);
             } else if (fragment instanceof SettingsFragment) {
                 navController.navigate(R.id.settingsFragment);
             } else {
