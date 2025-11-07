@@ -473,9 +473,41 @@ public class SettingsFragment extends Fragment {
             android.util.Log.e("SettingsFragment", "Cannot load reminders - components not initialized");
             return;
         }
+        if (!isAdded()) {
+            android.util.Log.e("SettingsFragment", "Cannot load reminders - fragment not added");
+            return;
+        }
         try {
             reminderList.clear();
-            reminderList.addAll(reminderDbHelper.getAllReminders());
+
+            // Get current profile ID
+            android.content.SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
+            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            if (currentProfileId == -1) {
+                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+            }
+
+            // Load reminders filtered by profile ID
+            List<ReminderModel> profileReminders;
+            if (currentProfileId > 0) {
+                // Get all reminders (active and inactive) for this profile using profile-scoped query
+                profileReminders = reminderDbHelper.getAllRemindersByProfile(currentProfileId);
+
+                // Filter out global reminders (profile_id = 0) to show only profile-specific ones
+                List<ReminderModel> profileSpecificReminders = new ArrayList<>();
+                for (ReminderModel reminder : profileReminders) {
+                    if (reminder != null && reminder.getProfileId() != null && reminder.getProfileId() == currentProfileId) {
+                        profileSpecificReminders.add(reminder);
+                    }
+                }
+                reminderList.addAll(profileSpecificReminders);
+                android.util.Log.d("SettingsFragment", "Loaded reminders for profile ID: " + currentProfileId + ", found: " + profileSpecificReminders.size() + " profile-specific reminders");
+            } else {
+                // No profile selected - show all reminders (backward compatibility)
+                reminderList.addAll(reminderDbHelper.getAllReminders());
+                android.util.Log.d("SettingsFragment", "No profile selected, showing all reminders: " + reminderList.size());
+            }
+
             reminderAdapter.notifyDataSetChanged();
             tvNoReminders.setVisibility(reminderList.isEmpty() ? View.VISIBLE : View.GONE);
         } catch (Exception e) {
@@ -578,6 +610,21 @@ public class SettingsFragment extends Fragment {
                             reminder.setActive(true);
                             if (daysOfWeek != null) {
                                 reminder.setDaysOfWeek(daysOfWeek);
+                            }
+
+                            // Set profile_id to current profile (if available)
+                            android.content.SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
+                            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+                            if (currentProfileId == -1) {
+                                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                            }
+                            if (currentProfileId > 0) {
+                                reminder.setProfileId(currentProfileId);
+                                android.util.Log.d("SettingsFragment", "Setting reminder profile_id to: " + currentProfileId);
+                            } else {
+                                // No profile selected - reminder will be global (profile_id = 0)
+                                reminder.setProfileId(0);
+                                android.util.Log.d("SettingsFragment", "No profile selected - reminder will be global");
                             }
 
                             // Validate reminder before inserting
@@ -690,6 +737,15 @@ public class SettingsFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         view.post(() -> BottomNavHelper.setupBottomNav(this, "settings"));
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh reminders when resuming (profile may have changed)
+        if (reminderDbHelper != null && reminderAdapter != null) {
+            loadReminders();
+        }
     }
 
     // ---------------------------------------------------------------

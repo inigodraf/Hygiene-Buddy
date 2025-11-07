@@ -222,11 +222,87 @@ public class ReminderDatabaseHelper extends SQLiteOpenHelper {
         return reminders;
     }
 
+    /**
+     * Get all reminders (active and inactive) filtered by profile ID
+     * @param profileId The profile ID to filter by. Use 0 for global reminders, or -1 to get all reminders
+     * @return List of reminders for the specified profile (includes global reminders with profile_id = 0)
+     */
+    public List<ReminderModel> getAllRemindersByProfile(int profileId) {
+        List<ReminderModel> reminders = new ArrayList<>();
+        SQLiteDatabase db = getReadableDatabase();
+
+        String selection;
+        String[] selectionArgs;
+
+        if (profileId > 0) {
+            // Get reminders for specific profile OR global reminders (profile_id = 0)
+            selection = COLUMN_PROFILE_ID + " = ? OR " + COLUMN_PROFILE_ID + " = 0";
+            selectionArgs = new String[]{String.valueOf(profileId)};
+        } else if (profileId == 0) {
+            // Get only global reminders
+            selection = COLUMN_PROFILE_ID + " = 0";
+            selectionArgs = null;
+        } else {
+            // Get all reminders (profileId = -1)
+            return getAllReminders();
+        }
+
+        Cursor cursor = db.query(TABLE_REMINDERS, null, selection, selectionArgs, null, null, COLUMN_TIME + " ASC");
+
+        if (cursor.moveToFirst()) {
+            do {
+                reminders.add(createReminderFromCursor(cursor));
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+        db.close();
+        return reminders;
+    }
+
     public List<ReminderModel> getActiveReminders() {
         List<ReminderModel> reminders = new ArrayList<>();
         SQLiteDatabase db = getReadableDatabase();
         String selection = COLUMN_IS_ACTIVE + " = ?";
         String[] selectionArgs = {"1"};
+        Cursor cursor = db.query(TABLE_REMINDERS, null, selection, selectionArgs, null, null, COLUMN_TIME + " ASC");
+
+        if (cursor.moveToFirst()) {
+            do {
+                reminders.add(createReminderFromCursor(cursor));
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+        db.close();
+        return reminders;
+    }
+
+    /**
+     * Get active reminders filtered by profile ID
+     * @param profileId The profile ID to filter by. Use 0 for global reminders, or -1 to get all reminders
+     * @return List of reminders for the specified profile (includes global reminders with profile_id = 0)
+     */
+    public List<ReminderModel> getActiveRemindersByProfile(int profileId) {
+        List<ReminderModel> reminders = new ArrayList<>();
+        SQLiteDatabase db = getReadableDatabase();
+
+        String selection;
+        String[] selectionArgs;
+
+        if (profileId > 0) {
+            // Get reminders for specific profile OR global reminders (profile_id = 0)
+            selection = COLUMN_IS_ACTIVE + " = ? AND (" + COLUMN_PROFILE_ID + " = ? OR " + COLUMN_PROFILE_ID + " = 0)";
+            selectionArgs = new String[]{"1", String.valueOf(profileId)};
+        } else if (profileId == 0) {
+            // Get only global reminders
+            selection = COLUMN_IS_ACTIVE + " = ? AND " + COLUMN_PROFILE_ID + " = 0";
+            selectionArgs = new String[]{"1"};
+        } else {
+            // Get all active reminders (profileId = -1)
+            return getActiveReminders();
+        }
+
         Cursor cursor = db.query(TABLE_REMINDERS, null, selection, selectionArgs, null, null, COLUMN_TIME + " ASC");
 
         if (cursor.moveToFirst()) {

@@ -1,5 +1,6 @@
 package com.example.hygienebuddy;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,6 +30,7 @@ public class FragmentBadges extends Fragment {
     private BadgeAdapter earnedAdapter;
     private BadgeAdapter allAdapter;
     private BadgeRepository badgeRepository;
+    private int lastLoadedProfileId = -1;
     private final BroadcastReceiver themeChangedReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -50,28 +52,26 @@ public class FragmentBadges extends Fragment {
         rvEarnedBadges.setLayoutManager(new LinearLayoutManager(getContext()));
         rvAllBadges.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        // Repository-backed data
+        // Initialize repository
         badgeRepository = new BadgeRepository(requireContext());
-        cachedAllBadges = badgeRepository.getAllBadges();
+        cachedAllBadges = new ArrayList<>();
         cachedEarnedBadges = new ArrayList<>();
-        for (BadgeModel badge : cachedAllBadges) {
-            if (badge.isEarned()) {
-                cachedEarnedBadges.add(badge);
-            }
-        }
 
-        // Set adapters
+        // Initialize adapters with empty lists (will be populated in refreshBadges)
         earnedAdapter = new BadgeAdapter(getContext(), cachedEarnedBadges);
         allAdapter = new BadgeAdapter(getContext(), cachedAllBadges);
         rvEarnedBadges.setAdapter(earnedAdapter);
         rvAllBadges.setAdapter(allAdapter);
 
-        // Motivation text
-        if (cachedEarnedBadges.isEmpty()) {
-            tvMotivationMessage.setText("You're just getting started! Complete tasks to earn your first badge!");
-        } else {
-            tvMotivationMessage.setText("You're doing great! You've earned " + cachedEarnedBadges.size() + " badge(s)! Keep going!");
+        // Initialize last loaded profile ID
+        SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
+        lastLoadedProfileId = sharedPref.getInt("current_profile_id", -1);
+        if (lastLoadedProfileId == -1) {
+            lastLoadedProfileId = sharedPref.getInt("selected_profile_id", -1);
         }
+
+        // Load badges for current profile
+        refreshBadges();
 
         return view;
     }
@@ -87,7 +87,7 @@ public class FragmentBadges extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // Refresh from DB and rebind to reflect theme changes
+        // Refresh badges when resuming (profile may have changed)
         refreshBadges();
     }
 
@@ -107,16 +107,92 @@ public class FragmentBadges extends Fragment {
 
 
     private void refreshBadges() {
-        if (badgeRepository == null) return;
+        if (badgeRepository == null || !isAdded()) return;
+
+        // Get current profile ID
+        SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
+        int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+        if (currentProfileId == -1) {
+            currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+        }
+
+        // Check if profile has changed
+        boolean profileChanged = (currentProfileId != lastLoadedProfileId);
+
+        if (profileChanged) {
+            android.util.Log.d("FragmentBadges", "Profile changed from " + lastLoadedProfileId + " to " + currentProfileId);
+            lastLoadedProfileId = currentProfileId;
+        }
+
+        // Load all badges from database (structure is the same for all profiles)
         cachedAllBadges = badgeRepository.getAllBadges();
+
+        // Create profile-scoped badge models with unlock status and progress from SharedPreferences
+        List<BadgeModel> profileScopedBadges = new ArrayList<>();
         cachedEarnedBadges.clear();
+
         for (BadgeModel badge : cachedAllBadges) {
-            if (badge.isEarned()) {
-                cachedEarnedBadges.add(badge);
+            if (badge == null) continue;
+
+            String badgeKey = badge.getImageKey();
+            if (badgeKey == null || badgeKey.isEmpty()) {
+                // If no key, use database values
+                profileScopedBadges.add(badge);
+                if (badge.isEarned()) {
+                    cachedEarnedBadges.add(badge);
+                }
+                continue;
+            }
+
+            // Get profile-scoped unlock status and progress
+            String unlockKey = "badge_unlocked_" + badgeKey + "_profile_" + currentProfileId;
+            String progressKey = "badge_progress_" + badgeKey + "_profile_" + currentProfileId;
+            String earnedDateKey = "badge_earned_date_" + badgeKey + "_profile_" + currentProfileId;
+
+            boolean isUnlocked = sharedPref.getBoolean(unlockKey, false);
+            int progress = sharedPref.getInt(progressKey, 0);
+            String earnedDate = sharedPref.getString(earnedDateKey, null);
+
+            // Create profile-scoped badge model
+            BadgeModel profileBadge = new BadgeModel(
+                    badge.getTitle(),
+                    badge.getDescription(),
+                    isUnlocked,
+                    earnedDate,
+                    progress,
+                    badge.getGoal(),
+                    badgeKey
+            );
+
+            profileScopedBadges.add(profileBadge);
+            if (isUnlocked) {
+                cachedEarnedBadges.add(profileBadge);
             }
         }
-        if (earnedAdapter != null) earnedAdapter.notifyDataSetChanged();
-        if (allAdapter != null) allAdapter.notifyDataSetChanged();
+
+        // Update cached badges with profile-scoped data
+        cachedAllBadges = profileScopedBadges;
+
+        // Update adapters
+        if (earnedAdapter != null) {
+            earnedAdapter.setBadges(cachedEarnedBadges);
+            earnedAdapter.notifyDataSetChanged();
+        }
+        if (allAdapter != null) {
+            allAdapter.setBadges(cachedAllBadges);
+            allAdapter.notifyDataSetChanged();
+        }
+
+        // Update motivation message
+        if (tvMotivationMessage != null) {
+            if (cachedEarnedBadges.isEmpty()) {
+                tvMotivationMessage.setText("You're just getting started! Complete tasks to earn your first badge!");
+            } else {
+                tvMotivationMessage.setText("You're doing great! You've earned " + cachedEarnedBadges.size() + " badge(s)! Keep going!");
+            }
+        }
+
+        android.util.Log.d("FragmentBadges", "Refreshed badges for profile ID: " + currentProfileId + " - Earned: " + cachedEarnedBadges.size() + ", Total: " + cachedAllBadges.size());
     }
 }
 

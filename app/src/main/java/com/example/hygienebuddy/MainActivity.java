@@ -21,25 +21,25 @@ public class MainActivity extends AppCompatActivity {
         boolean facilitatorSetupCompleted = prefs.getBoolean("facilitator_setup_completed", false);
         boolean childSetupCompleted = prefs.getBoolean("child_setup_completed", false);
 
+        // Note: The NavHostFragment in activity_main.xml will automatically load
+        // the start destination (homeDashboardFragment) from nav_graph.xml
+        // So we don't need to manually load fragments here unless we're in setup mode
+
+        // For setup fragments, we need to replace the NavHostFragment temporarily
         if (!facilitatorSetupCompleted) {
-            // Show facilitator setup
+            // Show facilitator setup - replace the entire NavHostFragment
             getSupportFragmentManager()
                     .beginTransaction()
-                    .replace(R.id.fragment_container, new FacilitatorSetupFragment())
+                    .replace(R.id.nav_host_fragment, new FacilitatorSetupFragment())
                     .commit();
         } else if (!childSetupCompleted) {
-            // Show child setup
+            // Show child setup - replace the entire NavHostFragment
             getSupportFragmentManager()
                     .beginTransaction()
-                    .replace(R.id.fragment_container, new ChildProfileSetupFragment())
-                    .commit();
-        } else {
-            // All setup done → dashboard
-            getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.fragment_container, new HomeDashboardFragment())
+                    .replace(R.id.nav_host_fragment, new ChildProfileSetupFragment())
                     .commit();
         }
+        // else: NavHostFragment will automatically show homeDashboardFragment (start destination)
     }
 
     private void createNotificationChannel() {
