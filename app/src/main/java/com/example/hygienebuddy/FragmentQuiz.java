@@ -240,7 +240,7 @@ public class FragmentQuiz extends Fragment {
         // Navigate back to HomeDashboardFragment
         Fragment homeFragment = new HomeDashboardFragment();
         FragmentTransaction transaction = getParentFragmentManager().beginTransaction();
-        transaction.replace(R.id.fragment_container, homeFragment);
+        transaction.replace(R.id.nav_host_fragment, homeFragment);
         transaction.addToBackStack(null);
         transaction.commit();
     }

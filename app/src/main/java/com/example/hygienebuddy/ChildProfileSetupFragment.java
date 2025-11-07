@@ -92,10 +92,13 @@ public class ChildProfileSetupFragment extends Fragment {
         // Save & Continue button click
         btnSaveContinue.setOnClickListener(v -> saveChildProfile());
 
-        // Back button → go back to previous fragment
-        btnBack.setOnClickListener(v -> requireActivity()
-                .getSupportFragmentManager()
-                .popBackStack());
+        // Back button → go back to previous setup screen
+        btnBack.setOnClickListener(v -> {
+            if (getActivity() instanceof OnboardingActivity) {
+                OnboardingActivity activity = (OnboardingActivity) getActivity();
+                activity.goToPreviousSetupScreen();
+            }
+        });
     }
 
     private void openImageChooser() {
@@ -137,24 +140,34 @@ public class ChildProfileSetupFragment extends Fragment {
             return;
         }
 
-        // Build conditions string
-        StringBuilder conditions = new StringBuilder();
-        if (hasASD) conditions.append("ASD ");
-        if (hasADHD) conditions.append("ADHD ");
-        if (hasDownSyndrome) conditions.append("Down Syndrome ");
-        if (conditions.length() == 0) conditions.append("None");
+        // Build conditions string - use comma-separated format (consistent with ManageProfileFragment)
+        StringBuilder conditionBuilder = new StringBuilder();
+        if (hasASD) conditionBuilder.append("ASD, ");
+        if (hasADHD) conditionBuilder.append("ADHD, ");
+        if (hasDownSyndrome) conditionBuilder.append("Down Syndrome, ");
+        String conditions = conditionBuilder.toString().trim();
+        if (conditions.endsWith(",")) {
+            conditions = conditions.substring(0, conditions.length() - 1).trim();
+        }
+        // If no conditions selected, use empty string (not "None")
+        if (conditions.isEmpty()) {
+            conditions = "";
+        }
+
+        android.util.Log.d("ChildProfileSetup", "Saving conditions: '" + conditions + "'");
 
         // Save to SharedPreferences
         SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.putString("child_name", childName);
         editor.putString("child_age", childAge);
-        editor.putString("child_conditions", conditions.toString().trim());
+        editor.putString("child_conditions", conditions);
         editor.apply();
 
         // Save to database so Manage Profile sees it
         UserProfileDatabaseHelper dbHelper = new UserProfileDatabaseHelper(requireContext());
-        long result = dbHelper.insertProfile(childName, Integer.parseInt(childAge), String.valueOf(selectedImageUri), conditions.toString());
+        long result = dbHelper.insertProfile(childName, Integer.parseInt(childAge),
+                selectedImageUri != null ? selectedImageUri.toString() : null, conditions);
         if (result != -1) {
             Toast.makeText(requireContext(), "Profile saved successfully!", Toast.LENGTH_SHORT).show();
         } else {
@@ -174,10 +187,15 @@ public class ChildProfileSetupFragment extends Fragment {
     }
 
     private void navigateToDashboard() {
-        HomeDashboardFragment dashboardFragment = new HomeDashboardFragment();
-        requireActivity().getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.fragment_container, dashboardFragment)
-                .commit();
+        // Navigate to MainActivity which will show the dashboard
+        if (getActivity() instanceof OnboardingActivity) {
+            OnboardingActivity activity = (OnboardingActivity) getActivity();
+            activity.completeSetup();
+        } else {
+            // Fallback: navigate to MainActivity directly
+            android.content.Intent intent = new android.content.Intent(requireActivity(), MainActivity.class);
+            startActivity(intent);
+            requireActivity().finish();
+        }
     }
 }

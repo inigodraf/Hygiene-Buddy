@@ -57,17 +57,30 @@ public class UserProfileDatabaseHelper extends SQLiteOpenHelper {
             ContentValues values = new ContentValues();
             values.put(COLUMN_NAME, name.trim());
             values.put(COLUMN_AGE, age);
-            if (imageUri != null) {
-                values.put(COLUMN_IMAGE_URI, imageUri);
+
+            // Handle imageUri - only save if not null and not "null" string
+            if (imageUri != null && !imageUri.trim().isEmpty() && !imageUri.equals("null")) {
+                values.put(COLUMN_IMAGE_URI, imageUri.trim());
+                android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile with imageUri: " + imageUri);
+            } else {
+                android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile without imageUri");
             }
-            if (conditions != null) {
-                values.put(COLUMN_CONDITIONS, conditions);
+
+            // Handle conditions - trim and save, or null if empty
+            if (conditions != null && !conditions.trim().isEmpty() && !conditions.equalsIgnoreCase("None")) {
+                values.put(COLUMN_CONDITIONS, conditions.trim());
+                android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile with conditions: '" + conditions.trim() + "'");
+            } else {
+                android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile without conditions (or 'None')");
+                // Save as null in database if empty or "None"
+                values.putNull(COLUMN_CONDITIONS);
             }
+
             long result = db.insert(TABLE_USER_PROFILES, null, values);
             if (result == -1) {
                 android.util.Log.e("UserProfileDatabaseHelper", "Failed to insert profile: " + name);
             } else {
-                android.util.Log.d("UserProfileDatabaseHelper", "Successfully inserted profile with ID: " + result);
+                android.util.Log.d("UserProfileDatabaseHelper", "Successfully inserted profile with ID: " + result + ", name: " + name + ", conditions: '" + (conditions != null ? conditions : "null") + "'");
             }
             return result;
         } catch (Exception e) {
@@ -174,9 +187,12 @@ public class UserProfileDatabaseHelper extends SQLiteOpenHelper {
             } else {
                 values.putNull(COLUMN_IMAGE_URI);
             }
-            if (conditions != null) {
-                values.put(COLUMN_CONDITIONS, conditions);
+            // Handle conditions - trim and save, or null if empty
+            if (conditions != null && !conditions.trim().isEmpty() && !conditions.equalsIgnoreCase("None")) {
+                values.put(COLUMN_CONDITIONS, conditions.trim());
+                android.util.Log.d("UserProfileDatabaseHelper", "Updating profile with conditions: '" + conditions.trim() + "'");
             } else {
+                android.util.Log.d("UserProfileDatabaseHelper", "Updating profile without conditions (or 'None')");
                 values.putNull(COLUMN_CONDITIONS);
             }
             int result = db.update(TABLE_USER_PROFILES, values, COLUMN_ID + "=?", new String[]{String.valueOf(id)});

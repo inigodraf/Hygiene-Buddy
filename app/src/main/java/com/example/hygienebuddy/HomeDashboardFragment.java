@@ -760,11 +760,8 @@ public class HomeDashboardFragment extends Fragment {
             com.google.android.material.dialog.MaterialAlertDialogBuilder dialogBuilder =
                     new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                             .setView(dialogContainer)
-                            .setPositiveButton("Close", null)
-                            .setNeutralButton("Manage Reminders", (dialog, which) -> {
-                                // Navigate to Settings screen
-                                navigateToFragment(new SettingsFragment());
-                            });
+                            .setPositiveButton("Close", null);
+
 
             dialogBuilder.show();
 
@@ -882,7 +879,7 @@ public class HomeDashboardFragment extends Fragment {
             ManageProfileFragment manageProfileFragment = new ManageProfileFragment();
             requireActivity().getSupportFragmentManager()
                     .beginTransaction()
-                    .replace(R.id.fragment_container, manageProfileFragment)
+                    .replace(R.id.nav_host_fragment, manageProfileFragment)
                     .addToBackStack(null)
                     .commit();
         } catch (Exception e) {
@@ -903,21 +900,19 @@ public class HomeDashboardFragment extends Fragment {
         try {
             FragmentActivity activity = requireActivity();
 
-            // Use the same navigation approach as BottomNavHelper
-            // First try to find fragment_container (used by BottomNavHelper)
-            View fragmentContainer = activity.findViewById(R.id.fragment_container);
+            View fragmentContainer = activity.findViewById(R.id.nav_host_fragment);
             if (fragmentContainer != null) {
                 FragmentManager fm = activity.getSupportFragmentManager();
                 FragmentTransaction ft = fm.beginTransaction();
                 ft.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out);
-                ft.replace(R.id.fragment_container, new FragmentReportSummary());
+                ft.replace(R.id.nav_host_fragment, new FragmentReportSummary());
                 ft.addToBackStack(null);
                 ft.commit();
-                android.util.Log.d("HomeDashboard", "Navigated to Report Summary using fragment_container (BottomNavHelper style)");
+                android.util.Log.d("HomeDashboard", "Navigated to Report Summary using nav_host_fragment");
                 return;
             }
 
-            // If fragment_container doesn't exist, use NavController (for NavHostFragment setup)
+            // If nav_host_fragment doesn't exist, use NavController (for NavHostFragment setup)
             View view = getView();
             if (view != null) {
                 try {

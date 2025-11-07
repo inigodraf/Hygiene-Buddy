@@ -47,10 +47,31 @@ public class SplashActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
         boolean onboardingCompleted = prefs.getBoolean("onboarding_completed", false);
 
+        // Log the onboarding status for debugging
+        android.util.Log.d("SplashActivity", "onboarding_completed flag: " + onboardingCompleted);
+
+        // Also check if setup is completed to ensure we go directly to dashboard
+        boolean facilitatorSetupCompleted = prefs.getBoolean("facilitator_setup_completed", false);
+        boolean childSetupCompleted = prefs.getBoolean("child_setup_completed", false);
+        boolean setupCompleted = facilitatorSetupCompleted && childSetupCompleted;
+
+        android.util.Log.d("SplashActivity", "Setup status - Facilitator: " + facilitatorSetupCompleted + ", Child: " + childSetupCompleted);
+
         Intent nextIntent;
-        if (!onboardingCompleted) {
+        // Only show onboarding if it hasn't been completed yet
+        // Fallback: If setup is completed, skip onboarding even if flag is missing (safety check)
+        // Once onboarding is completed OR setup is completed, always go to MainActivity
+        if (!onboardingCompleted && !setupCompleted) {
+            android.util.Log.d("SplashActivity", "Navigating to OnboardingActivity (first time user)");
             nextIntent = new Intent(this, OnboardingActivity.class);
         } else {
+            // Onboarding completed OR setup completed - go directly to MainActivity
+            // MainActivity will handle showing dashboard or setup screens based on setup completion status
+            if (onboardingCompleted) {
+                android.util.Log.d("SplashActivity", "Navigating to MainActivity (onboarding already completed)");
+            } else {
+                android.util.Log.d("SplashActivity", "Navigating to MainActivity (setup completed, skipping onboarding)");
+            }
             nextIntent = new Intent(this, MainActivity.class);
         }
 

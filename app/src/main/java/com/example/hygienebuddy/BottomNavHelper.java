@@ -66,15 +66,15 @@ public class BottomNavHelper {
         if (currentPage.equals(targetPage)) return;
 
         FragmentActivity activity = fragment.requireActivity();
-        if (activity.findViewById(R.id.fragment_container) == null) {
-            Log.e("BottomNavHelper", "Navigation failed: fragment_container not found");
+        if (activity.findViewById(R.id.nav_host_fragment) == null) {
+            Log.e("BottomNavHelper", "Navigation failed: nav_host_fragment not found");
             return;
         }
 
         FragmentManager fm = activity.getSupportFragmentManager();
         FragmentTransaction ft = fm.beginTransaction();
         ft.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out);
-        ft.replace(R.id.fragment_container, destination);
+        ft.replace(R.id.nav_host_fragment, destination);
         ft.commit(); // No back stack for bottom nav
     }
 

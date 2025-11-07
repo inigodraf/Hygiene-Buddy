@@ -61,7 +61,7 @@ public class FragmentTasks extends Fragment {
         activity.getSupportFragmentManager()
                 .beginTransaction()
                 .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
-                .replace(R.id.fragment_container, fragment) // ✅ use fragment_container
+                .replace(R.id.nav_host_fragment, fragment) // ✅ use fragment_container
                 .addToBackStack(null)
                 .commit();
     }

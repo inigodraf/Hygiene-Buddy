@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -21,20 +22,28 @@ public class Onboarding3Fragment extends Fragment {
 
         Button btnGetStarted = view.findViewById(R.id.btnGetStarted);
         btnGetStarted.setOnClickListener(v -> {
-            // Hide onboarding UI
-            requireActivity().findViewById(R.id.onboardingViewPager).setVisibility(View.GONE);
-            requireActivity().findViewById(R.id.tabIndicator).setVisibility(View.GONE);
+            try {
+                if (!isAdded() || getActivity() == null) {
+                    android.util.Log.e("Onboarding3Fragment", "Fragment not attached to activity");
+                    return;
+                }
 
-            // Show setup container
-            View setupContainer = requireActivity().findViewById(R.id.fragment_container);
-            setupContainer.setVisibility(View.VISIBLE);
-
-            // Navigate to FacilitatorSetupFragment
-            requireActivity().getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.fragment_container, new FacilitatorSetupFragment())
-                    .addToBackStack(null)
-                    .commit();
+                // Use the activity's helper method to show facilitator setup
+                if (getActivity() instanceof OnboardingActivity) {
+                    OnboardingActivity activity = (OnboardingActivity) getActivity();
+                    activity.showFacilitatorSetup();
+                    android.util.Log.d("Onboarding3Fragment", "Called showFacilitatorSetup on activity");
+                } else {
+                    android.util.Log.e("Onboarding3Fragment", "Activity is not OnboardingActivity");
+                    Toast.makeText(getContext(), "Error: Invalid activity", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                android.util.Log.e("Onboarding3Fragment", "Error navigating to FacilitatorSetupFragment: " + e.getMessage(), e);
+                e.printStackTrace();
+                if (getContext() != null) {
+                    Toast.makeText(getContext(), "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            }
         });
 
         return view;

@@ -19,6 +19,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
@@ -112,8 +113,13 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
 
     private void setupRecyclerView() {
         adapter = new ManageProfileAdapter(requireContext(), this);
-        // Use LinearLayoutManager for vertical list (can be changed to GridLayoutManager for grid view)
-        rvProfiles.setLayoutManager(new LinearLayoutManager(requireContext()));
+        // Use GridLayoutManager for landscape (2 columns) or LinearLayoutManager for portrait
+        boolean isLandscape = getResources().getConfiguration().orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        if (isLandscape) {
+            rvProfiles.setLayoutManager(new GridLayoutManager(requireContext(), 2));
+        } else {
+            rvProfiles.setLayoutManager(new LinearLayoutManager(requireContext()));
+        }
         rvProfiles.setAdapter(adapter);
     }
 
@@ -207,10 +213,22 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
             etName.setText(profile.getName());
             actvAge.setText(String.valueOf(profile.getAge()), false);
 
-            String conditionText = profile.getCondition() != null ? profile.getCondition().toLowerCase() : "";
-            cbASD.setChecked(conditionText.contains("asd"));
-            cbADHD.setChecked(conditionText.contains("adhd"));
-            cbDownSyndrome.setChecked(conditionText.contains("down"));
+            // Load conditions - handle both comma-separated and space-separated formats
+            String conditionText = profile.getCondition();
+            if (conditionText != null && !conditionText.trim().isEmpty() && !conditionText.equalsIgnoreCase("None")) {
+                String lowerConditionText = conditionText.toLowerCase();
+                // Check for conditions (case-insensitive, handles both comma and space separators)
+                cbASD.setChecked(lowerConditionText.contains("asd"));
+                cbADHD.setChecked(lowerConditionText.contains("adhd"));
+                cbDownSyndrome.setChecked(lowerConditionText.contains("down"));
+                android.util.Log.d("ManageProfileFragment", "Loaded conditions from profile: '" + conditionText + "' - ASD: " + cbASD.isChecked() + ", ADHD: " + cbADHD.isChecked() + ", Down: " + cbDownSyndrome.isChecked());
+            } else {
+                // No conditions or "None" - uncheck all
+                cbASD.setChecked(false);
+                cbADHD.setChecked(false);
+                cbDownSyndrome.setChecked(false);
+                android.util.Log.d("ManageProfileFragment", "No conditions found or 'None' - all checkboxes unchecked");
+            }
 
             // Load profile image if available
             if (profile.hasImage() && profile.getImageUri() != null) {
@@ -233,33 +251,68 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
 
         ivProfileImage.setOnClickListener(v -> pickImageFromGallery());
 
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle(profile != null ? "Edit Profile" : "Add New Profile")
-                .setView(dialogView)
-                .setPositiveButton(profile != null ? "Update" : "Add", (dialog, which) -> {
+        // Create dialog and store reference to prevent early dismissal
+        com.google.android.material.dialog.MaterialAlertDialogBuilder dialogBuilder =
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(profile != null ? "Edit Profile" : "Add New Profile")
+                        .setView(dialogView)
+                        .setNegativeButton("Cancel", null);
+
+        // Set positive button with custom listener that prevents auto-dismiss
+        dialogBuilder.setPositiveButton(profile != null ? "Update" : "Add", null);
+
+        AlertDialog dialog = dialogBuilder.create();
+
+        // Set custom click listener that reads values before dismissing
+        dialog.setOnShowListener(dialogInterface -> {
+            android.widget.Button positiveButton = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE);
+            if (positiveButton != null) {
+                positiveButton.setOnClickListener(v -> {
+                    // Read all values from the dialog view BEFORE any dismissal
                     String name = etName.getText().toString().trim();
                     String ageText = actvAge.getText().toString().trim();
 
-                    if (!validateInput(name, ageText)) return;
+                    if (!validateInput(name, ageText)) {
+                        return; // Don't dismiss if validation fails
+                    }
+
+                    // Read checkbox states BEFORE dialog dismisses
+                    boolean hasASD = cbASD.isChecked();
+                    boolean hasADHD = cbADHD.isChecked();
+                    boolean hasDownSyndrome = cbDownSyndrome.isChecked();
+
+                    android.util.Log.d("ManageProfileFragment", "Reading checkbox states - ASD: " + hasASD + "ADHD: " + hasADHD + "Down: " + hasDownSyndrome);
 
                     int age = Integer.parseInt(ageText);
                     StringBuilder conditionBuilder = new StringBuilder();
-                    if (cbASD.isChecked()) conditionBuilder.append("ASD, ");
-                    if (cbADHD.isChecked()) conditionBuilder.append("ADHD, ");
-                    if (cbDownSyndrome.isChecked()) conditionBuilder.append("Down Syndrome, ");
+                    if (hasASD) conditionBuilder.append("ASD, ");
+                    if (hasADHD) conditionBuilder.append("ADHD, ");
+                    if (hasDownSyndrome) conditionBuilder.append("Down Syndrome, ");
                     String conditions = conditionBuilder.toString().trim();
                     if (conditions.endsWith(",")) {
-                        conditions = conditions.substring(0, conditions.length() - 1);
+                        conditions = conditions.substring(0, conditions.length() - 1).trim();
                     }
+                    // If no conditions selected, use empty string
+                    if (conditions.isEmpty()) {
+                        conditions = "";
+                    }
+
+                    android.util.Log.d("ManageProfileFragment", "Saving conditions: '" + conditions + "' - ASD: " + hasASD + ", ADHD: " + hasADHD + ", Down: " + hasDownSyndrome);
+                    android.util.Log.d("ManageProfileFragment", "ImageUri: " + (selectedImageUri != null ? selectedImageUri : "null"));
+
+                    // Now dismiss the dialog and save
+                    dialog.dismiss();
 
                     if (profile != null) {
                         updateProfile(profile.getId(), name, age, selectedImageUri, conditions);
                     } else {
                         addProfile(name, age, selectedImageUri, conditions);
                     }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                });
+            }
+        });
+
+        dialog.show();
     }
 
     private boolean validateInput(String name, String ageText) {
@@ -289,15 +342,29 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
         }
 
         try {
+            android.util.Log.d("ManageProfileFragment", "addProfile called - name: " + name + ", age: " + age + ", conditions: '" + conditions + "', imageUri: " + (imageUri != null ? imageUri : "null"));
+
             long result = databaseHelper.insertProfile(name, age, imageUri, conditions);
             if (result != -1) {
+                android.util.Log.d("ManageProfileFragment", "Profile added successfully with ID: " + result);
+
+                // Verify the profile was saved correctly by reading it back
+                UserProfile savedProfile = databaseHelper.getProfileById((int) result);
+                if (savedProfile != null) {
+                    android.util.Log.d("ManageProfileFragment", "Verified saved profile - conditions: '" + savedProfile.getCondition() + "'");
+                } else {
+                    android.util.Log.w("ManageProfileFragment", "Could not verify saved profile - getProfileById returned null");
+                }
+
                 Toast.makeText(requireContext(), "Profile added successfully!", Toast.LENGTH_SHORT).show();
-                loadProfiles();
+                loadProfiles(); // This will refresh the RecyclerView
             } else {
+                android.util.Log.e("ManageProfileFragment", "Failed to add profile - insertProfile returned -1");
                 Toast.makeText(requireContext(), "Failed to add profile", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             android.util.Log.e("ManageProfileFragment", "Error adding profile: " + e.getMessage(), e);
+            e.printStackTrace();
             Toast.makeText(requireContext(), "Error adding profile: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }

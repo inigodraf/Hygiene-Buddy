@@ -18,21 +18,22 @@ public class MainActivity extends AppCompatActivity {
         // Create notification channel for reminders
         createNotificationChannel();
 
+        // Ensure onboarding is not shown - verify the flag
+        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+        boolean onboardingCompleted = prefs.getBoolean("onboarding_completed", false);
+        android.util.Log.d("MainActivity", "onCreate - onboarding_completed: " + onboardingCompleted);
+
         // Only set up fragments on first creation (not on configuration changes or activity recreation)
         // The NavHostFragment will handle fragment restoration automatically
+        // The navigation graph's startDestination is homeDashboardFragment, so it will show the dashboard
         if (savedInstanceState == null) {
-            SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
             boolean facilitatorSetupCompleted = prefs.getBoolean("facilitator_setup_completed", false);
             boolean childSetupCompleted = prefs.getBoolean("child_setup_completed", false);
 
-            // Check if we need to navigate to setup fragments
-            // Note: The NavHostFragment handles navigation, so we should use NavController
-            // But for now, if setup is not completed, the navigation graph should handle it
-            // This logic is kept for backward compatibility
-            if (!facilitatorSetupCompleted || !childSetupCompleted) {
-                // Setup fragments will be shown via navigation graph
-                // The NavHostFragment will handle the initial destination
-            }
+            android.util.Log.d("MainActivity", "Setup status - Facilitator: " + facilitatorSetupCompleted + ", Child: " + childSetupCompleted);
+
+            // The NavHostFragment will automatically show homeDashboardFragment as the start destination
+            // Setup fragments (if needed) will be handled by their respective fragments checking the flags
         }
     }
 
