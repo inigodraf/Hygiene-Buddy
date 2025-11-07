@@ -3,7 +3,6 @@ package com.example.hygienebuddy;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -147,10 +146,11 @@ public class FragmentReportSummary extends Fragment {
         if (!isAdded() || getContext() == null) return;
 
         try {
-            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
             // Check if profile changed
@@ -178,16 +178,16 @@ public class FragmentReportSummary extends Fragment {
                         try {
                             ivUserAvatar.setImageURI(Uri.parse(profile.getImageUri()));
                         } catch (Exception e) {
-                            ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                            ivUserAvatar.setImageResource(R.drawable.default_avatar);
                         }
                     } else {
-                        ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                        ivUserAvatar.setImageResource(R.drawable.default_avatar);
                     }
                 } else {
-                    // Fallback to SharedPreferences
-                    String name = sharedPref.getString("child_name", "No profile");
-                    String age = sharedPref.getString("child_age", "");
-                    String conditions = sharedPref.getString("child_conditions", "");
+                    // Fallback to SQLite app settings
+                    String name = appDataDb.getSetting("child_name", "No profile");
+                    String age = appDataDb.getSetting("child_age", "");
+                    String conditions = appDataDb.getSetting("child_conditions", "");
 
                     tvUserName.setText(name);
                     tvUserAge.setText(age != null && !age.isEmpty() ? "Age " + age : "");
@@ -211,10 +211,11 @@ public class FragmentReportSummary extends Fragment {
         if (!isAdded() || getContext() == null) return;
 
         try {
-            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
             if (currentProfileId <= 0) {
@@ -226,36 +227,62 @@ public class FragmentReportSummary extends Fragment {
                 return;
             }
 
-            // Calculate total points from badge progress
-            String handwashingProgressKey = "badge_progress_handwashing_hero_profile_" + currentProfileId;
-            String toothbrushingProgressKey = "badge_progress_toothbrushing_champ_profile_" + currentProfileId;
-            int handwashingProgress = sharedPref.getInt(handwashingProgressKey, 0);
-            int toothbrushingProgress = sharedPref.getInt(toothbrushingProgressKey, 0);
-            int totalCompletedTasks = handwashingProgress + toothbrushingProgress;
+            // Calculate total points from badge progress (from SQLite)
+            int handwashingProgress = appDataDb.getBadgeProgress(currentProfileId, "handwashing_hero");
+            int toothbrushingProgress = appDataDb.getBadgeProgress(currentProfileId, "toothbrushing_champ");
+            int totalCompletedTasks = handwashingProgress + toothbrushingProgress; // Calculate task completion percentage based on actual days and 2 tasks per day
             int totalPoints = totalCompletedTasks * 10; // 10 XP per task
             tvTotalPoints.setText(totalPoints + " XP");
 
-            // Count earned badges
+            // Count earned badges (from SQLite)
             BadgeRepository badgeRepository = new BadgeRepository(requireContext());
             List<BadgeModel> allBadges = badgeRepository.getAllBadges();
             int earnedBadgesCount = 0;
             for (BadgeModel badge : allBadges) {
                 String badgeKey = badge.getImageKey();
-                String unlockKey = "badge_unlocked_" + badgeKey + "_profile_" + currentProfileId;
-                boolean isUnlocked = sharedPref.getBoolean(unlockKey, false);
+                boolean isUnlocked = appDataDb.isBadgeUnlocked(currentProfileId, badgeKey);
                 if (isUnlocked) {
                     earnedBadgesCount++;
                 }
             }
             tvBadgesEarned.setText(String.valueOf(earnedBadgesCount));
 
-            // Calculate task completion percentage (based on all-time task completions)
-            // Total possible tasks = 2 tasks per day * number of days since first completion
-            // For simplicity, we'll calculate based on total completed tasks vs a reasonable goal
-            int totalTasks = handwashingProgress + toothbrushingProgress;
-            // Assuming goal of 20 tasks each (40 total) for 100%
-            int goalTasks = 40;
-            int completionPercent = goalTasks > 0 ? Math.min((int) ((totalTasks / (float) goalTasks) * 100), 100) : 0;
+            // Get earliest task completion date to calculate total possible tasks
+            String earliestDate = appDataDb.getEarliestTaskDate(currentProfileId);
+            int totalPossibleTasks = 0;
+
+            if (earliestDate != null && !earliestDate.isEmpty()) {
+                try {
+                    // Calculate days from earliest task date to today
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                    Calendar earliestCal = Calendar.getInstance();
+                    earliestCal.setTime(dateFormat.parse(earliestDate));
+
+                    Calendar todayCal = Calendar.getInstance();
+                    todayCal.set(Calendar.HOUR_OF_DAY, 0);
+                    todayCal.set(Calendar.MINUTE, 0);
+                    todayCal.set(Calendar.SECOND, 0);
+                    todayCal.set(Calendar.MILLISECOND, 0);
+
+                    long diffInMillis = todayCal.getTimeInMillis() - earliestCal.getTimeInMillis();
+                    long diffInDays = diffInMillis / (1000 * 60 * 60 * 24);
+
+                    // Total possible tasks = (days + 1) * 2 (since there are 2 tasks per day: handwashing and toothbrushing)
+                    // +1 because we include both the earliest day and today
+                    totalPossibleTasks = (int) (diffInDays + 1) * 2;
+                } catch (Exception e) {
+                    android.util.Log.e("ReportSummary", "Error calculating days: " + e.getMessage(), e);
+                    // Fallback: if we can't parse the date, use a reasonable default
+                    totalPossibleTasks = Math.max(totalCompletedTasks, 40); // At least show current progress
+                }
+            } else {
+                // No tasks completed yet - use a default or show 0%
+                totalPossibleTasks = Math.max(totalCompletedTasks, 1); // Avoid division by zero
+            }
+
+            // Calculate percentage: (completed / possible) * 100
+            int completionPercent = totalPossibleTasks > 0 ?
+                    Math.min((int) ((totalCompletedTasks / (float) totalPossibleTasks) * 100), 100) : 0;
 
             if (tvTaskCompletion != null) {
                 tvTaskCompletion.setText(completionPercent + "%");
@@ -384,23 +411,16 @@ public class FragmentReportSummary extends Fragment {
         if (!isAdded() || getContext() == null) return streakDays;
 
         try {
-            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
             if (currentProfileId > 0) {
-                String completedDaysKey = "completed_days_profile_" + currentProfileId;
-                String completedDaysStr = sharedPref.getString(completedDaysKey, "");
-                if (!completedDaysStr.isEmpty()) {
-                    String[] days = completedDaysStr.split(",");
-                    for (String day : days) {
-                        if (!day.trim().isEmpty()) {
-                            streakDays.add(day.trim());
-                        }
-                    }
-                }
+                // Get streak days from SQLite
+                streakDays = appDataDb.getStreakDays(currentProfileId);
             }
         } catch (Exception e) {
             android.util.Log.e("ReportSummary", "Error getting streak days: " + e.getMessage(), e);
@@ -475,10 +495,11 @@ public class FragmentReportSummary extends Fragment {
         if (!isAdded() || getContext() == null) return;
 
         try {
-            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
             if (currentProfileId <= 0) {
@@ -491,25 +512,22 @@ public class FragmentReportSummary extends Fragment {
             UserProfile profile = dbHelper.getProfileById(currentProfileId);
             String profileName = profile != null ? profile.getName() : "Unknown";
 
-            // Get summary data
-            String handwashingProgressKey = "badge_progress_handwashing_hero_profile_" + currentProfileId;
-            String toothbrushingProgressKey = "badge_progress_toothbrushing_champ_profile_" + currentProfileId;
-            int handwashingProgress = sharedPref.getInt(handwashingProgressKey, 0);
-            int toothbrushingProgress = sharedPref.getInt(toothbrushingProgressKey, 0);
+            // Get summary data from SQLite
+            int handwashingProgress = appDataDb.getBadgeProgress(currentProfileId, "handwashing_hero");
+            int toothbrushingProgress = appDataDb.getBadgeProgress(currentProfileId, "toothbrushing_champ");
             int totalCompletedTasks = handwashingProgress + toothbrushingProgress;
             int totalPoints = totalCompletedTasks * 10;
 
-            // Count earned badges
+            // Count earned badges from SQLite
             BadgeRepository badgeRepository = new BadgeRepository(requireContext());
             List<BadgeModel> allBadges = badgeRepository.getAllBadges();
             List<String> earnedBadges = new ArrayList<>();
             for (BadgeModel badge : allBadges) {
                 String badgeKey = badge.getImageKey();
-                String unlockKey = "badge_unlocked_" + badgeKey + "_profile_" + currentProfileId;
-                boolean isUnlocked = sharedPref.getBoolean(unlockKey, false);
+                boolean isUnlocked = appDataDb.isBadgeUnlocked(currentProfileId, badgeKey);
                 if (isUnlocked) {
-                    String earnedDateKey = "badge_earned_date_" + badgeKey + "_profile_" + currentProfileId;
-                    String earnedDate = sharedPref.getString(earnedDateKey, "N/A");
+                    String earnedDate = appDataDb.getBadgeEarnedDate(currentProfileId, badgeKey);
+                    if (earnedDate == null) earnedDate = "N/A";
                     earnedBadges.add(badge.getTitle() + " (" + earnedDate + ")");
                 }
             }

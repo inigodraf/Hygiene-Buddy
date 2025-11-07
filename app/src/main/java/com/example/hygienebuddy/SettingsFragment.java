@@ -481,10 +481,11 @@ public class SettingsFragment extends Fragment {
             reminderList.clear();
 
             // Get current profile ID
-            android.content.SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
             // Load reminders filtered by profile ID
@@ -613,10 +614,11 @@ public class SettingsFragment extends Fragment {
                             }
 
                             // Set profile_id to current profile (if available)
-                            android.content.SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-                            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+                            // Get current profile ID from SQLite
+                            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+                            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
                             if (currentProfileId == -1) {
-                                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
                             }
                             if (currentProfileId > 0) {
                                 reminder.setProfileId(currentProfileId);

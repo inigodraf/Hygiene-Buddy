@@ -1,7 +1,7 @@
 package com.example.hygienebuddy;
 
 import android.content.Context;
-import android.content.SharedPreferences;
+import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -13,22 +13,23 @@ public class BadgeManager {
 
     private final BadgeRepository repository;
     private final Context context;
+    private final AppDataDatabaseHelper appDataDb;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
 
     public BadgeManager(Context context) {
         this.repository = new BadgeRepository(context.getApplicationContext());
         this.context = context.getApplicationContext();
+        this.appDataDb = new AppDataDatabaseHelper(context.getApplicationContext());
     }
 
     // Record completion of a specific task type (e.g., "handwashing" or "toothbrushing")
     public void recordTaskCompletion(String taskType) {
         String today = dateFormat.format(new Date());
 
-        // Get current profile ID
-        SharedPreferences sharedPref = context.getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+        // Get current profile ID from SQLite
+        int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
         if (currentProfileId == -1) {
-            currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+            currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
         }
 
         // Record task completion for this specific day (profile-scoped)
@@ -48,61 +49,51 @@ public class BadgeManager {
 
     /** Record task completion for a specific date (profile-scoped) */
     private void recordTaskCompletionForDate(int profileId, String date, String taskType) {
-        SharedPreferences sharedPref = context.getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
+        // Add task completion to SQLite database
+        appDataDb.addTaskCompletion(profileId, date, taskType.toLowerCase());
 
-        // Store which tasks were completed on this date
-        // Format: "task_completions_{date}_profile_{profileId}" = "handwashing,toothbrushing"
-        String taskCompletionsKey = "task_completions_" + date + "_profile_" + profileId;
-        String existingTasks = sharedPref.getString(taskCompletionsKey, "");
-
-        Set<String> completedTasks = new HashSet<>();
-        if (!existingTasks.isEmpty()) {
-            String[] tasks = existingTasks.split(",");
-            for (String task : tasks) {
-                if (!task.trim().isEmpty()) {
-                    completedTasks.add(task.trim().toLowerCase());
-                }
-            }
-        }
-
-        // Add the current task
-        completedTasks.add(taskType.toLowerCase());
-
-        // Save back as comma-separated string
-        StringBuilder sb = new StringBuilder();
-        for (String task : completedTasks) {
-            if (sb.length() > 0) sb.append(",");
-            sb.append(task);
-        }
-
-        sharedPref.edit().putString(taskCompletionsKey, sb.toString()).apply();
+        // Get all completed tasks for this date
+        Set<String> completedTasks = appDataDb.getTaskCompletionsForDate(profileId, date);
 
         // Check if both tasks are completed for this day - if so, mark day as streak-complete
         if (completedTasks.contains("handwashing") && completedTasks.contains("toothbrushing")) {
             // Both tasks completed - mark this day as streak-complete
-            String completedDaysKey = "completed_days_profile_" + profileId;
-            String existingDays = sharedPref.getString(completedDaysKey, "");
+            appDataDb.addStreakDay(profileId, date);
 
-            Set<String> completedDays = new HashSet<>();
-            if (!existingDays.isEmpty()) {
-                String[] days = existingDays.split(",");
-                for (String day : days) {
-                    if (!day.trim().isEmpty()) {
-                        completedDays.add(day.trim());
-                    }
+            // Calculate current consecutive streak and update badge progress/unlocks
+            int currentStreak = calculateCurrentStreak(profileId);
+            updateDailyStreak(currentStreak);
+
+            // Also update routine_master badge (7+ consecutive days)
+            recordAllDailyTasksConsecutiveDays(currentStreak);
+        }
+    }
+
+    /** Calculate current consecutive streak from today backwards (profile-scoped) */
+    private int calculateCurrentStreak(int profileId) {
+        Set<String> streakDays = appDataDb.getStreakDays(profileId);
+        if (streakDays == null || streakDays.isEmpty()) {
+            return 0;
+        }
+
+        try {
+            java.util.Calendar today = java.util.Calendar.getInstance();
+            int streak = 0;
+
+            while (true) {
+                String dateKey = dateFormat.format(today.getTime());
+                if (streakDays.contains(dateKey)) {
+                    streak++;
+                    today.add(java.util.Calendar.DAY_OF_YEAR, -1);
+                } else {
+                    break;
                 }
             }
 
-            completedDays.add(date);
-
-            // Save back as comma-separated string
-            StringBuilder daysSb = new StringBuilder();
-            for (String day : completedDays) {
-                if (daysSb.length() > 0) daysSb.append(",");
-                daysSb.append(day);
-            }
-
-            sharedPref.edit().putString(completedDaysKey, daysSb.toString()).apply();
+            return streak;
+        } catch (Exception e) {
+            android.util.Log.e("BadgeManager", "Error calculating current streak: " + e.getMessage(), e);
+            return 0;
         }
     }
 
@@ -110,11 +101,10 @@ public class BadgeManager {
     public void recordAllDailyTasksConsecutiveDays(int consecutiveDays) {
         String today = dateFormat.format(new Date());
 
-        // Get current profile ID
-        SharedPreferences sharedPref = context.getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+        // Get current profile ID from SQLite
+        int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
         if (currentProfileId == -1) {
-            currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+            currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
         }
 
         updateProgress("routine_master", consecutiveDays, currentProfileId);
@@ -127,11 +117,15 @@ public class BadgeManager {
     public void updateDailyStreak(int streakDays) {
         String today = dateFormat.format(new Date());
 
-        // Get current profile ID
-        SharedPreferences sharedPref = context.getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+        // Get current profile ID from SQLite
+        int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
         if (currentProfileId == -1) {
-            currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+            currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
+        }
+
+        if (currentProfileId <= 0) {
+            android.util.Log.w("BadgeManager", "No profile ID available for streak update");
+            return;
         }
 
         // Update progress for known streak milestones (progress shown against goal)
@@ -151,39 +145,37 @@ public class BadgeManager {
         if (streakDays >= 30) unlockIfNotUnlocked("streak_30", today, currentProfileId);
         if (streakDays >= 60) unlockIfNotUnlocked("streak_60", today, currentProfileId);
         if (streakDays >= 100) unlockIfNotUnlocked("streak_100", today, currentProfileId);
+
+        android.util.Log.d("BadgeManager", "Updated streak badges for profile " + currentProfileId + " - Current streak: " + streakDays);
     }
 
 
     private void incrementProgressAndMaybeUnlock(String badgeKey, int goal, String date, int profileId) {
-        // Get profile-scoped progress from SharedPreferences
-        SharedPreferences sharedPref = context.getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        String progressKey = "badge_progress_" + badgeKey + "_profile_" + profileId;
-
-        // Read current progress (profile-scoped)
-        int current = sharedPref.getInt(progressKey, 0);
+        // Get profile-scoped progress from SQLite
+        int current = appDataDb.getBadgeProgress(profileId, badgeKey);
         int next = current + 1;
 
-        // Save profile-scoped progress
-        sharedPref.edit().putInt(progressKey, next).apply();
+        // Save profile-scoped progress to SQLite
+        appDataDb.setBadgeProgress(profileId, badgeKey, next);
 
         // Also update badge database (for backward compatibility)
         repository.updateProgress(badgeKey, next);
 
         if (next >= goal) {
-            // Save profile-scoped unlock status
-            String unlockKey = "badge_unlocked_" + badgeKey + "_profile_" + profileId;
-            sharedPref.edit().putBoolean(unlockKey, true).putString("badge_earned_date_" + badgeKey + "_profile_" + profileId, date).apply();
+            // Save profile-scoped unlock status to SQLite
+            appDataDb.setBadgeUnlocked(profileId, badgeKey, true, date);
 
             // Also update badge database
             repository.unlockBadge(badgeKey, date);
+
+            // Show Toast notification for badge unlock
+            showBadgeUnlockToast(badgeKey);
         }
     }
 
     private void updateProgress(String badgeKey, int progress, int profileId) {
-        // Save profile-scoped progress
-        SharedPreferences sharedPref = context.getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        String progressKey = "badge_progress_" + badgeKey + "_profile_" + profileId;
-        sharedPref.edit().putInt(progressKey, progress).apply();
+        // Save profile-scoped progress to SQLite
+        appDataDb.setBadgeProgress(profileId, badgeKey, progress);
 
         // Also update badge database (for backward compatibility)
         repository.updateProgress(badgeKey, progress);
@@ -195,20 +187,79 @@ public class BadgeManager {
     }
 
     private void unlockIfNotUnlocked(String badgeKey, String date, int profileId) {
-        // Check profile-scoped unlock status
-        SharedPreferences sharedPref = context.getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        String unlockKey = "badge_unlocked_" + badgeKey + "_profile_" + profileId;
-
-        if (!sharedPref.getBoolean(unlockKey, false)) {
-            // Save profile-scoped unlock
-            sharedPref.edit()
-                    .putBoolean(unlockKey, true)
-                    .putString("badge_earned_date_" + badgeKey + "_profile_" + profileId, date)
-                    .apply();
+        // Check profile-scoped unlock status from SQLite
+        if (!appDataDb.isBadgeUnlocked(profileId, badgeKey)) {
+            // Save profile-scoped unlock to SQLite
+            appDataDb.setBadgeUnlocked(profileId, badgeKey, true, date);
 
             // Also update badge database (for backward compatibility)
             repository.unlockBadge(badgeKey, date);
+
+            // Show Toast notification for badge unlock
+            showBadgeUnlockToast(badgeKey);
         }
+    }
+
+    /** Show Toast notification when a badge is unlocked */
+    private void showBadgeUnlockToast(String badgeKey) {
+        try {
+            // Get badge name from repository
+            BadgeModel badge = repository.getBadgeByKey(badgeKey);
+            String badgeName = "Badge";
+
+            if (badge != null && badge.getTitle() != null) {
+                badgeName = badge.getTitle();
+            } else {
+                // Fallback: format badge key to a readable name
+                badgeName = formatBadgeKeyToName(badgeKey);
+            }
+
+            // Show Toast on main thread
+            android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+            String finalBadgeName = badgeName;
+            mainHandler.post(() -> {
+                Toast.makeText(context, "🎉 " + finalBadgeName + " Unlocked!", Toast.LENGTH_LONG).show();
+            });
+
+            android.util.Log.d("BadgeManager", "Badge unlocked: " + badgeName + " (key: " + badgeKey + ")");
+        } catch (Exception e) {
+            android.util.Log.e("BadgeManager", "Error showing badge unlock toast: " + e.getMessage(), e);
+            // Fallback: show generic message
+            try {
+                android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+                mainHandler.post(() -> {
+                    Toast.makeText(context, "🎉 Badge Unlocked!", Toast.LENGTH_LONG).show();
+                });
+            } catch (Exception ex) {
+                android.util.Log.e("BadgeManager", "Error showing fallback toast: " + ex.getMessage(), ex);
+            }
+        }
+    }
+
+    /** Format badge key to a readable name (fallback) */
+    private String formatBadgeKeyToName(String badgeKey) {
+        if (badgeKey == null || badgeKey.isEmpty()) {
+            return "Badge";
+        }
+
+        // Replace underscores with spaces and capitalize words
+        String formatted = badgeKey.replace("_", " ");
+        String[] words = formatted.split(" ");
+        StringBuilder result = new StringBuilder();
+
+        for (String word : words) {
+            if (word.length() > 0) {
+                if (result.length() > 0) {
+                    result.append(" ");
+                }
+                result.append(word.substring(0, 1).toUpperCase());
+                if (word.length() > 1) {
+                    result.append(word.substring(1).toLowerCase());
+                }
+            }
+        }
+
+        return result.length() > 0 ? result.toString() : "Badge";
     }
 }
 

@@ -3,7 +3,6 @@ package com.example.hygienebuddy;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -54,9 +53,9 @@ public class ChildProfileSetupFragment extends Fragment {
                               @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Check if setup is already completed
-        SharedPreferences prefs = requireActivity().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-        boolean setupCompleted = prefs.getBoolean("child_setup_completed", false);
+        // Check if setup is already completed (from SQLite)
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+        boolean setupCompleted = appDataDb.getBooleanSetting("child_setup_completed", false);
         if (setupCompleted) {
             // Skip setup and go directly to dashboard
             navigateToDashboard();
@@ -156,28 +155,28 @@ public class ChildProfileSetupFragment extends Fragment {
 
         android.util.Log.d("ChildProfileSetup", "Saving conditions: '" + conditions + "'");
 
-        // Save to SharedPreferences
-        SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString("child_name", childName);
-        editor.putString("child_age", childAge);
-        editor.putString("child_conditions", conditions);
-        editor.apply();
-
         // Save to database so Manage Profile sees it
         UserProfileDatabaseHelper dbHelper = new UserProfileDatabaseHelper(requireContext());
         long result = dbHelper.insertProfile(childName, Integer.parseInt(childAge),
                 selectedImageUri != null ? selectedImageUri.toString() : null, conditions);
         if (result != -1) {
             Toast.makeText(requireContext(), "Profile saved successfully!", Toast.LENGTH_SHORT).show();
+
+            // Save profile data to SQLite app settings
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            appDataDb.setIntSetting("current_profile_id", (int) result);
+            appDataDb.setIntSetting("selected_profile_id", (int) result);
+            appDataDb.setSetting("child_name", childName);
+            appDataDb.setSetting("child_age", childAge);
+            appDataDb.setSetting("child_conditions", conditions);
         } else {
             Toast.makeText(requireContext(), "Failed to save profile to database", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Mark setup as completed
-        SharedPreferences appPrefs = requireActivity().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-        appPrefs.edit().putBoolean("child_setup_completed", true).apply();
+        // Mark setup as completed in SQLite
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+        appDataDb.setBooleanSetting("child_setup_completed", true);
 
         // Confirmation
         Toast.makeText(requireContext(), "Child profile saved successfully!", Toast.LENGTH_SHORT).show();

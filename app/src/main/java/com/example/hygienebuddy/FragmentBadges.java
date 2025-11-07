@@ -1,6 +1,5 @@
 package com.example.hygienebuddy;
 
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -63,11 +62,11 @@ public class FragmentBadges extends Fragment {
         rvEarnedBadges.setAdapter(earnedAdapter);
         rvAllBadges.setAdapter(allAdapter);
 
-        // Initialize last loaded profile ID
-        SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        lastLoadedProfileId = sharedPref.getInt("current_profile_id", -1);
+        // Initialize last loaded profile ID from SQLite
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+        lastLoadedProfileId = appDataDb.getIntSetting("current_profile_id", -1);
         if (lastLoadedProfileId == -1) {
-            lastLoadedProfileId = sharedPref.getInt("selected_profile_id", -1);
+            lastLoadedProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
         }
 
         // Load badges for current profile
@@ -109,11 +108,11 @@ public class FragmentBadges extends Fragment {
     private void refreshBadges() {
         if (badgeRepository == null || !isAdded()) return;
 
-        // Get current profile ID
-        SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+        // Get current profile ID from SQLite
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+        int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
         if (currentProfileId == -1) {
-            currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+            currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
         }
 
         // Check if profile has changed
@@ -127,7 +126,7 @@ public class FragmentBadges extends Fragment {
         // Load all badges from database (structure is the same for all profiles)
         cachedAllBadges = badgeRepository.getAllBadges();
 
-        // Create profile-scoped badge models with unlock status and progress from SharedPreferences
+        // Create profile-scoped badge models with unlock status and progress from SQLite
         List<BadgeModel> profileScopedBadges = new ArrayList<>();
         cachedEarnedBadges.clear();
 
@@ -144,14 +143,10 @@ public class FragmentBadges extends Fragment {
                 continue;
             }
 
-            // Get profile-scoped unlock status and progress
-            String unlockKey = "badge_unlocked_" + badgeKey + "_profile_" + currentProfileId;
-            String progressKey = "badge_progress_" + badgeKey + "_profile_" + currentProfileId;
-            String earnedDateKey = "badge_earned_date_" + badgeKey + "_profile_" + currentProfileId;
-
-            boolean isUnlocked = sharedPref.getBoolean(unlockKey, false);
-            int progress = sharedPref.getInt(progressKey, 0);
-            String earnedDate = sharedPref.getString(earnedDateKey, null);
+            // Get profile-scoped unlock status and progress from SQLite
+            boolean isUnlocked = appDataDb.isBadgeUnlocked(currentProfileId, badgeKey);
+            int progress = appDataDb.getBadgeProgress(currentProfileId, badgeKey);
+            String earnedDate = appDataDb.getBadgeEarnedDate(currentProfileId, badgeKey);
 
             // Create profile-scoped badge model
             BadgeModel profileBadge = new BadgeModel(

@@ -114,12 +114,15 @@ public class ManageProfileAdapter extends RecyclerView.Adapter<ManageProfileAdap
             tvProfileAge.setText(profile.getAgeDisplayText());
 
             String conditionText = profile.getCondition();
+            // Handle null, empty string, or "None" - all mean no conditions
             if (conditionText != null && !conditionText.trim().isEmpty() && !conditionText.equalsIgnoreCase("None")) {
                 // Display conditions - handle both comma and space-separated formats
                 String displayText = conditionText.trim();
                 tvProfileCondition.setText("Conditions: " + displayText);
+                android.util.Log.d("ManageProfileAdapter", "Displaying conditions for " + profile.getName() + ": '" + displayText + "'");
             } else {
                 tvProfileCondition.setText("No conditions specified");
+                android.util.Log.d("ManageProfileAdapter", "No conditions for " + profile.getName() + " (conditionText: '" + conditionText + "')");
             }
 
             // Load profile image - always set default first, then try to load custom image

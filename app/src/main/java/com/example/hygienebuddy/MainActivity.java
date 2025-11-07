@@ -2,7 +2,6 @@ package com.example.hygienebuddy;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
@@ -18,17 +17,17 @@ public class MainActivity extends AppCompatActivity {
         // Create notification channel for reminders
         createNotificationChannel();
 
-        // Ensure onboarding is not shown - verify the flag
-        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
-        boolean onboardingCompleted = prefs.getBoolean("onboarding_completed", false);
+        // Ensure onboarding is not shown - verify the flag (from SQLite)
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(this);
+        boolean onboardingCompleted = appDataDb.getBooleanSetting("onboarding_completed", false);
         android.util.Log.d("MainActivity", "onCreate - onboarding_completed: " + onboardingCompleted);
 
         // Only set up fragments on first creation (not on configuration changes or activity recreation)
         // The NavHostFragment will handle fragment restoration automatically
         // The navigation graph's startDestination is homeDashboardFragment, so it will show the dashboard
         if (savedInstanceState == null) {
-            boolean facilitatorSetupCompleted = prefs.getBoolean("facilitator_setup_completed", false);
-            boolean childSetupCompleted = prefs.getBoolean("child_setup_completed", false);
+            boolean facilitatorSetupCompleted = appDataDb.getBooleanSetting("facilitator_setup_completed", false);
+            boolean childSetupCompleted = appDataDb.getBooleanSetting("child_setup_completed", false);
 
             android.util.Log.d("MainActivity", "Setup status - Facilitator: " + facilitatorSetupCompleted + ", Child: " + childSetupCompleted);
 

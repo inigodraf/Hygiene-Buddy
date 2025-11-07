@@ -1,7 +1,6 @@
 package com.example.hygienebuddy;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -52,9 +51,9 @@ public class FacilitatorSetupFragment extends Fragment {
                 return;
             }
 
-            // Check if facilitator setup is already completed
-            SharedPreferences prefs = requireActivity().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-            boolean facilitatorSetupCompleted = prefs.getBoolean("facilitator_setup_completed", false);
+            // Check if facilitator setup is already completed (from SQLite)
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            boolean facilitatorSetupCompleted = appDataDb.getBooleanSetting("facilitator_setup_completed", false);
 
             if (facilitatorSetupCompleted) {
                 navigateAfterFacilitatorSetup();
@@ -128,20 +127,18 @@ public class FacilitatorSetupFragment extends Fragment {
             return;
         }
 
-        // Save facilitator info here if needed (SharedPreferences or DB)
-        SharedPreferences prefs = requireActivity().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-        prefs.edit()
-                .putBoolean("facilitator_setup_completed", true)
-                .putString("facilitator_name", name)
-                .putString("facilitator_relationship", relationship)
-                .apply();
+        // Save facilitator info to SQLite
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+        appDataDb.setBooleanSetting("facilitator_setup_completed", true);
+        appDataDb.setSetting("facilitator_name", name);
+        appDataDb.setSetting("facilitator_relationship", relationship);
 
         navigateAfterFacilitatorSetup();
     }
 
     private void navigateAfterFacilitatorSetup() {
-        SharedPreferences prefs = requireActivity().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-        boolean childSetupCompleted = prefs.getBoolean("child_setup_completed", false);
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+        boolean childSetupCompleted = appDataDb.getBooleanSetting("child_setup_completed", false);
 
         if (!childSetupCompleted) {
             // Navigate to next setup screen (Child Profile) using ViewPager2

@@ -1,7 +1,6 @@
 package com.example.hygienebuddy;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.animation.AlphaAnimation;
@@ -44,15 +43,15 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void navigateNext() {
-        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
-        boolean onboardingCompleted = prefs.getBoolean("onboarding_completed", false);
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(this);
+        boolean onboardingCompleted = appDataDb.getBooleanSetting("onboarding_completed", false);
 
         // Log the onboarding status for debugging
         android.util.Log.d("SplashActivity", "onboarding_completed flag: " + onboardingCompleted);
 
-        // Also check if setup is completed to ensure we go directly to dashboard
-        boolean facilitatorSetupCompleted = prefs.getBoolean("facilitator_setup_completed", false);
-        boolean childSetupCompleted = prefs.getBoolean("child_setup_completed", false);
+        // Also check if setup is completed to ensure we go directly to dashboard (from SQLite)
+        boolean facilitatorSetupCompleted = appDataDb.getBooleanSetting("facilitator_setup_completed", false);
+        boolean childSetupCompleted = appDataDb.getBooleanSetting("child_setup_completed", false);
         boolean setupCompleted = facilitatorSetupCompleted && childSetupCompleted;
 
         android.util.Log.d("SplashActivity", "Setup status - Facilitator: " + facilitatorSetupCompleted + ", Child: " + childSetupCompleted);

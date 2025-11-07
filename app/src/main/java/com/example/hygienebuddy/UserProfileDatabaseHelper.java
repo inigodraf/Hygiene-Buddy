@@ -66,14 +66,22 @@ public class UserProfileDatabaseHelper extends SQLiteOpenHelper {
                 android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile without imageUri");
             }
 
-            // Handle conditions - trim and save, or null if empty
-            if (conditions != null && !conditions.trim().isEmpty() && !conditions.equalsIgnoreCase("None")) {
-                values.put(COLUMN_CONDITIONS, conditions.trim());
-                android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile with conditions: '" + conditions.trim() + "'");
+            // Handle conditions - always save the trimmed string, even if empty
+            // This ensures consistency - empty string means no conditions, null means not set
+            if (conditions != null && !conditions.equalsIgnoreCase("None")) {
+                String trimmedConditions = conditions.trim();
+                if (!trimmedConditions.isEmpty()) {
+                    values.put(COLUMN_CONDITIONS, trimmedConditions);
+                    android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile with conditions: '" + trimmedConditions + "'");
+                } else {
+                    // Empty string after trim - save as empty string (not null) for consistency
+                    values.put(COLUMN_CONDITIONS, "");
+                    android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile with empty conditions string");
+                }
             } else {
-                android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile without conditions (or 'None')");
-                // Save as null in database if empty or "None"
-                values.putNull(COLUMN_CONDITIONS);
+                // null or "None" - save as empty string for consistency
+                values.put(COLUMN_CONDITIONS, "");
+                android.util.Log.d("UserProfileDatabaseHelper", "Inserting profile without conditions (null or 'None') - saving as empty string");
             }
 
             long result = db.insert(TABLE_USER_PROFILES, null, values);
@@ -113,8 +121,17 @@ public class UserProfileDatabaseHelper extends SQLiteOpenHelper {
                             ? cursor.getString(imageUriCol) : null;
 
                     int conditionsCol = cursor.getColumnIndex(COLUMN_CONDITIONS);
-                    String conditions = (conditionsCol >= 0 && !cursor.isNull(conditionsCol))
-                            ? cursor.getString(conditionsCol) : null;
+                    String conditions = null;
+                    if (conditionsCol >= 0) {
+                        if (cursor.isNull(conditionsCol)) {
+                            conditions = ""; // Convert null to empty string for consistency
+                        } else {
+                            String rawConditions = cursor.getString(conditionsCol);
+                            conditions = (rawConditions != null) ? rawConditions : "";
+                        }
+                    } else {
+                        conditions = ""; // Column doesn't exist - default to empty string
+                    }
 
                     profiles.add(new UserProfile(id, name, age, imageUri, conditions));
                 } while (cursor.moveToNext());
@@ -151,8 +168,17 @@ public class UserProfileDatabaseHelper extends SQLiteOpenHelper {
                         ? cursor.getString(imageUriCol) : null;
 
                 int conditionsCol = cursor.getColumnIndex(COLUMN_CONDITIONS);
-                String conditions = (conditionsCol >= 0 && !cursor.isNull(conditionsCol))
-                        ? cursor.getString(conditionsCol) : null;
+                String conditions = null;
+                if (conditionsCol >= 0) {
+                    if (cursor.isNull(conditionsCol)) {
+                        conditions = ""; // Convert null to empty string for consistency
+                    } else {
+                        String rawConditions = cursor.getString(conditionsCol);
+                        conditions = (rawConditions != null) ? rawConditions : "";
+                    }
+                } else {
+                    conditions = ""; // Column doesn't exist - default to empty string
+                }
 
                 return new UserProfile(id, name, age, imageUri, conditions);
             }
@@ -187,13 +213,22 @@ public class UserProfileDatabaseHelper extends SQLiteOpenHelper {
             } else {
                 values.putNull(COLUMN_IMAGE_URI);
             }
-            // Handle conditions - trim and save, or null if empty
-            if (conditions != null && !conditions.trim().isEmpty() && !conditions.equalsIgnoreCase("None")) {
-                values.put(COLUMN_CONDITIONS, conditions.trim());
-                android.util.Log.d("UserProfileDatabaseHelper", "Updating profile with conditions: '" + conditions.trim() + "'");
+            // Handle conditions - always save the trimmed string, even if empty
+            // This ensures consistency - empty string means no conditions, null means not set
+            if (conditions != null && !conditions.equalsIgnoreCase("None")) {
+                String trimmedConditions = conditions.trim();
+                if (!trimmedConditions.isEmpty()) {
+                    values.put(COLUMN_CONDITIONS, trimmedConditions);
+                    android.util.Log.d("UserProfileDatabaseHelper", "Updating profile with conditions: '" + trimmedConditions + "'");
+                } else {
+                    // Empty string after trim - save as empty string (not null) for consistency
+                    values.put(COLUMN_CONDITIONS, "");
+                    android.util.Log.d("UserProfileDatabaseHelper", "Updating profile with empty conditions string");
+                }
             } else {
-                android.util.Log.d("UserProfileDatabaseHelper", "Updating profile without conditions (or 'None')");
-                values.putNull(COLUMN_CONDITIONS);
+                // null or "None" - save as empty string for consistency
+                values.put(COLUMN_CONDITIONS, "");
+                android.util.Log.d("UserProfileDatabaseHelper", "Updating profile without conditions (null or 'None') - saving as empty string");
             }
             int result = db.update(TABLE_USER_PROFILES, values, COLUMN_ID + "=?", new String[]{String.valueOf(id)});
             if (result > 0) {

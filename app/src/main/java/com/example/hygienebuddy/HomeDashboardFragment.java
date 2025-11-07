@@ -1,7 +1,6 @@
 package com.example.hygienebuddy;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -22,6 +21,7 @@ import androidx.fragment.app.FragmentTransaction;
 import androidx.navigation.NavController;
 import androidx.navigation.NavDestination;
 import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -62,6 +62,9 @@ public class HomeDashboardFragment extends Fragment {
     // Track last loaded profile ID to detect profile changes
     private int lastLoadedProfileId = -1;
 
+    // Database helper for app data
+    private AppDataDatabaseHelper appDataDb;
+
     public HomeDashboardFragment() {
         // Required empty public constructor
     }
@@ -72,6 +75,9 @@ public class HomeDashboardFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
 
         View view = inflater.inflate(R.layout.fragment_home_dashboard, container, false);
+
+        // Initialize database helper
+        appDataDb = new AppDataDatabaseHelper(requireContext());
 
         // Bind UI elements
         bindViews(view);
@@ -108,13 +114,12 @@ public class HomeDashboardFragment extends Fragment {
 
     /** Refresh all dashboard data based on current profile */
     private void refreshDashboardData() {
-        if (!isAdded()) return;
+        if (!isAdded() || appDataDb == null) return;
 
-        // Get current profile ID
-        SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+        // Get current profile ID from SQLite
+        int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
         if (currentProfileId == -1) {
-            currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+            currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
         }
 
         // Check if profile has changed (or if this is first load)
@@ -240,27 +245,15 @@ public class HomeDashboardFragment extends Fragment {
         }
 
         try {
-            // Get current profile ID
-            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
-            // Calculate daily task completion based on today's task completions
+            // Calculate daily task completion based on today's task completions from SQLite
             String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-            String taskCompletionsKey = "task_completions_" + today + "_profile_" + currentProfileId;
-            String completedTasksStr = sharedPref.getString(taskCompletionsKey, "");
-
-            Set<String> completedTasks = new HashSet<>();
-            if (!completedTasksStr.isEmpty()) {
-                String[] tasks = completedTasksStr.split(",");
-                for (String task : tasks) {
-                    if (!task.trim().isEmpty()) {
-                        completedTasks.add(task.trim().toLowerCase());
-                    }
-                }
-            }
+            Set<String> completedTasks = appDataDb.getTaskCompletionsForDate(currentProfileId, today);
 
             // Count completed tasks (handwashing and/or toothbrushing)
             int completedCount = 0;
@@ -276,11 +269,9 @@ public class HomeDashboardFragment extends Fragment {
             progressTasks.setProgress(progressPercent);
             tvTaskProgress.setText(progressPercent + "% completed");
 
-            // Calculate total XP from badge progress (for points display)
-            String handwashingProgressKey = "badge_progress_handwashing_hero_profile_" + currentProfileId;
-            String toothbrushingProgressKey = "badge_progress_toothbrushing_champ_profile_" + currentProfileId;
-            int handwashingProgress = sharedPref.getInt(handwashingProgressKey, 0);
-            int toothbrushingProgress = sharedPref.getInt(toothbrushingProgressKey, 0);
+            // Calculate total XP from badge progress (for points display) from SQLite
+            int handwashingProgress = appDataDb.getBadgeProgress(currentProfileId, "handwashing_hero");
+            int toothbrushingProgress = appDataDb.getBadgeProgress(currentProfileId, "toothbrushing_champ");
             int totalCompletedTasks = handwashingProgress + toothbrushingProgress;
             tvPoints.setText((totalCompletedTasks * 10) + " XP");
 
@@ -306,28 +297,17 @@ public class HomeDashboardFragment extends Fragment {
         }
 
         try {
-            // Get current profile ID
-            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
             layoutStreakDays.removeAllViews();
 
-            // Load completed days from SharedPreferences (profile-scoped)
+            // Load completed days from SQLite (profile-scoped)
             // These are days where BOTH tasks were completed
-            String completedDaysKey = "completed_days_profile_" + currentProfileId;
-            String completedDaysStr = sharedPref.getString(completedDaysKey, "");
-            Set<String> streakCompletedDays = new HashSet<>();
-            if (!completedDaysStr.isEmpty()) {
-                String[] days = completedDaysStr.split(",");
-                for (String day : days) {
-                    if (!day.trim().isEmpty()) {
-                        streakCompletedDays.add(day.trim());
-                    }
-                }
-            }
+            Set<String> streakCompletedDays = appDataDb.getStreakDays(currentProfileId);
 
             // Get last 7 days for weekly streak display
             Calendar cal = Calendar.getInstance();
@@ -461,17 +441,27 @@ public class HomeDashboardFragment extends Fragment {
         }
 
         try {
-            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-
-            // Get current profile ID to ensure we're showing the right profile
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
-            String name = sharedPref.getString("child_name", null);
-            String age = sharedPref.getString("child_age", null);
-            String conditions = sharedPref.getString("child_conditions", null);
+            // Load profile data from UserProfileDatabaseHelper
+            UserProfileDatabaseHelper profileDb = new UserProfileDatabaseHelper(requireContext());
+            UserProfile profile = null;
+            if (currentProfileId > 0) {
+                profile = profileDb.getProfileById(currentProfileId);
+            }
+
+            String name = null;
+            String age = null;
+            String conditions = null;
+            if (profile != null) {
+                name = profile.getName();
+                age = String.valueOf(profile.getAge());
+                conditions = profile.getCondition();
+            }
 
             if (name != null && age != null) {
                 String formattedConditions = "";
@@ -507,12 +497,11 @@ public class HomeDashboardFragment extends Fragment {
 
             ReminderDatabaseHelper reminderDbHelper = new ReminderDatabaseHelper(requireContext());
 
-            // Get current profile ID
-            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             // Fallback to selected_profile_id for backward compatibility
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
             // Use profile-scoped query directly from database
@@ -673,17 +662,25 @@ public class HomeDashboardFragment extends Fragment {
         }
 
         try {
-            // Get current profile ID
-            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            // Get current profile ID from SQLite
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
-                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
-            // Get profile name for dialog title
-            String profileName = sharedPref.getString("child_name", "Child");
-            if (profileName == null || profileName.isEmpty()) {
-                profileName = "Child";
+            // Get profile name for dialog title from SQLite or database
+            String profileName = "Child";
+            if (currentProfileId > 0) {
+                UserProfileDatabaseHelper profileDb = new UserProfileDatabaseHelper(requireContext());
+                UserProfile profile = profileDb.getProfileById(currentProfileId);
+                if (profile != null && profile.getName() != null) {
+                    profileName = profile.getName();
+                } else {
+                    // Fallback to SQLite app settings
+                    profileName = appDataDb.getSetting("child_name", "Child");
+                }
+            } else {
+                profileName = appDataDb.getSetting("child_name", "Child");
             }
 
             // Load reminders for the current profile
@@ -760,8 +757,11 @@ public class HomeDashboardFragment extends Fragment {
             com.google.android.material.dialog.MaterialAlertDialogBuilder dialogBuilder =
                     new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
                             .setView(dialogContainer)
-                            .setPositiveButton("Close", null);
-
+                            .setPositiveButton("Close", null)
+                            .setNeutralButton("Manage Reminders", (dialog, which) -> {
+                                // Navigate to Settings screen
+                                navigateToFragment(new SettingsFragment());
+                            });
 
             dialogBuilder.show();
 
@@ -873,24 +873,93 @@ public class HomeDashboardFragment extends Fragment {
         }
     }
 
-    /** Navigate to ManageProfileFragment */
+    /** Navigate to ManageProfileFragment using safe navigation approach */
     private void navigateToManageProfile() {
+        if (!isAdded()) {
+            android.util.Log.e("HomeDashboard", "Cannot navigate - fragment not added");
+            return;
+        }
+
         try {
-            ManageProfileFragment manageProfileFragment = new ManageProfileFragment();
-            requireActivity().getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.nav_host_fragment, manageProfileFragment)
-                    .addToBackStack(null)
-                    .commit();
+            FragmentActivity activity = requireActivity();
+
+            // Method 1: Try to find NavController from the fragment's view (preferred)
+            View view = getView();
+            NavController navController = null;
+
+            if (view != null) {
+                try {
+                    navController = Navigation.findNavController(view);
+                    android.util.Log.d("HomeDashboard", "Found NavController from fragment view");
+                } catch (IllegalStateException e) {
+                    android.util.Log.w("HomeDashboard", "NavController not found from fragment view: " + e.getMessage());
+                }
+            }
+
+            // Method 2: Try to find NavController from NavHostFragment by ID
+            if (navController == null) {
+                try {
+                    NavHostFragment navHostFragment = (NavHostFragment) activity.getSupportFragmentManager()
+                            .findFragmentById(R.id.nav_host_fragment);
+                    if (navHostFragment != null) {
+                        navController = navHostFragment.getNavController();
+                        android.util.Log.d("HomeDashboard", "Found NavController from NavHostFragment");
+                    }
+                } catch (Exception e) {
+                    android.util.Log.w("HomeDashboard", "Could not get NavController from NavHostFragment: " + e.getMessage());
+                }
+            }
+
+            // Method 3: Use NavController if found
+            if (navController != null) {
+                try {
+                    navController.navigate(R.id.action_homeDashboardFragment_to_manageProfileFragment);
+                    android.util.Log.d("HomeDashboard", "Navigated to ManageProfile using NavController");
+                    return;
+                } catch (Exception e) {
+                    android.util.Log.e("HomeDashboard", "NavController.navigate() failed: " + e.getMessage(), e);
+                }
+            }
+
+            // Method 4: Fallback - Try fragment_container (if it exists, e.g., in other activities)
+            View fragmentContainer = activity.findViewById(R.id.fragment_container);
+            if (fragmentContainer != null) {
+                FragmentManager fm = activity.getSupportFragmentManager();
+                FragmentTransaction ft = fm.beginTransaction();
+                ft.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out);
+                ft.replace(R.id.fragment_container, new ManageProfileFragment());
+                ft.addToBackStack(null);
+                ft.commit();
+                android.util.Log.d("HomeDashboard", "Navigated to ManageProfile using fragment_container");
+                return;
+            }
+
+            // If all methods fail, show error
+            android.util.Log.e("HomeDashboard", "All navigation methods failed for ManageProfile");
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "Failed to open profile management. Please try again.", Toast.LENGTH_SHORT).show();
+            }
+
+        } catch (IllegalArgumentException e) {
+            android.util.Log.e("HomeDashboard", "IllegalArgumentException navigating to ManageProfile: " + e.getMessage(), e);
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "Navigation error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        } catch (ClassCastException e) {
+            android.util.Log.e("HomeDashboard", "ClassCastException navigating to ManageProfile: " + e.getMessage(), e);
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "Navigation error: Invalid view type", Toast.LENGTH_SHORT).show();
+            }
         } catch (Exception e) {
             android.util.Log.e("HomeDashboard", "Error navigating to ManageProfile: " + e.getMessage(), e);
-            if (getContext() != null) {
-                Toast.makeText(requireContext(), "Failed to open profile management", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "Failed to open profile management", Toast.LENGTH_SHORT).show();
             }
         }
     }
 
-    /** Navigate to Report Summary using the same approach as BottomNavHelper */
+    /** Navigate to Report Summary using safe navigation approach */
     private void navigateToReportSummary() {
         if (!isAdded()) {
             android.util.Log.e("HomeDashboard", "Cannot navigate - fragment not added");
@@ -900,37 +969,76 @@ public class HomeDashboardFragment extends Fragment {
         try {
             FragmentActivity activity = requireActivity();
 
-            View fragmentContainer = activity.findViewById(R.id.nav_host_fragment);
-            if (fragmentContainer != null) {
-                FragmentManager fm = activity.getSupportFragmentManager();
-                FragmentTransaction ft = fm.beginTransaction();
-                ft.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out);
-                ft.replace(R.id.nav_host_fragment, new FragmentReportSummary());
-                ft.addToBackStack(null);
-                ft.commit();
-                android.util.Log.d("HomeDashboard", "Navigated to Report Summary using nav_host_fragment");
-                return;
-            }
-
-            // If nav_host_fragment doesn't exist, use NavController (for NavHostFragment setup)
+            // Method 1: Try to find NavController from the fragment's view (preferred)
             View view = getView();
+            NavController navController = null;
+
             if (view != null) {
                 try {
-                    NavController navController = Navigation.findNavController(view);
+                    navController = Navigation.findNavController(view);
+                    android.util.Log.d("HomeDashboard", "Found NavController from fragment view for Report Summary");
+                } catch (IllegalStateException e) {
+                    android.util.Log.w("HomeDashboard", "NavController not found from fragment view: " + e.getMessage());
+                }
+            }
+
+            // Method 2: Try to find NavController from NavHostFragment by ID
+            if (navController == null) {
+                try {
+                    NavHostFragment navHostFragment = (NavHostFragment) activity.getSupportFragmentManager()
+                            .findFragmentById(R.id.nav_host_fragment);
+                    if (navHostFragment != null) {
+                        navController = navHostFragment.getNavController();
+                        android.util.Log.d("HomeDashboard", "Found NavController from NavHostFragment for Report Summary");
+                    }
+                } catch (Exception e) {
+                    android.util.Log.w("HomeDashboard", "Could not get NavController from NavHostFragment: " + e.getMessage());
+                }
+            }
+
+            // Method 3: Use NavController if found
+            if (navController != null) {
+                try {
                     navController.navigate(R.id.action_homeDashboardFragment_to_fragmentReportSummary);
                     android.util.Log.d("HomeDashboard", "Navigated to Report Summary using NavController");
                     return;
                 } catch (Exception e) {
-                    android.util.Log.w("HomeDashboard", "NavController navigation failed: " + e.getMessage());
+                    android.util.Log.e("HomeDashboard", "NavController.navigate() failed for Report Summary: " + e.getMessage(), e);
                 }
             }
 
-            // Last resort: Try to use BottomNavHelper's navigate method directly
-            android.util.Log.w("HomeDashboard", "Standard navigation failed, trying alternative approach");
-            Toast.makeText(requireContext(), "Failed to open Report Summary", Toast.LENGTH_SHORT).show();
+            // Method 4: Fallback - Try fragment_container (if it exists, e.g., in other activities)
+            View fragmentContainer = activity.findViewById(R.id.fragment_container);
+            if (fragmentContainer != null) {
+                FragmentManager fm = activity.getSupportFragmentManager();
+                FragmentTransaction ft = fm.beginTransaction();
+                ft.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out);
+                ft.replace(R.id.fragment_container, new FragmentReportSummary());
+                ft.addToBackStack(null);
+                ft.commit();
+                android.util.Log.d("HomeDashboard", "Navigated to Report Summary using fragment_container");
+                return;
+            }
 
+            // If all methods fail, show error
+            android.util.Log.e("HomeDashboard", "All navigation methods failed for Report Summary");
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "Failed to open Report Summary. Please try again.", Toast.LENGTH_SHORT).show();
+            }
+
+        } catch (IllegalArgumentException e) {
+            android.util.Log.e("HomeDashboard", "IllegalArgumentException navigating to Report Summary: " + e.getMessage(), e);
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "Navigation error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        } catch (ClassCastException e) {
+            android.util.Log.e("HomeDashboard", "ClassCastException navigating to Report Summary: " + e.getMessage(), e);
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "Navigation error: Invalid view type", Toast.LENGTH_SHORT).show();
+            }
         } catch (Exception e) {
             android.util.Log.e("HomeDashboard", "Error navigating to Report Summary: " + e.getMessage(), e);
+            e.printStackTrace();
             if (isAdded() && getContext() != null) {
                 Toast.makeText(getContext(), "Failed to open Report Summary", Toast.LENGTH_SHORT).show();
             }

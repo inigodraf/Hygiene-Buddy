@@ -161,9 +161,9 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
 
             adapter.setProfiles(profiles);
 
-            // Load selected profile ID from SharedPreferences
-            android.content.SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", android.content.Context.MODE_PRIVATE);
-            int selectedProfileId = sharedPref.getInt("selected_profile_id", -1);
+            // Load selected profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int selectedProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             adapter.setSelectedProfileId(selectedProfileId);
 
             if (profiles.isEmpty()) {
@@ -281,7 +281,7 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
                     boolean hasADHD = cbADHD.isChecked();
                     boolean hasDownSyndrome = cbDownSyndrome.isChecked();
 
-                    android.util.Log.d("ManageProfileFragment", "Reading checkbox states - ASD: " + hasASD + "ADHD: " + hasADHD + "Down: " + hasDownSyndrome);
+                    android.util.Log.d("ManageProfileFragment", "Reading checkbox states - ASD: " + hasASD + ", ADHD: " + hasADHD + ", Down: " + hasDownSyndrome);
 
                     int age = Integer.parseInt(ageText);
                     StringBuilder conditionBuilder = new StringBuilder();
@@ -357,7 +357,18 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
                 }
 
                 Toast.makeText(requireContext(), "Profile added successfully!", Toast.LENGTH_SHORT).show();
-                loadProfiles(); // This will refresh the RecyclerView
+
+                // Refresh profiles list immediately on main thread
+                if (isAdded() && getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        loadProfiles(); // This will refresh the RecyclerView
+                        if (adapter != null) {
+                            adapter.notifyDataSetChanged(); // Force immediate refresh
+                        }
+                    });
+                } else {
+                    loadProfiles(); // Fallback if not on main thread
+                }
             } else {
                 android.util.Log.e("ManageProfileFragment", "Failed to add profile - insertProfile returned -1");
                 Toast.makeText(requireContext(), "Failed to add profile", Toast.LENGTH_SHORT).show();
@@ -376,11 +387,35 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
         }
 
         try {
+            android.util.Log.d("ManageProfileFragment", "updateProfile called - id: " + id + ", name: " + name + ", age: " + age + ", conditions: '" + conditions + "', imageUri: " + (imageUri != null ? imageUri : "null"));
+
             int result = databaseHelper.updateProfile(id, name, age, imageUri, conditions);
             if (result > 0) {
+                android.util.Log.d("ManageProfileFragment", "Profile updated successfully");
+
+                // Verify the profile was updated correctly by reading it back
+                UserProfile updatedProfile = databaseHelper.getProfileById(id);
+                if (updatedProfile != null) {
+                    android.util.Log.d("ManageProfileFragment", "Verified updated profile - conditions: '" + updatedProfile.getCondition() + "'");
+                } else {
+                    android.util.Log.w("ManageProfileFragment", "Could not verify updated profile - getProfileById returned null");
+                }
+
                 Toast.makeText(requireContext(), "Profile updated successfully!", Toast.LENGTH_SHORT).show();
-                loadProfiles();
+
+                // Refresh profiles list immediately on main thread
+                if (isAdded() && getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        loadProfiles(); // This will refresh the RecyclerView
+                        if (adapter != null) {
+                            adapter.notifyDataSetChanged(); // Force immediate refresh
+                        }
+                    });
+                } else {
+                    loadProfiles(); // Fallback if not on main thread
+                }
             } else {
+                android.util.Log.e("ManageProfileFragment", "Failed to update profile - updateProfile returned " + result);
                 Toast.makeText(requireContext(), "Failed to update profile", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
@@ -426,15 +461,13 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
     public void onProfileSelected(UserProfile profile) {
         if (profile == null) return;
 
-        // Save selected profile to SharedPreferences for use across the app
-        android.content.SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", android.content.Context.MODE_PRIVATE);
-        android.content.SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString("child_name", profile.getName());
-        editor.putString("child_age", String.valueOf(profile.getAge()));
-        editor.putString("child_conditions", profile.getCondition() != null ? profile.getCondition() : "");
-        editor.putInt("selected_profile_id", profile.getId());
-        editor.putInt("current_profile_id", profile.getId()); // Store as current_profile_id for profile switching
-        editor.apply();
+        // Save selected profile to SQLite for use across the app
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+        appDataDb.setIntSetting("selected_profile_id", profile.getId());
+        appDataDb.setIntSetting("current_profile_id", profile.getId()); // Store as current_profile_id for profile switching
+        appDataDb.setSetting("child_name", profile.getName());
+        appDataDb.setSetting("child_age", String.valueOf(profile.getAge()));
+        appDataDb.setSetting("child_conditions", profile.getCondition() != null ? profile.getCondition() : "");
 
         // Update adapter to show selected state
         adapter.setSelectedProfileId(profile.getId());
@@ -442,10 +475,7 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
         // Show feedback
         Toast.makeText(requireContext(), "Switched to " + profile.getName() + "'s profile", Toast.LENGTH_SHORT).show();
 
-        // Force commit to ensure SharedPreferences is saved before navigation
-        editor.commit();
-
-        // Small delay to ensure SharedPreferences is committed
+        // Small delay to ensure database is committed
         android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
         handler.postDelayed(() -> {
             // Navigate back to dashboard with smooth transition animation

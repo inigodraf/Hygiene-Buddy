@@ -2,7 +2,6 @@ package com.example.hygienebuddy;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -23,8 +22,8 @@ public class OnboardingActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         // Check if onboarding was already completed - if so, skip directly to MainActivity
-        SharedPreferences prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-        boolean onboardingCompleted = prefs.getBoolean("onboarding_completed", false);
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(this);
+        boolean onboardingCompleted = appDataDb.getBooleanSetting("onboarding_completed", false);
 
         android.util.Log.d("OnboardingActivity", "onCreate - onboarding_completed flag: " + onboardingCompleted);
 
@@ -63,14 +62,14 @@ public class OnboardingActivity extends AppCompatActivity {
 
     /** Called by the last onboarding fragment */
     public void completeOnboarding() {
-        // Mark onboarding completed - use commit() to ensure it's saved immediately
-        SharedPreferences prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-        boolean saved = prefs.edit().putBoolean("onboarding_completed", true).commit();
+        // Mark onboarding completed in SQLite
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(this);
+        appDataDb.setBooleanSetting("onboarding_completed", true);
 
-        android.util.Log.d("OnboardingActivity", "completeOnboarding called - flag saved: " + saved);
+        android.util.Log.d("OnboardingActivity", "completeOnboarding called - flag saved to SQLite");
 
         // Verify the flag was saved
-        boolean verifyFlag = prefs.getBoolean("onboarding_completed", false);
+        boolean verifyFlag = appDataDb.getBooleanSetting("onboarding_completed", false);
         android.util.Log.d("OnboardingActivity", "Verification - onboarding_completed flag after save: " + verifyFlag);
 
         // Navigate to facilitator setup
@@ -98,10 +97,10 @@ public class OnboardingActivity extends AppCompatActivity {
         try {
             android.util.Log.d("OnboardingActivity", "showFacilitatorSetup called - switching to setup adapter");
 
-            // Mark onboarding as completed when transitioning to setup
-            SharedPreferences prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-            boolean saved = prefs.edit().putBoolean("onboarding_completed", true).commit();
-            android.util.Log.d("OnboardingActivity", "Onboarding marked as completed: " + saved);
+            // Mark onboarding as completed when transitioning to setup (in SQLite)
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(this);
+            appDataDb.setBooleanSetting("onboarding_completed", true);
+            android.util.Log.d("OnboardingActivity", "Onboarding marked as completed in SQLite");
 
             // Hide tab indicator (setup screens don't need indicators)
             if (tabIndicator != null) {

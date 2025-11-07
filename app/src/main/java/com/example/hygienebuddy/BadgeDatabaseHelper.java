@@ -70,8 +70,8 @@ public class BadgeDatabaseHelper extends SQLiteOpenHelper {
         insertBadge(db, "7-Day Streak", "Completed tasks 7 days in a row", 0, 7, "streak_7");
         insertBadge(db, "14-Day Streak", "Completed tasks 14 days in a row", 0, 14, "streak_14");
         insertBadge(db, "30-Day Streak", "Completed tasks 30 days in a row", 0, 30, "streak_30");
-        insertBadge(db, "60-Day Streak", "Completed tasks 60 days in a row", 0, 30, "streak_60");
-        insertBadge(db, "100-Day Streak", "Completed tasks 100 days in a row", 0, 30, "streak_100");
+        insertBadge(db, "60-Day Streak", "Completed tasks 60 days in a row", 0, 60, "streak_60");
+        insertBadge(db, "100-Day Streak", "Completed tasks 100 days in a row", 0, 100, "streak_100");
 
         insertBadge(db, "Handwashing Hero", "Completed 10 handwashing tasks", 0, 10, "handwashing_hero");
         insertBadge(db, "Toothbrushing Champ", "Completed 10 toothbrushing tasks", 0, 10, "toothbrushing_champ");
@@ -136,6 +136,20 @@ public class BadgeDatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_PROGRESS, progress);
         db.update(TABLE_BADGES, values, COLUMN_BADGE_KEY + "=?", new String[]{badgeKey});
         db.close();
+    }
+
+    /** Get a badge by its key */
+    public BadgeModel getBadgeByKey(String badgeKey) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query(TABLE_BADGES, null, COLUMN_BADGE_KEY + "=?",
+                new String[]{badgeKey}, null, null, null);
+        BadgeModel badge = null;
+        if (cursor != null && cursor.moveToFirst()) {
+            badge = fromCursor(cursor);
+        }
+        if (cursor != null) cursor.close();
+        db.close();
+        return badge;
     }
 
     private BadgeModel fromCursor(Cursor cursor) {
