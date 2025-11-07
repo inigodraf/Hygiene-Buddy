@@ -244,26 +244,44 @@ public class HomeDashboardFragment extends Fragment {
                 currentProfileId = sharedPref.getInt("selected_profile_id", -1);
             }
 
-            // Load task progress from profile-scoped SharedPreferences
-            // Get progress for task-related badges (handwashing_hero, toothbrushing_champ)
-            String handwashingProgressKey = "badge_progress_handwashing_hero_profile_" + currentProfileId;
-            String toothbrushingProgressKey = "badge_progress_toothbrushing_champ_profile_" + currentProfileId;
+            // Calculate daily task completion based on today's task completions
+            String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
+            String taskCompletionsKey = "task_completions_" + today + "_profile_" + currentProfileId;
+            String completedTasksStr = sharedPref.getString(taskCompletionsKey, "");
 
-            int handwashingProgress = sharedPref.getInt(handwashingProgressKey, 0);
-            int toothbrushingProgress = sharedPref.getInt(toothbrushingProgressKey, 0);
+            Set<String> completedTasks = new HashSet<>();
+            if (!completedTasksStr.isEmpty()) {
+                String[] tasks = completedTasksStr.split(",");
+                for (String task : tasks) {
+                    if (!task.trim().isEmpty()) {
+                        completedTasks.add(task.trim().toLowerCase());
+                    }
+                }
+            }
 
-            int completedTasks = handwashingProgress + toothbrushingProgress;
-            int totalTasks = 20; // 10 handwashing + 10 toothbrushing (goal for each badge)
+            // Count completed tasks (handwashing and/or toothbrushing)
+            int completedCount = 0;
+            if (completedTasks.contains("handwashing")) completedCount++;
+            if (completedTasks.contains("toothbrushing")) completedCount++;
 
-            // Calculate progress percentage
-            int progressPercent = totalTasks > 0 ? (int) ((completedTasks / (float) totalTasks) * 100) : 0;
+            int totalTasks = 2; // 2 tasks per day: handwashing and toothbrushing
+
+            // Calculate progress percentage (50% for 1 task, 100% for both)
+            int progressPercent = totalTasks > 0 ? (int) ((completedCount / (float) totalTasks) * 100) : 0;
             progressPercent = Math.min(progressPercent, 100); // Cap at 100%
 
             progressTasks.setProgress(progressPercent);
             tvTaskProgress.setText(progressPercent + "% completed");
-            tvPoints.setText((completedTasks * 10) + " XP");
 
-            android.util.Log.d("HomeDashboard", "Loaded task progress for profile ID: " + currentProfileId + " - " + completedTasks + "/" + totalTasks + " tasks (H:" + handwashingProgress + ", T:" + toothbrushingProgress + ")");
+            // Calculate total XP from badge progress (for points display)
+            String handwashingProgressKey = "badge_progress_handwashing_hero_profile_" + currentProfileId;
+            String toothbrushingProgressKey = "badge_progress_toothbrushing_champ_profile_" + currentProfileId;
+            int handwashingProgress = sharedPref.getInt(handwashingProgressKey, 0);
+            int toothbrushingProgress = sharedPref.getInt(toothbrushingProgressKey, 0);
+            int totalCompletedTasks = handwashingProgress + toothbrushingProgress;
+            tvPoints.setText((totalCompletedTasks * 10) + " XP");
+
+            android.util.Log.d("HomeDashboard", "Loaded task progress for profile ID: " + currentProfileId + " - Today: " + completedCount + "/" + totalTasks + " tasks completed (" + progressPercent + "%)");
         } catch (Exception e) {
             android.util.Log.e("HomeDashboard", "Error loading task progress: " + e.getMessage(), e);
             // Fallback to zero if error
@@ -295,14 +313,15 @@ public class HomeDashboardFragment extends Fragment {
             layoutStreakDays.removeAllViews();
 
             // Load completed days from SharedPreferences (profile-scoped)
+            // These are days where BOTH tasks were completed
             String completedDaysKey = "completed_days_profile_" + currentProfileId;
             String completedDaysStr = sharedPref.getString(completedDaysKey, "");
-            Set<String> completedDays = new HashSet<>();
+            Set<String> streakCompletedDays = new HashSet<>();
             if (!completedDaysStr.isEmpty()) {
                 String[] days = completedDaysStr.split(",");
                 for (String day : days) {
                     if (!day.trim().isEmpty()) {
-                        completedDays.add(day.trim());
+                        streakCompletedDays.add(day.trim());
                     }
                 }
             }
@@ -310,30 +329,61 @@ public class HomeDashboardFragment extends Fragment {
             // Get last 7 days for weekly streak display
             Calendar cal = Calendar.getInstance();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-            ArrayList<Boolean> streakDays = new ArrayList<>();
+            SimpleDateFormat dayNameFormat = new SimpleDateFormat("EEE", Locale.getDefault());
+            ArrayList<StreakDayInfo> streakDays = new ArrayList<>();
 
             for (int i = 6; i >= 0; i--) {
                 cal.setTime(new Date());
                 cal.add(Calendar.DAY_OF_YEAR, -i);
                 String dateKey = dateFormat.format(cal.getTime());
-                boolean completed = completedDays.contains(dateKey);
-                streakDays.add(completed);
+                String dayName = dayNameFormat.format(cal.getTime());
+
+                // Check if BOTH tasks were completed on this day
+                boolean bothTasksCompleted = streakCompletedDays.contains(dateKey);
+
+                streakDays.add(new StreakDayInfo(dayName, bothTasksCompleted));
             }
 
-            // Display streak days
-            for (boolean completed : streakDays) {
+            // Display streak days with labels
+            for (StreakDayInfo dayInfo : streakDays) {
+                // Create container for day label and icon
+                LinearLayout dayContainer = new LinearLayout(getContext());
+                dayContainer.setOrientation(LinearLayout.VERTICAL);
+                dayContainer.setGravity(android.view.Gravity.CENTER);
+                LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                containerParams.setMargins(8, 8, 8, 8);
+                dayContainer.setLayoutParams(containerParams);
+
+                // Day label (Mon, Tue, Wed, etc.)
+                TextView dayLabel = new TextView(getContext());
+                dayLabel.setText(dayInfo.dayName);
+                dayLabel.setTextSize(10);
+                dayLabel.setGravity(android.view.Gravity.CENTER);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    dayLabel.setTextColor(getResources().getColor(R.color.subtitle_text, null));
+                } else {
+                    dayLabel.setTextColor(getResources().getColor(R.color.subtitle_text));
+                }
+                dayLabel.setPadding(0, 0, 0, 4);
+
+                // Streak icon
                 ImageView dayView = new ImageView(getContext());
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(70, 70);
-                lp.setMargins(8, 8, 8, 8);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(50, 50);
                 dayView.setLayoutParams(lp);
-                dayView.setPadding(8, 8, 8, 8);
-                dayView.setImageResource(completed ? R.drawable.ic_streak_filled : R.drawable.ic_streak_empty);
-                layoutStreakDays.addView(dayView);
+                dayView.setPadding(4, 4, 4, 4);
+                dayView.setImageResource(dayInfo.completed ? R.drawable.ic_streak_filled : R.drawable.ic_streak_empty);
+
+                dayContainer.addView(dayLabel);
+                dayContainer.addView(dayView);
+                layoutStreakDays.addView(dayContainer);
             }
 
             // Calculate total completed days and longest streak
-            int totalCompleted = completedDays.size();
-            int longestStreak = calculateLongestStreak(completedDays);
+            int totalCompleted = streakCompletedDays.size();
+            int longestStreak = calculateLongestStreak(streakCompletedDays);
 
             tvCompletedTotal.setText("Completed Total: " + totalCompleted + " day" + (totalCompleted != 1 ? "s" : ""));
             tvLongestStreak.setText("Longest Streak: " + longestStreak + " day" + (longestStreak != 1 ? "s" : ""));
@@ -344,6 +394,17 @@ public class HomeDashboardFragment extends Fragment {
             // Fallback to empty state
             tvCompletedTotal.setText("Completed Total: 0 days");
             tvLongestStreak.setText("Longest Streak: 0 days");
+        }
+    }
+
+    /** Helper class for streak day information */
+    private static class StreakDayInfo {
+        String dayName;
+        boolean completed;
+
+        StreakDayInfo(String dayName, boolean completed) {
+            this.dayName = dayName;
+            this.completed = completed;
         }
     }
 

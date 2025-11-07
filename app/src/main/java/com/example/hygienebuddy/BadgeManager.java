@@ -31,9 +31,9 @@ public class BadgeManager {
             currentProfileId = sharedPref.getInt("selected_profile_id", -1);
         }
 
-        // Record completion date for streak tracking (profile-scoped)
+        // Record task completion for this specific day (profile-scoped)
         if (currentProfileId > 0) {
-            recordCompletionDate(currentProfileId, today);
+            recordTaskCompletionForDate(currentProfileId, today, taskType);
         }
 
         // Clean Habit Starter: first ever completion of any hygiene task (profile-scoped)
@@ -46,32 +46,64 @@ public class BadgeManager {
         }
     }
 
-    /** Record completion date for streak tracking (profile-scoped) */
-    private void recordCompletionDate(int profileId, String date) {
+    /** Record task completion for a specific date (profile-scoped) */
+    private void recordTaskCompletionForDate(int profileId, String date, String taskType) {
         SharedPreferences sharedPref = context.getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        String completedDaysKey = "completed_days_profile_" + profileId;
-        String existingDays = sharedPref.getString(completedDaysKey, "");
 
-        Set<String> completedDays = new HashSet<>();
-        if (!existingDays.isEmpty()) {
-            String[] days = existingDays.split(",");
-            for (String day : days) {
-                if (!day.trim().isEmpty()) {
-                    completedDays.add(day.trim());
+        // Store which tasks were completed on this date
+        // Format: "task_completions_{date}_profile_{profileId}" = "handwashing,toothbrushing"
+        String taskCompletionsKey = "task_completions_" + date + "_profile_" + profileId;
+        String existingTasks = sharedPref.getString(taskCompletionsKey, "");
+
+        Set<String> completedTasks = new HashSet<>();
+        if (!existingTasks.isEmpty()) {
+            String[] tasks = existingTasks.split(",");
+            for (String task : tasks) {
+                if (!task.trim().isEmpty()) {
+                    completedTasks.add(task.trim().toLowerCase());
                 }
             }
         }
 
-        completedDays.add(date);
+        // Add the current task
+        completedTasks.add(taskType.toLowerCase());
 
         // Save back as comma-separated string
         StringBuilder sb = new StringBuilder();
-        for (String day : completedDays) {
+        for (String task : completedTasks) {
             if (sb.length() > 0) sb.append(",");
-            sb.append(day);
+            sb.append(task);
         }
 
-        sharedPref.edit().putString(completedDaysKey, sb.toString()).apply();
+        sharedPref.edit().putString(taskCompletionsKey, sb.toString()).apply();
+
+        // Check if both tasks are completed for this day - if so, mark day as streak-complete
+        if (completedTasks.contains("handwashing") && completedTasks.contains("toothbrushing")) {
+            // Both tasks completed - mark this day as streak-complete
+            String completedDaysKey = "completed_days_profile_" + profileId;
+            String existingDays = sharedPref.getString(completedDaysKey, "");
+
+            Set<String> completedDays = new HashSet<>();
+            if (!existingDays.isEmpty()) {
+                String[] days = existingDays.split(",");
+                for (String day : days) {
+                    if (!day.trim().isEmpty()) {
+                        completedDays.add(day.trim());
+                    }
+                }
+            }
+
+            completedDays.add(date);
+
+            // Save back as comma-separated string
+            StringBuilder daysSb = new StringBuilder();
+            for (String day : completedDays) {
+                if (daysSb.length() > 0) daysSb.append(",");
+                daysSb.append(day);
+            }
+
+            sharedPref.edit().putString(completedDaysKey, daysSb.toString()).apply();
+        }
     }
 
     // Record days where ALL daily tasks were completed consecutively
