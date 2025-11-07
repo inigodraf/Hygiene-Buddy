@@ -9,16 +9,6 @@ public class BadgeModel {
     private int goal;
     private String imageKey; // optional explicit key to resolve drawable
 
-    public BadgeModel(String title, String description, boolean isEarned, String earnedDate, int progress, int goal) {
-        this.title = title;
-        this.description = description;
-        this.isEarned = isEarned;
-        this.earnedDate = earnedDate;
-        this.progress = progress;
-        this.goal = goal;
-        this.imageKey = null;
-    }
-
     public BadgeModel(String title, String description, boolean isEarned, String earnedDate, int progress, int goal, String imageKey) {
         this.title = title;
         this.description = description;

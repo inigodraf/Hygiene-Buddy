@@ -227,7 +227,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:weightSum="2"
+                android:weightSum="3"
                 android:layout_marginBottom="24dp">
 
                 <!-- Total Points -->
@@ -238,14 +238,14 @@
                     android:orientation="vertical"
                     android:background="@drawable/card_bg"
                     android:padding="16dp"
-                    android:layout_marginEnd="8dp"
+                    android:layout_marginEnd="4dp"
                     android:gravity="center">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Total Points"
-                        android:textSize="14sp"
+                        android:textSize="12sp"
                         android:textColor="#666666"
                         android:layout_marginBottom="8dp" />
 
@@ -254,7 +254,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="150 XP"
-                        android:textSize="20sp"
+                        android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="#2196F3" />
                 </LinearLayout>
@@ -267,14 +267,14 @@
                     android:orientation="vertical"
                     android:background="@drawable/card_bg"
                     android:padding="16dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginHorizontal="4dp"
                     android:gravity="center">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Badges Earned"
-                        android:textSize="14sp"
+                        android:textSize="12sp"
                         android:textColor="#666666"
                         android:layout_marginBottom="8dp" />
 
@@ -283,9 +283,38 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="3"
-                        android:textSize="20sp"
+                        android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="#4CAF50" />
+                </LinearLayout>
+
+                <!-- Task Completion -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="@drawable/card_bg"
+                    android:padding="16dp"
+                    android:layout_marginStart="4dp"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Task Completion"
+                        android:textSize="12sp"
+                        android:textColor="#666666"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvTaskCompletion"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="75%"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#FF9800" />
                 </LinearLayout>
             </LinearLayout>
 
