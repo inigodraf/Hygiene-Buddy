@@ -18,8 +18,23 @@ public class ReminderReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        if (intent == null || context == null) {
+            android.util.Log.e("ReminderReceiver", "Received null intent or context");
+            return;
+        }
+
         String taskName = intent.getStringExtra("taskName");
         int reminderId = intent.getIntExtra("reminderId", -1);
+
+        if (taskName == null || taskName.isEmpty()) {
+            android.util.Log.e("ReminderReceiver", "Task name is null or empty");
+            taskName = "Hygiene Task"; // Fallback
+        }
+
+        if (reminderId == -1) {
+            android.util.Log.e("ReminderReceiver", "Invalid reminder ID");
+            return;
+        }
 
         // Create notification channel for Android 8.0+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -61,10 +76,16 @@ public class ReminderReceiver extends BroadcastReceiver {
             notificationManager.notify(reminderId, builder.build());
         }
 
-        // If daily reminder, schedule next occurrence
+        // Handle one-time reminders - mark as inactive after firing
         String frequency = intent.getStringExtra("frequency");
-        if ("daily".equals(frequency)) {
-            ReminderManager.scheduleReminder(context, reminderId, taskName, intent.getStringExtra("time"), frequency);
+        if ("once".equals(frequency)) {
+            ReminderDatabaseHelper dbHelper = new ReminderDatabaseHelper(context);
+            ReminderModel reminder = dbHelper.getReminderById(reminderId);
+            if (reminder != null) {
+                reminder.setActive(false);
+                dbHelper.updateReminder(reminder);
+            }
         }
+        // Note: Daily, weekly, and custom repeating reminders are handled by AlarmManager.setRepeating()
     }
 }

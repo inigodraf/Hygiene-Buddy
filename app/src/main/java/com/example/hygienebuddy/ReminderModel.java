@@ -9,6 +9,7 @@ public class ReminderModel {
     private int customInterval; // For custom interval (e.g., every 2 days, 3 days)
     private String daysOfWeek; // For weekly reminders (e.g., "Mon,Wed,Fri")
     private String timesPerDay; // For multiple times per day (JSON array)
+    private Integer profileId; // Profile ID associated with this reminder (nullable, defaults to 0)
 
     public ReminderModel() {}
 
@@ -43,4 +44,7 @@ public class ReminderModel {
 
     public String getTimesPerDay() { return timesPerDay; }
     public void setTimesPerDay(String timesPerDay) { this.timesPerDay = timesPerDay; }
+
+    public Integer getProfileId() { return profileId; }
+    public void setProfileId(Integer profileId) { this.profileId = profileId; }
 }

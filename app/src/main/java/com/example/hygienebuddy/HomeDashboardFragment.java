@@ -23,7 +23,9 @@ import androidx.navigation.Navigation;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class HomeDashboardFragment extends Fragment {
@@ -72,7 +74,7 @@ public class HomeDashboardFragment extends Fragment {
         loadChildProfile(); //Dynamic profile: name, age, conditions
         loadMockTaskProgress();
         loadMockStreakData();
-        loadMockUpcomingTasks();
+        loadUpcomingTasks(); // Load real reminders from database
 
         // Handle clicks & interactivity
         setupListeners(view);
@@ -85,6 +87,15 @@ public class HomeDashboardFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         view.post(() -> BottomNavHelper.setupBottomNav(this, "home"));
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh reminders when returning to the dashboard
+        if (layoutUpcomingTasks != null && isAdded()) {
+            loadUpcomingTasks();
+        }
     }
 
     /** Bind all view IDs */
@@ -176,29 +187,110 @@ public class HomeDashboardFragment extends Fragment {
     }
 
 
-    /** Mock: dynamically adds upcoming task cards */
-    private void loadMockUpcomingTasks() {
-        layoutUpcomingTasks.removeAllViews();
+    /** Load real reminders from database and display as upcoming tasks */
+    private void loadUpcomingTasks() {
+        if (layoutUpcomingTasks == null || !isAdded() || getContext() == null) {
+            return;
+        }
 
-        String[] tasks = {"Handwashing", "Toothbrushing"};
-        String[] times = {"8:00 AM", "8:30 AM"};
+        try {
+            layoutUpcomingTasks.removeAllViews();
 
-        for (int i = 0; i < tasks.length; i++) {
-            LinearLayout taskCard = new LinearLayout(getContext());
+            ReminderDatabaseHelper reminderDbHelper = new ReminderDatabaseHelper(requireContext());
+            List<ReminderModel> reminders = reminderDbHelper.getActiveReminders();
+
+            if (reminders.isEmpty()) {
+                // Show empty state
+                TextView tvEmptyState = new TextView(requireContext());
+                tvEmptyState.setText("No upcoming reminders");
+                tvEmptyState.setTextSize(14);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    tvEmptyState.setTextColor(getResources().getColor(R.color.subtitle_text, null));
+                } else {
+                    tvEmptyState.setTextColor(getResources().getColor(R.color.subtitle_text));
+                }
+                tvEmptyState.setGravity(android.view.Gravity.CENTER);
+                tvEmptyState.setPadding(20, 40, 20, 40);
+                layoutUpcomingTasks.addView(tvEmptyState);
+                return;
+            }
+
+            // Sort reminders by time (nearest first)
+            reminders.sort((r1, r2) -> {
+                String time1 = r1.getTime() != null ? r1.getTime() : "";
+                String time2 = r2.getTime() != null ? r2.getTime() : "";
+                return time1.compareTo(time2);
+            });
+
+            // Display up to 5 upcoming reminders
+            int maxReminders = Math.min(reminders.size(), 5);
+            for (int i = 0; i < maxReminders; i++) {
+                ReminderModel reminder = reminders.get(i);
+                if (reminder != null) {
+                    LinearLayout taskCard = createReminderCard(reminder);
+                    if (taskCard != null) {
+                        layoutUpcomingTasks.addView(taskCard);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            android.util.Log.e("HomeDashboard", "Error loading reminders: " + e.getMessage(), e);
+        }
+    }
+
+    private LinearLayout createReminderCard(ReminderModel reminder) {
+        if (reminder == null || !isAdded() || getContext() == null) {
+            return null;
+        }
+
+        try {
+            Context context = requireContext();
+            LinearLayout taskCard = new LinearLayout(context);
             taskCard.setOrientation(LinearLayout.VERTICAL);
             taskCard.setPadding(20, 16, 20, 16);
             taskCard.setBackgroundResource(R.drawable.rounded_card_light);
 
-            TextView tvTaskName = new TextView(getContext());
-            tvTaskName.setText(tasks[i]);
+            TextView tvTaskName = new TextView(context);
+            String taskName = reminder.getTaskName() != null ? reminder.getTaskName() : "Unknown Task";
+            tvTaskName.setText(taskName);
             tvTaskName.setTextSize(16);
-            tvTaskName.setTextColor(getResources().getColor(R.color.black));
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                tvTaskName.setTextColor(getResources().getColor(R.color.black, null));
+            } else {
+                tvTaskName.setTextColor(getResources().getColor(R.color.black));
+            }
             tvTaskName.setTypeface(null, Typeface.BOLD);
 
-            TextView tvTaskTime = new TextView(getContext());
-            tvTaskTime.setText("Scheduled at " + times[i]);
+            // Format time display
+            String timeStr = reminder.getTime();
+            String formattedTime = "Unknown time";
+            if (timeStr != null && !timeStr.isEmpty()) {
+                try {
+                    String[] timeParts = timeStr.split(":");
+                    if (timeParts.length >= 2) {
+                        int hour = Integer.parseInt(timeParts[0]);
+                        int minute = Integer.parseInt(timeParts[1]);
+                        Calendar cal = Calendar.getInstance();
+                        cal.set(Calendar.HOUR_OF_DAY, hour);
+                        cal.set(Calendar.MINUTE, minute);
+                        SimpleDateFormat sdf = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+                        formattedTime = sdf.format(cal.getTime());
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("HomeDashboard", "Error parsing time: " + timeStr, e);
+                    formattedTime = timeStr; // Fallback to raw time string
+                }
+            }
+
+            TextView tvTaskTime = new TextView(context);
+            String frequencyText = formatFrequency(reminder.getFrequency());
+            tvTaskTime.setText("Scheduled at " + formattedTime + " - " + frequencyText);
             tvTaskTime.setTextSize(14);
-            tvTaskTime.setTextColor(getResources().getColor(R.color.subtitle_text));
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                tvTaskTime.setTextColor(getResources().getColor(R.color.subtitle_text, null));
+            } else {
+                tvTaskTime.setTextColor(getResources().getColor(R.color.subtitle_text));
+            }
 
             taskCard.addView(tvTaskName);
             taskCard.addView(tvTaskTime);
@@ -210,7 +302,26 @@ public class HomeDashboardFragment extends Fragment {
                     LinearLayout.LayoutParams.WRAP_CONTENT
             );
             params.setMargins(0, 0, 0, 16);
-            layoutUpcomingTasks.addView(taskCard, params);
+            taskCard.setLayoutParams(params);
+            return taskCard;
+        } catch (Exception e) {
+            android.util.Log.e("HomeDashboard", "Error creating reminder card: " + e.getMessage(), e);
+            return null;
+        }
+    }
+
+    private String formatFrequency(String frequency) {
+        switch (frequency) {
+            case "once":
+                return "Once";
+            case "daily":
+                return "Daily";
+            case "weekly":
+                return "Weekly";
+            case "custom":
+                return "Custom";
+            default:
+                return frequency;
         }
     }
 

@@ -39,9 +39,8 @@
         android:id="@+id/btnDelete"
         android:layout_width="32dp"
         android:layout_height="32dp"
-        android:src="@drawable/ic_arrow_back"
+        android:src="@drawable/ic_delete"
         android:contentDescription="Delete reminder"
-        android:rotation="45"
         android:padding="8dp"
         android:background="?android:attr/selectableItemBackgroundBorderless" />
 </LinearLayout>
