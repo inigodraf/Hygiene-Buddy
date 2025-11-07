@@ -41,7 +41,9 @@
                 android:textColor="#666666"
                 android:gravity="center"
                 android:lineSpacingExtra="4dp"
-                android:layout_marginBottom="32dp" />
+                android:layout_marginBottom="32dp"
+                android:ellipsize="end"
+                android:maxLines="3" />
 
             <!-- Earned Badges Section -->
             <TextView

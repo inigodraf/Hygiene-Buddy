@@ -64,7 +64,9 @@
                         android:text="Upload or record custom videos for hygiene tasks"
                         android:textSize="14sp"
                         android:textColor="#666666"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvTasks"
@@ -115,7 +117,9 @@
                         android:text="Set reminders for hygiene routines"
                         android:textSize="14sp"
                         android:textColor="#666666"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvReminders"
@@ -177,7 +181,9 @@
                         android:text="Choose how badges look across the app"
                         android:textSize="14sp"
                         android:textColor="#666666"
-                        android:layout_marginBottom="12dp" />
+                        android:layout_marginBottom="12dp"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
 
                     <RadioGroup
                         android:id="@+id/rgBadgeTheme"
@@ -232,7 +238,9 @@
                         android:text="Record or import your voice to personalize task instructions."
                         android:textSize="14sp"
                         android:textColor="#666666"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnRecordVoice"
