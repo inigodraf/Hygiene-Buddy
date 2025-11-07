@@ -662,11 +662,190 @@ public class HomeDashboardFragment extends Fragment {
         }
     }
 
+    /** Show reminder notifications dialog for the selected profile */
+    private void showReminderNotificationsDialog() {
+        if (!isAdded() || getContext() == null) {
+            android.util.Log.e("HomeDashboard", "Cannot show reminder dialog - fragment not attached");
+            return;
+        }
+
+        try {
+            // Get current profile ID
+            SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
+            int currentProfileId = sharedPref.getInt("current_profile_id", -1);
+            if (currentProfileId == -1) {
+                currentProfileId = sharedPref.getInt("selected_profile_id", -1);
+            }
+
+            // Get profile name for dialog title
+            String profileName = sharedPref.getString("child_name", "Child");
+            if (profileName == null || profileName.isEmpty()) {
+                profileName = "Child";
+            }
+
+            // Load reminders for the current profile
+            ReminderDatabaseHelper reminderDbHelper = new ReminderDatabaseHelper(requireContext());
+            List<ReminderModel> reminders;
+
+            if (currentProfileId > 0) {
+                // Get reminders filtered by profile ID (ONLY reminders for this profile, excluding global)
+                reminders = reminderDbHelper.getActiveRemindersByProfile(currentProfileId);
+
+                // Filter out global reminders (profile_id = 0) to show only profile-specific ones
+                List<ReminderModel> profileSpecificReminders = new ArrayList<>();
+                for (ReminderModel reminder : reminders) {
+                    if (reminder != null && reminder.getProfileId() != null && reminder.getProfileId() == currentProfileId) {
+                        profileSpecificReminders.add(reminder);
+                    }
+                }
+                reminders = profileSpecificReminders;
+            } else {
+                // No profile selected - show all active reminders
+                reminders = reminderDbHelper.getActiveReminders();
+            }
+
+            // Sort reminders by time (nearest first)
+            reminders.sort((r1, r2) -> {
+                String time1 = r1.getTime() != null ? r1.getTime() : "";
+                String time2 = r2.getTime() != null ? r2.getTime() : "";
+                return time1.compareTo(time2);
+            });
+
+            // Create dialog container
+            LinearLayout dialogContainer = new LinearLayout(requireContext());
+            dialogContainer.setOrientation(LinearLayout.VERTICAL);
+            dialogContainer.setPadding(24, 24, 24, 24);
+
+            // Title
+            TextView tvTitle = new TextView(requireContext());
+            tvTitle.setText("Reminder Notifications - " + profileName);
+            tvTitle.setTextSize(18);
+            tvTitle.setTypeface(null, Typeface.BOLD);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                tvTitle.setTextColor(getResources().getColor(R.color.black, null));
+            } else {
+                tvTitle.setTextColor(getResources().getColor(R.color.black));
+            }
+            tvTitle.setPadding(0, 0, 0, 16);
+            dialogContainer.addView(tvTitle);
+
+            // Reminders list or empty state
+            if (reminders.isEmpty()) {
+                TextView tvEmpty = new TextView(requireContext());
+                tvEmpty.setText("No pending reminders for " + profileName);
+                tvEmpty.setTextSize(14);
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    tvEmpty.setTextColor(getResources().getColor(R.color.subtitle_text, null));
+                } else {
+                    tvEmpty.setTextColor(getResources().getColor(R.color.subtitle_text));
+                }
+                tvEmpty.setPadding(0, 16, 0, 16);
+                dialogContainer.addView(tvEmpty);
+            } else {
+                // Add each reminder as a card
+                for (ReminderModel reminder : reminders) {
+                    if (reminder != null) {
+                        View reminderItem = createReminderDialogItem(reminder);
+                        if (reminderItem != null) {
+                            dialogContainer.addView(reminderItem);
+                        }
+                    }
+                }
+            }
+
+            // Create and show dialog
+            com.google.android.material.dialog.MaterialAlertDialogBuilder dialogBuilder =
+                    new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                            .setView(dialogContainer)
+                            .setPositiveButton("Close", null);
+
+            dialogBuilder.show();
+
+        } catch (Exception e) {
+            android.util.Log.e("HomeDashboard", "Error showing reminder notifications dialog: " + e.getMessage(), e);
+            Toast.makeText(requireContext(), "Error loading reminders", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** Create a reminder item view for the dialog */
+    private View createReminderDialogItem(ReminderModel reminder) {
+        if (reminder == null || !isAdded() || getContext() == null) {
+            return null;
+        }
+
+        try {
+            Context context = requireContext();
+            LinearLayout itemContainer = new LinearLayout(context);
+            itemContainer.setOrientation(LinearLayout.VERTICAL);
+            itemContainer.setPadding(16, 12, 16, 12);
+            itemContainer.setBackgroundResource(R.drawable.rounded_card_light);
+
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            params.setMargins(0, 0, 0, 12);
+            itemContainer.setLayoutParams(params);
+
+            // Task name
+            TextView tvTaskName = new TextView(context);
+            String taskName = reminder.getTaskName() != null ? reminder.getTaskName() : "Unknown Task";
+            tvTaskName.setText(taskName);
+            tvTaskName.setTextSize(16);
+            tvTaskName.setTypeface(null, Typeface.BOLD);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                tvTaskName.setTextColor(getResources().getColor(R.color.black, null));
+            } else {
+                tvTaskName.setTextColor(getResources().getColor(R.color.black));
+            }
+            tvTaskName.setPadding(0, 0, 0, 4);
+
+            // Format time display
+            String timeStr = reminder.getTime();
+            String formattedTime = "Unknown time";
+            if (timeStr != null && !timeStr.isEmpty()) {
+                try {
+                    String[] timeParts = timeStr.split(":");
+                    if (timeParts.length >= 2) {
+                        int hour = Integer.parseInt(timeParts[0]);
+                        int minute = Integer.parseInt(timeParts[1]);
+                        Calendar cal = Calendar.getInstance();
+                        cal.set(Calendar.HOUR_OF_DAY, hour);
+                        cal.set(Calendar.MINUTE, minute);
+                        SimpleDateFormat sdf = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+                        formattedTime = sdf.format(cal.getTime());
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("HomeDashboard", "Error parsing time: " + timeStr, e);
+                    formattedTime = timeStr;
+                }
+            }
+
+            // Time and frequency
+            TextView tvDetails = new TextView(context);
+            String frequencyText = formatFrequency(reminder.getFrequency());
+            tvDetails.setText(formattedTime + " • " + frequencyText);
+            tvDetails.setTextSize(14);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                tvDetails.setTextColor(getResources().getColor(R.color.subtitle_text, null));
+            } else {
+                tvDetails.setTextColor(getResources().getColor(R.color.subtitle_text));
+            }
+
+            itemContainer.addView(tvTaskName);
+            itemContainer.addView(tvDetails);
+
+            return itemContainer;
+        } catch (Exception e) {
+            android.util.Log.e("HomeDashboard", "Error creating reminder dialog item: " + e.getMessage(), e);
+            return null;
+        }
+    }
 
     /** Handles navigation and user clicks */
     private void setupListeners(View view) {
         if (ivReminder != null) {
-            ivReminder.setOnClickListener(v -> navigateToFragment(new FragmentTasks()));
+            ivReminder.setOnClickListener(v -> showReminderNotificationsDialog());
         }
 
         // Profile click - navigate to Manage Profile
