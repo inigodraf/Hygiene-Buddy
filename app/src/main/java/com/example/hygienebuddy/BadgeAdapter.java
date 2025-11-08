@@ -13,16 +13,22 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class BadgeAdapter extends RecyclerView.Adapter<BadgeAdapter.BadgeViewHolder> {
 
-    private final List<BadgeModel> badges;
+    private List<BadgeModel> badges;
     private final Context context;
 
     public BadgeAdapter(Context context, List<BadgeModel> badges) {
         this.context = context;
-        this.badges = badges;
+        this.badges = badges != null ? badges : new ArrayList<>();
+    }
+
+    public void setBadges(List<BadgeModel> badges) {
+        this.badges = badges != null ? badges : new ArrayList<>();
+        notifyDataSetChanged();
     }
 
     @NonNull

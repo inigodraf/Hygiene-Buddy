@@ -53,7 +53,9 @@
                     android:text="Your Streak"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="#000000" />
+                    android:textColor="#000000"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
 
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -122,7 +124,9 @@
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="#000000"
-                        android:layout_marginHorizontal="12dp" />
+                        android:layout_marginHorizontal="12dp"
+                        android:ellipsize="end"
+                        android:maxLines="1" />
 
                     <ImageView
                         android:id="@+id/btnNextMonth"

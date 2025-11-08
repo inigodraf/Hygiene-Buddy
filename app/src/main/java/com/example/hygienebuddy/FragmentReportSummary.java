@@ -1,7 +1,13 @@
 package com.example.hygienebuddy;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,25 +18,37 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class FragmentReportSummary extends Fragment {
 
     private ImageView btnBack, ivUserAvatar, btnPrevMonth, btnNextMonth;
     private TextView tvUserName, tvUserAge, tvUserConditions, tvCurrentMonth,
-            tvTotalPoints, tvBadgesEarned;
+            tvTotalPoints, tvBadgesEarned, tvTaskCompletion;
     private MaterialButtonToggleGroup toggleDateRange;
     private MaterialButton btnWeek, btnMonth, btnDownloadReport;
     private GridLayout gridCalendar;
 
     private Calendar calendar;
+    private boolean isWeekView = false;
+    private int lastLoadedProfileId = -1;
 
     @SuppressLint("WrongViewCast")
     @Nullable
@@ -56,11 +74,19 @@ public class FragmentReportSummary extends Fragment {
         btnNextMonth = view.findViewById(R.id.btnNextMonth);
         gridCalendar = view.findViewById(R.id.gridCalendar);
 
+        // Try to find task completion TextView (may not exist in layout)
+        try {
+            tvTaskCompletion = view.findViewById(R.id.tvTaskCompletion);
+        } catch (Exception e) {
+            // TextView may not exist, we'll add it programmatically if needed
+        }
+
         // Initialize calendar
         calendar = Calendar.getInstance();
 
-        // Load initial data (mocked)
-        loadMockUserData();
+        // Load initial data
+        loadProfileData();
+        loadSummaryData();
         updateCalendarView();
 
         // Back button
@@ -70,60 +96,444 @@ public class FragmentReportSummary extends Fragment {
         toggleDateRange.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (!isChecked) return;
             if (checkedId == R.id.btnWeek) {
-                Toast.makeText(getContext(), "Showing weekly summary", Toast.LENGTH_SHORT).show();
+                isWeekView = true;
+                updateCalendarView();
             } else if (checkedId == R.id.btnMonth) {
-                Toast.makeText(getContext(), "Showing monthly summary", Toast.LENGTH_SHORT).show();
+                isWeekView = false;
+                updateCalendarView();
             }
         });
 
-        // Month navigation
+        // Set default to month view
+        btnMonth.setChecked(true);
+
+        // Month/Week navigation
         btnPrevMonth.setOnClickListener(v -> {
-            calendar.add(Calendar.MONTH, -1);
+            if (isWeekView) {
+                calendar.add(Calendar.WEEK_OF_YEAR, -1);
+            } else {
+                calendar.add(Calendar.MONTH, -1);
+            }
             updateCalendarView();
         });
 
         btnNextMonth.setOnClickListener(v -> {
-            calendar.add(Calendar.MONTH, 1);
+            if (isWeekView) {
+                calendar.add(Calendar.WEEK_OF_YEAR, 1);
+            } else {
+                calendar.add(Calendar.MONTH, 1);
+            }
             updateCalendarView();
         });
 
         // Download report
-        btnDownloadReport.setOnClickListener(v -> {
-            Toast.makeText(getContext(), "Downloading CSV report...", Toast.LENGTH_SHORT).show();
-        });
+        btnDownloadReport.setOnClickListener(v -> exportReportToCSV());
 
         return view;
     }
 
-    /** Mock data — replace with real DB query results later */
-    private void loadMockUserData() {
-        tvUserName.setText("Ethan");
-        tvUserAge.setText("Age 8");
-        tvUserConditions.setText("ASD, ADHD");
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh data when resuming (profile may have changed)
+        loadProfileData();
+        loadSummaryData();
+        updateCalendarView();
+    }
 
-        tvTotalPoints.setText("150 XP");
-        tvBadgesEarned.setText("3");
+    /** Load profile data for currently selected profile */
+    private void loadProfileData() {
+        if (!isAdded() || getContext() == null) return;
+
+        try {
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
+            if (currentProfileId == -1) {
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
+            }
+
+            // Check if profile changed
+            if (currentProfileId != lastLoadedProfileId) {
+                lastLoadedProfileId = currentProfileId;
+            }
+
+            if (currentProfileId > 0) {
+                // Load profile from database
+                UserProfileDatabaseHelper dbHelper = new UserProfileDatabaseHelper(requireContext());
+                UserProfile profile = dbHelper.getProfileById(currentProfileId);
+
+                if (profile != null) {
+                    tvUserName.setText(profile.getName());
+                    tvUserAge.setText("Age " + profile.getAge());
+                    String conditions = profile.getCondition();
+                    // Safety check: ensure conditions field doesn't contain image URI patterns
+                    if (conditions != null && !conditions.trim().isEmpty()) {
+                        String conditionsToDisplay = conditions.trim();
+                        if (conditionsToDisplay.contains("/storage/") || conditionsToDisplay.contains("content://") ||
+                                conditionsToDisplay.contains("file://") || conditionsToDisplay.contains("Android/data")) {
+                            // This looks like an image URI, not conditions - treat as empty
+                            android.util.Log.w("ReportSummary", "Conditions field appears to contain image URI, treating as empty: " + conditionsToDisplay.substring(0, Math.min(50, conditionsToDisplay.length())));
+                            tvUserConditions.setText("No conditions specified");
+                        } else {
+                            tvUserConditions.setText(conditionsToDisplay);
+                        }
+                    } else {
+                        tvUserConditions.setText("No conditions specified");
+                    }
+
+                    // Load profile image with proper validation and centerCrop for circular frame
+                    ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                    ivUserAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    // Ensure ImageView never displays text - set proper contentDescription
+                    ivUserAvatar.setContentDescription("User profile image");
+
+                    // Enable circular clipping for proper frame fitting
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                        ivUserAvatar.setClipToOutline(true);
+                        // Set outline provider for circular clipping
+                        ivUserAvatar.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                            @Override
+                            public void getOutline(android.view.View view, android.graphics.Outline outline) {
+                                outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                            }
+                        });
+                    }
+
+                    if (profile.hasImage() && profile.getImageUri() != null && !profile.getImageUri().trim().isEmpty()) {
+                        try {
+                            Uri imageUri = null;
+                            String imageUriString = profile.getImageUri();
+
+                            // Check if it's a file path (starts with /)
+                            if (imageUriString.startsWith("/")) {
+                                File imageFile = new File(imageUriString);
+                                if (imageFile.exists()) {
+                                    // Use FileProvider for file paths
+                                    try {
+                                        imageUri = androidx.core.content.FileProvider.getUriForFile(
+                                                requireContext(),
+                                                requireContext().getPackageName() + ".fileprovider",
+                                                imageFile
+                                        );
+                                    } catch (Exception e) {
+                                        imageUri = Uri.fromFile(imageFile);
+                                    }
+                                }
+                            } else if (imageUriString.startsWith("content://") || imageUriString.startsWith("file://")) {
+                                // It's a content URI or file URI
+                                imageUri = Uri.parse(imageUriString);
+                            } else {
+                                // Try to get from ImageManager
+                                try {
+                                    ImageManager imageManager = new ImageManager(requireContext());
+                                    Uri imageManagerUri = imageManager.getProfileImageUri(currentProfileId);
+                                    if (imageManagerUri != null) {
+                                        imageUri = imageManagerUri;
+                                    }
+                                } catch (Exception e) {
+                                    android.util.Log.w("ReportSummary", "ImageManager not available: " + e.getMessage());
+                                }
+                            }
+
+                            if (imageUri != null) {
+                                // Load image directly - setImageURI handles loading asynchronously
+                                ivUserAvatar.setImageURI(imageUri);
+                                ivUserAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+
+                                // Verify image loaded successfully with a post-delay check
+                                Uri finalImageUri = imageUri;
+                                ivUserAvatar.postDelayed(() -> {
+                                    try {
+                                        if (ivUserAvatar.getDrawable() == null) {
+                                            // Image didn't load, use default
+                                            ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                                            android.util.Log.w("ReportSummary", "Profile image failed to load, using default");
+                                        } else {
+                                            android.util.Log.d("ReportSummary", "Successfully loaded profile image: " + finalImageUri.toString());
+                                        }
+                                    } catch (Exception e) {
+                                        android.util.Log.e("ReportSummary", "Error verifying image load: " + e.getMessage());
+                                        ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                                    }
+                                }, 200);
+                            } else {
+                                // Could not resolve URI, use default
+                                ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                                android.util.Log.w("ReportSummary", "Could not resolve image URI: " + imageUriString);
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.e("ReportSummary", "Error parsing profile image URI: " + e.getMessage(), e);
+                            ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                        }
+                    } else {
+                        // No image URI, use default
+                        ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                    }
+                } else {
+                    // Fallback to SQLite app settings
+                    String name = appDataDb.getSetting("child_name", "No profile");
+                    String age = appDataDb.getSetting("child_age", "");
+                    String conditions = appDataDb.getSetting("child_conditions", "");
+
+                    tvUserName.setText(name);
+                    tvUserAge.setText(age != null && !age.isEmpty() ? "Age " + age : "");
+                    tvUserConditions.setText(conditions != null && !conditions.trim().isEmpty() ? conditions : "No conditions specified");
+                    ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                    ivUserAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                }
+            } else {
+                // No profile selected
+                tvUserName.setText("No profile selected");
+                tvUserAge.setText("");
+                tvUserConditions.setText("Please select a profile");
+                ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                ivUserAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            }
+        } catch (Exception e) {
+            android.util.Log.e("ReportSummary", "Error loading profile data: " + e.getMessage(), e);
+        }
+    }
+
+    /** Load summary data (points, badges, task completion) */
+    private void loadSummaryData() {
+        if (!isAdded() || getContext() == null) return;
+
+        try {
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
+            if (currentProfileId == -1) {
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
+            }
+
+            if (currentProfileId <= 0) {
+                tvTotalPoints.setText("0 XP");
+                tvBadgesEarned.setText("0");
+                if (tvTaskCompletion != null) {
+                    tvTaskCompletion.setText("0%");
+                }
+                return;
+            }
+
+            // Calculate total points from badge progress (from SQLite)
+            int handwashingProgress = appDataDb.getBadgeProgress(currentProfileId, "handwashing_hero");
+            int toothbrushingProgress = appDataDb.getBadgeProgress(currentProfileId, "toothbrushing_champ");
+            int totalCompletedTasks = handwashingProgress + toothbrushingProgress;
+            int totalPoints = totalCompletedTasks * 10; // 10 XP per task
+            tvTotalPoints.setText(totalPoints + " XP");
+
+            // Count earned badges (from SQLite)
+            BadgeRepository badgeRepository = new BadgeRepository(requireContext());
+            List<BadgeModel> allBadges = badgeRepository.getAllBadges();
+            int earnedBadgesCount = 0;
+            for (BadgeModel badge : allBadges) {
+                String badgeKey = badge.getKey();
+                boolean isUnlocked = appDataDb.isBadgeUnlocked(currentProfileId, badgeKey);
+                if (isUnlocked) {
+                    earnedBadgesCount++;
+                }
+            }
+            tvBadgesEarned.setText(String.valueOf(earnedBadgesCount));
+
+            // Get earliest task completion date to calculate total possible tasks
+            String earliestDate = appDataDb.getEarliestTaskDate(currentProfileId);
+            int totalPossibleTasks = 0;
+
+            if (earliestDate != null && !earliestDate.isEmpty()) {
+                try {
+                    // Calculate days from earliest task date to today
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                    Calendar earliestCal = Calendar.getInstance();
+                    earliestCal.setTime(dateFormat.parse(earliestDate));
+
+                    Calendar todayCal = Calendar.getInstance();
+                    todayCal.set(Calendar.HOUR_OF_DAY, 0);
+                    todayCal.set(Calendar.MINUTE, 0);
+                    todayCal.set(Calendar.SECOND, 0);
+                    todayCal.set(Calendar.MILLISECOND, 0);
+
+                    long diffInMillis = todayCal.getTimeInMillis() - earliestCal.getTimeInMillis();
+                    long diffInDays = diffInMillis / (1000 * 60 * 60 * 24);
+
+                    // Total possible tasks = (days + 1) * 2 (since there are 2 tasks per day: handwashing and toothbrushing)
+                    // +1 because we include both the earliest day and today
+                    totalPossibleTasks = (int) (diffInDays + 1) * 2;
+                } catch (Exception e) {
+                    android.util.Log.e("ReportSummary", "Error calculating days: " + e.getMessage(), e);
+                    // Fallback: if we can't parse the date, use a reasonable default
+                    totalPossibleTasks = Math.max(totalCompletedTasks, 40); // At least show current progress
+                }
+            } else {
+                // No tasks completed yet - use a default or show 0%
+                totalPossibleTasks = Math.max(totalCompletedTasks, 1); // Avoid division by zero
+            }
+
+            // Calculate percentage: (completed / possible) * 100
+            int completionPercent = totalPossibleTasks > 0 ?
+                    Math.min((int) ((totalCompletedTasks / (float) totalPossibleTasks) * 100), 100) : 0;
+
+            if (tvTaskCompletion != null) {
+                tvTaskCompletion.setText(completionPercent + "%");
+            }
+
+            android.util.Log.d("ReportSummary", "Loaded summary for profile ID: " + currentProfileId +
+                    " - Points: " + totalPoints + ", Badges: " + earnedBadgesCount + ", Completion: " + completionPercent + "%");
+        } catch (Exception e) {
+            android.util.Log.e("ReportSummary", "Error loading summary data: " + e.getMessage(), e);
+            tvTotalPoints.setText("0 XP");
+            tvBadgesEarned.setText("0");
+            if (tvTaskCompletion != null) {
+                tvTaskCompletion.setText("0%");
+            }
+        }
     }
 
     /** Updates the calendar grid dynamically */
     private void updateCalendarView() {
+        if (gridCalendar == null || !isAdded()) return;
+
         gridCalendar.removeAllViews();
 
+        if (isWeekView) {
+            updateWeekView();
+        } else {
+            updateMonthView();
+        }
+    }
+
+    /** Update calendar to show week view */
+    private void updateWeekView() {
+        SimpleDateFormat weekFormat = new SimpleDateFormat("MMM d - MMM d, yyyy", Locale.getDefault());
+        Calendar startOfWeek = (Calendar) calendar.clone();
+        startOfWeek.set(Calendar.DAY_OF_WEEK, startOfWeek.getFirstDayOfWeek());
+        Calendar endOfWeek = (Calendar) startOfWeek.clone();
+        endOfWeek.add(Calendar.DAY_OF_WEEK, 6);
+        tvCurrentMonth.setText(weekFormat.format(startOfWeek.getTime()) + " - " + weekFormat.format(endOfWeek.getTime()));
+
+        // Add day headers
+        String[] dayHeaders = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+        for (String header : dayHeaders) {
+            TextView headerView = new TextView(getContext());
+            headerView.setText(header);
+            headerView.setGravity(android.view.Gravity.CENTER);
+            headerView.setTextSize(12f);
+            headerView.setPadding(8, 8, 8, 8);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                headerView.setTextColor(getResources().getColor(R.color.subtitle_text, null));
+            } else {
+                headerView.setTextColor(getResources().getColor(R.color.subtitle_text));
+            }
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0;
+            params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            headerView.setLayoutParams(params);
+            gridCalendar.addView(headerView);
+        }
+
+        // Get streak days for current profile
+        Set<String> streakDays = getStreakDays();
+
+        // Add days of the week
+        Calendar tempCal = (Calendar) startOfWeek.clone();
+        for (int i = 0; i < 7; i++) {
+            int day = tempCal.get(Calendar.DAY_OF_MONTH);
+            String dateKey = formatDateKey(tempCal);
+            boolean isStreakDay = streakDays.contains(dateKey);
+            if (isStreakDay) {
+                android.util.Log.d("ReportSummary", "Week view: Day " + day + " (" + dateKey + ") is a streak day");
+            }
+            addCalendarDay(day, tempCal, isStreakDay);
+            tempCal.add(Calendar.DAY_OF_MONTH, 1);
+        }
+    }
+
+    /** Update calendar to show month view */
+    private void updateMonthView() {
         SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM yyyy", Locale.getDefault());
         tvCurrentMonth.setText(monthFormat.format(calendar.getTime()));
+
+        // Add day headers
+        String[] dayHeaders = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+        for (String header : dayHeaders) {
+            TextView headerView = new TextView(getContext());
+            headerView.setText(header);
+            headerView.setGravity(android.view.Gravity.CENTER);
+            headerView.setTextSize(12f);
+            headerView.setPadding(8, 8, 8, 8);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                headerView.setTextColor(getResources().getColor(R.color.subtitle_text, null));
+            } else {
+                headerView.setTextColor(getResources().getColor(R.color.subtitle_text));
+            }
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = 0;
+            params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            params.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+            headerView.setLayoutParams(params);
+            gridCalendar.addView(headerView);
+        }
 
         Calendar tempCal = (Calendar) calendar.clone();
         tempCal.set(Calendar.DAY_OF_MONTH, 1);
         int firstDayOfWeek = tempCal.get(Calendar.DAY_OF_WEEK) - 1; // 0-based
         int daysInMonth = tempCal.getActualMaximum(Calendar.DAY_OF_MONTH);
 
+        // Get streak days for current profile
+        Set<String> streakDays = getStreakDays();
+
+        // Add empty cells for days before month starts
         for (int i = 0; i < firstDayOfWeek; i++) {
             addEmptyDay();
         }
 
+        // Add days of the month
         for (int day = 1; day <= daysInMonth; day++) {
-            addCalendarDay(day);
+            tempCal.set(Calendar.DAY_OF_MONTH, day);
+            String dateKey = formatDateKey(tempCal);
+            boolean isStreakDay = streakDays.contains(dateKey);
+            if (isStreakDay) {
+                android.util.Log.d("ReportSummary", "Month view: Day " + day + " (" + dateKey + ") is a streak day");
+            }
+            addCalendarDay(day, tempCal, isStreakDay);
         }
+    }
+
+    /** Get streak days for current profile */
+    private Set<String> getStreakDays() {
+        Set<String> streakDays = new HashSet<>();
+        if (!isAdded() || getContext() == null) return streakDays;
+
+        try {
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
+            if (currentProfileId == -1) {
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
+            }
+
+            if (currentProfileId > 0) {
+                // Get streak days from SQLite
+                streakDays = appDataDb.getStreakDays(currentProfileId);
+                android.util.Log.d("ReportSummary", "Retrieved " + streakDays.size() + " streak days for profile ID: " + currentProfileId);
+                if (!streakDays.isEmpty()) {
+                    android.util.Log.d("ReportSummary", "Streak days: " + streakDays.toString());
+                }
+            } else {
+                android.util.Log.w("ReportSummary", "No profile ID found, cannot retrieve streak days");
+            }
+        } catch (Exception e) {
+            android.util.Log.e("ReportSummary", "Error getting streak days: " + e.getMessage(), e);
+        }
+
+        return streakDays;
+    }
+
+    /** Format date as yyyy-MM-dd key */
+    private String formatDateKey(Calendar cal) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        return dateFormat.format(cal.getTime());
     }
 
     private void addEmptyDay() {
@@ -136,29 +546,63 @@ public class FragmentReportSummary extends Fragment {
         gridCalendar.addView(empty);
     }
 
-    private void addCalendarDay(int day) {
+    private void addCalendarDay(int day, Calendar dayCalendar, boolean isStreakDay) {
         TextView tvDay = new TextView(getContext());
         tvDay.setText(String.valueOf(day));
         tvDay.setGravity(android.view.Gravity.CENTER);
         tvDay.setPadding(16, 16, 16, 16);
         tvDay.setTextSize(14f);
+        tvDay.setTypeface(null, android.graphics.Typeface.BOLD); // Make text bold for better visibility
 
         Calendar today = Calendar.getInstance();
         boolean isToday = (day == today.get(Calendar.DAY_OF_MONTH)
-                && calendar.get(Calendar.MONTH) == today.get(Calendar.MONTH)
-                && calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR));
+                && dayCalendar.get(Calendar.MONTH) == today.get(Calendar.MONTH)
+                && dayCalendar.get(Calendar.YEAR) == today.get(Calendar.YEAR));
 
-        boolean isCompleted = (day % 3 == 0); // mock completed
-
-        if (isToday) {
+        // Prioritize streak highlighting - if it's a streak day, show it prominently
+        // If it's also today, we'll use a combination approach
+        if (isStreakDay) {
+            if (isToday) {
+                // Today + Streak: Use completed background with a border to show it's also today
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
+                    tvDay.setBackground(createTodayStreakBackground());
+                } else {
+                    // Fallback for older APIs
+                    tvDay.setBackgroundResource(R.drawable.bg_calendar_day_completed);
+                }
+                tvDay.setTextColor(getResources().getColor(android.R.color.white));
+                android.util.Log.d("ReportSummary", "Day " + day + " is both today and streak day");
+            } else {
+                // Streak day (not today): Use completed background with green color
+                tvDay.setBackgroundResource(R.drawable.bg_calendar_day_completed);
+                tvDay.setTextColor(getResources().getColor(android.R.color.white));
+                android.util.Log.d("ReportSummary", "Day " + day + " is a streak day");
+            }
+        } else if (isToday) {
+            // Today (not a streak day): Use today background
             tvDay.setBackgroundResource(R.drawable.bg_calendar_day_today);
-        } else if (isCompleted) {
-            tvDay.setBackgroundResource(R.drawable.bg_calendar_day_completed);
+            tvDay.setTextColor(getResources().getColor(android.R.color.white));
+        } else {
+            // Normal day: Use normal background
+            tvDay.setBackgroundResource(R.drawable.bg_calendar_day_normal);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                tvDay.setTextColor(getResources().getColor(R.color.black, null));
+            } else {
+                tvDay.setTextColor(getResources().getColor(R.color.black));
+            }
         }
 
-        tvDay.setOnClickListener(v ->
-                Toast.makeText(getContext(), "Day " + day + " selected", Toast.LENGTH_SHORT).show()
-        );
+        tvDay.setOnClickListener(v -> {
+            String dateStr = formatDateKey(dayCalendar);
+            String message = "Date: " + dateStr;
+            if (isStreakDay) {
+                message += " ✓ Streak achieved!";
+            }
+            if (isToday) {
+                message += " (Today)";
+            }
+            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+        });
 
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         params.width = 0;
@@ -167,6 +611,177 @@ public class FragmentReportSummary extends Fragment {
         tvDay.setLayoutParams(params);
 
         gridCalendar.addView(tvDay);
+    }
+
+    /** Create a drawable that combines today and streak styling */
+    private android.graphics.drawable.Drawable createTodayStreakBackground() {
+        try {
+            // Create a layer list with completed background and today border
+            android.graphics.drawable.Drawable completedBg;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                completedBg = getResources().getDrawable(R.drawable.bg_calendar_day_completed, null);
+            } else {
+                completedBg = getResources().getDrawable(R.drawable.bg_calendar_day_completed);
+            }
+
+            android.graphics.drawable.Drawable border = createTodayBorderDrawable();
+
+            android.graphics.drawable.LayerDrawable layerDrawable = new android.graphics.drawable.LayerDrawable(
+                    new android.graphics.drawable.Drawable[] { completedBg, border }
+            );
+            return layerDrawable;
+        } catch (Exception e) {
+            android.util.Log.e("ReportSummary", "Error creating today+streak background: " + e.getMessage(), e);
+            // Fallback to just completed background
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                return getResources().getDrawable(R.drawable.bg_calendar_day_completed, null);
+            } else {
+                return getResources().getDrawable(R.drawable.bg_calendar_day_completed);
+            }
+        }
+    }
+
+    /** Create a border drawable to indicate today */
+    private android.graphics.drawable.Drawable createTodayBorderDrawable() {
+        android.graphics.drawable.GradientDrawable border = new android.graphics.drawable.GradientDrawable();
+        border.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        border.setColor(android.graphics.Color.TRANSPARENT);
+        int borderColor;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            borderColor = getResources().getColor(android.R.color.white, null);
+        } else {
+            borderColor = getResources().getColor(android.R.color.white);
+        }
+        border.setStroke(3, borderColor); // White border to indicate it's also today
+        return border;
+    }
+
+    /** Export report data to CSV file */
+    private void exportReportToCSV() {
+        if (!isAdded() || getContext() == null) return;
+
+        try {
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
+            if (currentProfileId == -1) {
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
+            }
+
+            if (currentProfileId <= 0) {
+                Toast.makeText(getContext(), "No profile selected. Please select a profile first.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Get profile data
+            UserProfileDatabaseHelper dbHelper = new UserProfileDatabaseHelper(requireContext());
+            UserProfile profile = dbHelper.getProfileById(currentProfileId);
+            String profileName = profile != null ? profile.getName() : "Unknown";
+
+            // Get summary data from SQLite
+            int handwashingProgress = appDataDb.getBadgeProgress(currentProfileId, "handwashing_hero");
+            int toothbrushingProgress = appDataDb.getBadgeProgress(currentProfileId, "toothbrushing_champ");
+            int totalCompletedTasks = handwashingProgress + toothbrushingProgress;
+            int totalPoints = totalCompletedTasks * 10;
+
+            // Count earned badges from SQLite
+            BadgeRepository badgeRepository = new BadgeRepository(requireContext());
+            List<BadgeModel> allBadges = badgeRepository.getAllBadges();
+            List<String> earnedBadges = new ArrayList<>();
+            for (BadgeModel badge : allBadges) {
+                String badgeKey = badge.getKey();
+                boolean isUnlocked = appDataDb.isBadgeUnlocked(currentProfileId, badgeKey);
+                if (isUnlocked) {
+                    String earnedDate = appDataDb.getBadgeEarnedDate(currentProfileId, badgeKey);
+                    if (earnedDate == null) earnedDate = "N/A";
+                    earnedBadges.add(badge.getTitle() + " (" + earnedDate + ")");
+                }
+            }
+
+            // Get streak days
+            Set<String> streakDays = getStreakDays();
+            List<String> sortedStreakDays = new ArrayList<>(streakDays);
+            sortedStreakDays.sort(String::compareTo);
+
+            // Create CSV content
+            StringBuilder csv = new StringBuilder();
+            csv.append("Hygiene Buddy - Report Summary\n");
+            csv.append("Generated: ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date())).append("\n\n");
+            csv.append("Profile Information\n");
+            csv.append("Name,").append(profileName).append("\n");
+            if (profile != null) {
+                csv.append("Age,").append(profile.getAge()).append("\n");
+                csv.append("Conditions,").append(profile.getCondition() != null ? profile.getCondition() : "None").append("\n");
+            }
+            csv.append("\n");
+
+            csv.append("Summary Statistics\n");
+            csv.append("Total Points,").append(totalPoints).append("\n");
+            csv.append("Total Badges Earned,").append(earnedBadges.size()).append("\n");
+            csv.append("Handwashing Tasks Completed,").append(handwashingProgress).append("\n");
+            csv.append("Toothbrushing Tasks Completed,").append(toothbrushingProgress).append("\n");
+            csv.append("Total Tasks Completed,").append(totalCompletedTasks).append("\n");
+            csv.append("\n");
+
+            csv.append("Earned Badges\n");
+            csv.append("Badge Name,Earned Date\n");
+            for (String badge : earnedBadges) {
+                String[] parts = badge.split(" \\(");
+                if (parts.length == 2) {
+                    csv.append("\"").append(parts[0]).append("\",\"").append(parts[1].replace(")", "")).append("\"\n");
+                } else {
+                    csv.append("\"").append(badge).append("\",\"N/A\"\n");
+                }
+            }
+            csv.append("\n");
+
+            csv.append("Streak Days (Days with both tasks completed)\n");
+            csv.append("Date\n");
+            for (String date : sortedStreakDays) {
+                csv.append(date).append("\n");
+            }
+
+            // Save CSV file
+            String fileName = "HygieneBuddy_Report_" + profileName.replace(" ", "_") + "_" +
+                    new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date()) + ".csv";
+
+            File csvFile;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Android 10+ (API 29+): Use app-specific directory (no permission needed)
+                File appDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                if (appDir == null) {
+                    appDir = requireContext().getFilesDir();
+                }
+                csvFile = new File(appDir, fileName);
+            } else {
+                // Android 9 and below: Use public Downloads directory
+                File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!downloadsDir.exists()) {
+                    downloadsDir.mkdirs();
+                }
+                csvFile = new File(downloadsDir, fileName);
+            }
+
+            FileWriter writer = new FileWriter(csvFile);
+            writer.write(csv.toString());
+            writer.close();
+
+            String message = "Report exported: " + fileName;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                message += "\nSaved to: " + csvFile.getParent();
+            } else {
+                message += "\nSaved to Downloads folder";
+            }
+            Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
+            android.util.Log.d("ReportSummary", "CSV exported to: " + csvFile.getAbsolutePath());
+
+        } catch (IOException e) {
+            android.util.Log.e("ReportSummary", "Error exporting CSV: " + e.getMessage(), e);
+            Toast.makeText(getContext(), "Error exporting report: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            android.util.Log.e("ReportSummary", "Error exporting CSV: " + e.getMessage(), e);
+            Toast.makeText(getContext(), "Error exporting report. Please check permissions.", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override

@@ -246,7 +246,7 @@ public class ReminderManager {
         List<ReminderModel> reminders = dbHelper.getActiveReminders();
 
         for (ReminderModel reminder : reminders) {
-            scheduleReminder(context, reminder.getId(), reminder.getTaskName(), reminder.getTime(), reminder.getFrequency());
+            scheduleReminder(context, reminder);
         }
     }
 }

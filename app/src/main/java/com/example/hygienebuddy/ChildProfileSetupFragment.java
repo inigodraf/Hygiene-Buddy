@@ -3,7 +3,6 @@ package com.example.hygienebuddy;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
@@ -54,9 +53,9 @@ public class ChildProfileSetupFragment extends Fragment {
                               @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Check if setup is already completed
-        SharedPreferences prefs = requireActivity().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-        boolean setupCompleted = prefs.getBoolean("child_setup_completed", false);
+        // Check if setup is already completed (from SQLite)
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+        boolean setupCompleted = appDataDb.getBooleanSetting("child_setup_completed", false);
         if (setupCompleted) {
             // Skip setup and go directly to dashboard
             navigateToDashboard();
@@ -74,8 +73,19 @@ public class ChildProfileSetupFragment extends Fragment {
         btnSaveContinue = view.findViewById(R.id.btnSaveContinue);
         btnBack = view.findViewById(R.id.btnBack);
 
-        // Set default avatar
+        // Set default avatar with centerCrop and circular clipping
         ivChildAvatar.setImageResource(R.drawable.default_avatar);
+        ivChildAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            ivChildAvatar.setClipToOutline(true);
+            // Set outline provider for circular clipping
+            ivChildAvatar.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                @Override
+                public void getOutline(android.view.View view, android.graphics.Outline outline) {
+                    outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                }
+            });
+        }
 
         // Avatar edit click → open gallery
         btnEditAvatar.setOnClickListener(v -> openImageChooser());
@@ -92,10 +102,13 @@ public class ChildProfileSetupFragment extends Fragment {
         // Save & Continue button click
         btnSaveContinue.setOnClickListener(v -> saveChildProfile());
 
-        // Back button → go back to previous fragment
-        btnBack.setOnClickListener(v -> requireActivity()
-                .getSupportFragmentManager()
-                .popBackStack());
+        // Back button → go back to previous setup screen
+        btnBack.setOnClickListener(v -> {
+            if (getActivity() instanceof OnboardingActivity) {
+                OnboardingActivity activity = (OnboardingActivity) getActivity();
+                activity.goToPreviousSetupScreen();
+            }
+        });
     }
 
     private void openImageChooser() {
@@ -110,10 +123,12 @@ public class ChildProfileSetupFragment extends Fragment {
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK && data != null) {
             selectedImageUri = data.getData();
             try {
-                Bitmap bitmap = MediaStore.Images.Media.getBitmap(requireActivity().getContentResolver(), selectedImageUri);
-                ivChildAvatar.setImageBitmap(bitmap);
-            } catch (IOException e) {
-                e.printStackTrace();
+                // Set scaleType to centerCrop for proper circular frame fitting
+                ivChildAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                ivChildAvatar.setImageURI(selectedImageUri);
+                android.util.Log.d("ChildProfileSetup", "Successfully loaded image from gallery: " + selectedImageUri.toString());
+            } catch (Exception e) {
+                android.util.Log.e("ChildProfileSetup", "Error loading image: " + e.getMessage(), e);
                 Toast.makeText(requireContext(), "Failed to load image", Toast.LENGTH_SHORT).show();
             }
         }
@@ -137,34 +152,78 @@ public class ChildProfileSetupFragment extends Fragment {
             return;
         }
 
-        // Build conditions string
-        StringBuilder conditions = new StringBuilder();
-        if (hasASD) conditions.append("ASD ");
-        if (hasADHD) conditions.append("ADHD ");
-        if (hasDownSyndrome) conditions.append("Down Syndrome ");
-        if (conditions.length() == 0) conditions.append("None");
+        // Build conditions string - use comma-separated format (consistent with ManageProfileFragment)
+        StringBuilder conditionBuilder = new StringBuilder();
+        if (hasASD) conditionBuilder.append("ASD, ");
+        if (hasADHD) conditionBuilder.append("ADHD, ");
+        if (hasDownSyndrome) conditionBuilder.append("Down Syndrome, ");
+        String conditions = conditionBuilder.toString().trim();
+        if (conditions.endsWith(",")) {
+            conditions = conditions.substring(0, conditions.length() - 1).trim();
+        }
+        // If no conditions selected, use empty string (not "None")
+        if (conditions.isEmpty()) {
+            conditions = "";
+        }
 
-        // Save to SharedPreferences
-        SharedPreferences sharedPref = requireActivity().getSharedPreferences("ChildProfile", Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString("child_name", childName);
-        editor.putString("child_age", childAge);
-        editor.putString("child_conditions", conditions.toString().trim());
-        editor.apply();
+        android.util.Log.d("ChildProfileSetup", "Saving conditions: '" + conditions + "'");
 
-        // Save to database so Manage Profile sees it
+        // Save to database first to get the profile ID
         UserProfileDatabaseHelper dbHelper = new UserProfileDatabaseHelper(requireContext());
-        long result = dbHelper.insertProfile(childName, Integer.parseInt(childAge), String.valueOf(selectedImageUri), conditions.toString());
+
+        // Explicit parameter validation - ensure conditions and imageUri are not swapped
+        android.util.Log.d("ChildProfileSetup", "Saving profile with - name: '" + childName + "', age: " + childAge + ", conditions: '" + conditions + "', imageUri: " + (selectedImageUri != null ? selectedImageUri.toString().substring(0, Math.min(50, selectedImageUri.toString().length())) + "..." : "null"));
+
+        long result = dbHelper.insertProfile(childName, Integer.parseInt(childAge),
+                null, conditions); // Save without image first
+
+        // If profile was created successfully and image was selected, save image to persistent storage
+        String savedImagePath = null;
+        if (result != -1 && selectedImageUri != null) {
+            try {
+                ImageManager imageManager = new ImageManager(requireContext());
+                String imagePath = imageManager.saveProfileImage((int) result, selectedImageUri);
+                if (imagePath != null) {
+                    // Update profile with saved image path - ensure correct parameter order
+                    android.util.Log.d("ChildProfileSetup", "Updating profile with - id: " + result + ", name: '" + childName + "', age: " + childAge + ", imagePath: '" + imagePath.substring(0, Math.min(50, imagePath.length())) + "...', conditions: '" + conditions + "'");
+                    dbHelper.updateProfile((int) result, childName, Integer.parseInt(childAge), imagePath, conditions);
+                    savedImagePath = imagePath;
+                    android.util.Log.d("ChildProfileSetup", "Image saved to persistent storage: " + imagePath);
+                } else {
+                    // If saving to persistent storage fails, save the URI as fallback
+                    String imageUriString = selectedImageUri.toString();
+                    android.util.Log.d("ChildProfileSetup", "Updating profile with URI fallback - id: " + result + ", name: '" + childName + "', age: " + childAge + ", imageUri: '" + imageUriString.substring(0, Math.min(50, imageUriString.length())) + "...', conditions: '" + conditions + "'");
+                    dbHelper.updateProfile((int) result, childName, Integer.parseInt(childAge), imageUriString, conditions);
+                    savedImagePath = imageUriString;
+                    android.util.Log.w("ChildProfileSetup", "Failed to save image to persistent storage, using URI: " + imageUriString);
+                }
+            } catch (Exception e) {
+                android.util.Log.e("ChildProfileSetup", "Error saving image: " + e.getMessage(), e);
+                // Fallback: save the URI
+                String imageUriString = selectedImageUri.toString();
+                android.util.Log.d("ChildProfileSetup", "Updating profile with URI exception fallback - id: " + result + ", name: '" + childName + "', age: " + childAge + ", imageUri: '" + imageUriString.substring(0, Math.min(50, imageUriString.length())) + "...', conditions: '" + conditions + "'");
+                dbHelper.updateProfile((int) result, childName, Integer.parseInt(childAge), imageUriString, conditions);
+                savedImagePath = imageUriString;
+            }
+        }
         if (result != -1) {
             Toast.makeText(requireContext(), "Profile saved successfully!", Toast.LENGTH_SHORT).show();
+
+            // Save profile data to SQLite app settings
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            appDataDb.setIntSetting("current_profile_id", (int) result);
+            appDataDb.setIntSetting("selected_profile_id", (int) result);
+            appDataDb.setSetting("child_name", childName);
+            appDataDb.setSetting("child_age", childAge);
+            appDataDb.setSetting("child_conditions", conditions);
         } else {
             Toast.makeText(requireContext(), "Failed to save profile to database", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Mark setup as completed
-        SharedPreferences appPrefs = requireActivity().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE);
-        appPrefs.edit().putBoolean("child_setup_completed", true).apply();
+        // Mark setup as completed in SQLite
+        AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+        appDataDb.setBooleanSetting("child_setup_completed", true);
 
         // Confirmation
         Toast.makeText(requireContext(), "Child profile saved successfully!", Toast.LENGTH_SHORT).show();
@@ -174,10 +233,15 @@ public class ChildProfileSetupFragment extends Fragment {
     }
 
     private void navigateToDashboard() {
-        HomeDashboardFragment dashboardFragment = new HomeDashboardFragment();
-        requireActivity().getSupportFragmentManager()
-                .beginTransaction()
-                .replace(R.id.fragment_container, dashboardFragment)
-                .commit();
+        // Navigate to MainActivity which will show the dashboard
+        if (getActivity() instanceof OnboardingActivity) {
+            OnboardingActivity activity = (OnboardingActivity) getActivity();
+            activity.completeSetup();
+        } else {
+            // Fallback: navigate to MainActivity directly
+            android.content.Intent intent = new android.content.Intent(requireActivity(), MainActivity.class);
+            startActivity(intent);
+            requireActivity().finish();
+        }
     }
 }

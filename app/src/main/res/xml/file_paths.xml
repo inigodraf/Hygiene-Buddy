@@ -4,4 +4,8 @@
     <external-files-path name="videos" path="Movies/videos/" />
     <!-- Internal files directory as fallback -->
     <files-path name="internal_videos" path="videos/" />
+    <!-- External files directory for profile images -->
+    <external-files-path name="profile_images" path="Pictures/profile_images/" />
+    <!-- Internal files directory for profile images as fallback -->
+    <files-path name="internal_profile_images" path="profile_images/" />
 </paths>

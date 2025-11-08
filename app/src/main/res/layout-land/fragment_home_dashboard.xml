@@ -103,7 +103,9 @@
                             android:textSize="18sp"
                             android:textStyle="bold"
                             android:textColor="@color/feature_text"
-                            android:layout_marginBottom="4dp" />
+                            android:layout_marginBottom="4dp"
+                            android:ellipsize="end"
+                            android:maxLines="1" />
 
                         <TextView
                             android:id="@+id/tvChildDetails"
@@ -111,7 +113,9 @@
                             android:layout_height="wrap_content"
                             android:text="—"
                             android:textSize="14sp"
-                            android:textColor="@color/subtitle_text" />
+                            android:textColor="@color/subtitle_text"
+                            android:ellipsize="end"
+                            android:maxLines="2" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -129,15 +133,9 @@
                         android:text="TODAY - --/--/----"
                         android:textStyle="bold"
                         android:textSize="16sp"
-                        android:textColor="@color/black" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="View"
-                        android:textColor="#12A3ED"
-                        android:textSize="14sp"
-                        android:paddingTop="8dp" />
+                        android:textColor="@color/black"
+                        android:ellipsize="end"
+                        android:maxLines="1" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -181,7 +179,9 @@
                         android:layout_height="wrap_content"
                         android:text="0% completed"
                         android:textColor="@color/subtitle_text"
-                        android:textSize="14sp" />
+                        android:textSize="14sp"
+                        android:ellipsize="end"
+                        android:maxLines="1" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -208,19 +208,41 @@
                         android:textStyle="bold"
                         android:textColor="@color/black"
                         android:textSize="16sp"
-                        android:layout_marginTop="12dp" />
+                        android:layout_marginTop="12dp"
+                        android:ellipsize="end"
+                        android:maxLines="1" />
                 </LinearLayout>
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tvStreakHeader"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="STREAK"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:textColor="@color/black"
-                android:layout_marginBottom="8dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/tvStreakHeader"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="STREAK"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:textColor="@color/black" />
+
+                <TextView
+                    android:id="@+id/tvViewAllStreak"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="View All"
+                    android:textColor="#12A3ED"
+                    android:textSize="14sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="8dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/layoutWeeklyStreak"
@@ -246,23 +268,32 @@
                     android:orientation="horizontal"
                     android:weightSum="2">
 
-                    <TextView
-                        android:id="@+id/tvCompletedTotal"
-                        android:layout_width="0dp"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Completed Total: —"
-                        android:textSize="14sp"
-                        android:textColor="@color/subtitle_text" />
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
 
-                    <TextView
-                        android:id="@+id/tvLongestStreak"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Longest Streak: —"
-                        android:textSize="14sp"
-                        android:textColor="@color/subtitle_text" />
+                        <TextView
+                            android:id="@+id/tvCompletedTotal"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="start"
+                            android:text="Completed Total: 0 days"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvLongestStreak"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="end"
+                            android:text="Longest Streak: 0 days"
+                            android:textSize="14sp" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 

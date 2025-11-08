@@ -21,7 +21,7 @@
         android:supportsRtl="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/Theme.HygieneBuddy">
-    <receiver android:name=".ReminderReceiver" />
+        <receiver android:name=".ReminderReceiver" />
         <receiver android:name=".BootReceiver"
             android:enabled="true"
             android:exported="true">
@@ -37,8 +37,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".MainActivity" />
-        <activity android:name=".OnboardingActivity" />
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
+        <activity
+            android:name=".OnboardingActivity"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
         <activity android:name=".UploadVideoActivity" />
 
         <!-- FileProvider for video file sharing -->

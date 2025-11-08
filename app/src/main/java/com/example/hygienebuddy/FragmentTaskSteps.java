@@ -315,7 +315,7 @@ public class FragmentTaskSteps extends Fragment {
         FragmentQuiz fragmentQuiz = FragmentQuiz.newInstance(taskType);
         requireActivity().getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.fragment_container, fragmentQuiz)
+                .replace(R.id.nav_host_fragment, fragmentQuiz)
                 .addToBackStack(null)
                 .commit();
     }
@@ -324,7 +324,7 @@ public class FragmentTaskSteps extends Fragment {
         HomeDashboardFragment homeFragment = new HomeDashboardFragment();
         requireActivity().getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.fragment_container, homeFragment)
+                .replace(R.id.nav_host_fragment, homeFragment)
                 .addToBackStack(null)
                 .commit();
     }

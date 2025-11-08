@@ -25,16 +25,31 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp">
 
+                <ImageView
+                    android:id="@+id/btnBack"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:src="@drawable/ic_arrow_back"
+                    android:contentDescription="Back"
+                    app:tint="#000000"
+                    android:visibility="gone" />
+
                 <TextView
                     android:id="@+id/tvTaskTitle"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_centerInParent="true"
+                    android:layout_toStartOf="@id/btnSpeaker"
+                    android:layout_toEndOf="@id/btnBack"
+                    android:layout_centerVertical="true"
                     android:gravity="center"
                     android:text="@string/task_title_placeholder"
                     android:textColor="@color/black"
                     android:textSize="22sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:ellipsize="end"
+                    android:maxLines="2" />
 
                 <ImageView
                     android:id="@+id/btnSpeaker"
@@ -55,7 +70,9 @@
                 android:text="@string/step_progress_placeholder"
                 android:textSize="15sp"
                 android:gravity="center"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="12dp"
+                android:ellipsize="end"
+                android:maxLines="1" />
 
             <!-- Progress Bar -->
             <ProgressBar

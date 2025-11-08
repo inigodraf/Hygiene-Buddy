@@ -75,7 +75,7 @@ public class SettingsFragment extends Fragment {
     // Reminders
     private ReminderDatabaseHelper reminderDbHelper;
     private ReminderAdapter reminderAdapter;
-    private List<ReminderModel> reminderList;
+    private List<ReminderModel> reminderList = new ArrayList<>();
 
     // Reinforcers
     private List<String> reinforcersList = new ArrayList<>();
@@ -103,21 +103,31 @@ public class SettingsFragment extends Fragment {
         rbCleanHeroes = view.findViewById(R.id.rbCleanHeroes);
 
         // Initialize helpers
-        reminderDbHelper = new ReminderDatabaseHelper(requireContext());
-        videoManager = new VideoManager(requireContext());
+        try {
+            reminderDbHelper = new ReminderDatabaseHelper(requireContext());
+            videoManager = new VideoManager(requireContext());
 
-        setupVideoLaunchers();
-        setupPermissionLauncher();
-        setupExpandableTasks();
-        setupVoiceImportLaunchers();
+            setupVideoLaunchers();
+            setupPermissionLauncher();
+            setupExpandableTasks();
+            setupVoiceImportLaunchers();
 
+            if (btnListVideos != null) {
+                btnListVideos.setOnClickListener(v -> showExistingVideosDialog());
+            }
 
-        btnListVideos.setOnClickListener(v -> showExistingVideosDialog());
-
-        // Reminder setup
-        setupRemindersRecyclerView();
-        btnAddReminder.setOnClickListener(v -> showAddReminderDialog());
-        loadReminders();
+            // Reminder setup - with null checks
+            if (rvReminders != null && btnAddReminder != null && tvNoReminders != null) {
+                setupRemindersRecyclerView();
+                btnAddReminder.setOnClickListener(v -> showAddReminderDialog());
+                loadReminders();
+            } else {
+                android.util.Log.e("SettingsFragment", "Reminder views not found in layout");
+            }
+        } catch (Exception e) {
+            android.util.Log.e("SettingsFragment", "Error initializing SettingsFragment: " + e.getMessage(), e);
+            // Don't crash - just log the error
+        }
 
 
         // Badge Theme setup
@@ -442,28 +452,232 @@ public class SettingsFragment extends Fragment {
     // REMINDERS & REINFORCERS
     // ---------------------------------------------------------------
     private void setupRemindersRecyclerView() {
-        rvReminders.setLayoutManager(new LinearLayoutManager(getContext()));
-        reminderList = new ArrayList<>();
-        reminderAdapter = new ReminderAdapter(reminderList, (position, reminder) -> deleteReminder(reminder.getId()));
-        rvReminders.setAdapter(reminderAdapter);
+        if (rvReminders == null || !isAdded() || getContext() == null) {
+            android.util.Log.e("SettingsFragment", "Cannot setup reminders RecyclerView - views not ready");
+            return;
+        }
+        try {
+            rvReminders.setLayoutManager(new LinearLayoutManager(requireContext()));
+            if (reminderList == null) {
+                reminderList = new ArrayList<>();
+            }
+            reminderAdapter = new ReminderAdapter(reminderList, (position, reminder) -> deleteReminder(reminder.getId()));
+            rvReminders.setAdapter(reminderAdapter);
+        } catch (Exception e) {
+            android.util.Log.e("SettingsFragment", "Error setting up reminders RecyclerView: " + e.getMessage(), e);
+        }
     }
 
     private void loadReminders() {
-        reminderList.clear();
-        reminderList.addAll(reminderDbHelper.getAllReminders());
-        reminderAdapter.notifyDataSetChanged();
-        tvNoReminders.setVisibility(reminderList.isEmpty() ? View.VISIBLE : View.GONE);
+        if (reminderDbHelper == null || reminderAdapter == null || tvNoReminders == null || reminderList == null) {
+            android.util.Log.e("SettingsFragment", "Cannot load reminders - components not initialized");
+            return;
+        }
+        if (!isAdded()) {
+            android.util.Log.e("SettingsFragment", "Cannot load reminders - fragment not added");
+            return;
+        }
+        try {
+            reminderList.clear();
+
+            // Get current profile ID
+            // Get current profile ID from SQLite
+            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
+            if (currentProfileId == -1) {
+                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
+            }
+
+            // Load reminders filtered by profile ID
+            List<ReminderModel> profileReminders;
+            if (currentProfileId > 0) {
+                // Get all reminders (active and inactive) for this profile using profile-scoped query
+                profileReminders = reminderDbHelper.getAllRemindersByProfile(currentProfileId);
+
+                // Filter out global reminders (profile_id = 0) to show only profile-specific ones
+                List<ReminderModel> profileSpecificReminders = new ArrayList<>();
+                for (ReminderModel reminder : profileReminders) {
+                    if (reminder != null && reminder.getProfileId() != null && reminder.getProfileId() == currentProfileId) {
+                        profileSpecificReminders.add(reminder);
+                    }
+                }
+                reminderList.addAll(profileSpecificReminders);
+                android.util.Log.d("SettingsFragment", "Loaded reminders for profile ID: " + currentProfileId + ", found: " + profileSpecificReminders.size() + " profile-specific reminders");
+            } else {
+                // No profile selected - show all reminders (backward compatibility)
+                reminderList.addAll(reminderDbHelper.getAllReminders());
+                android.util.Log.d("SettingsFragment", "No profile selected, showing all reminders: " + reminderList.size());
+            }
+
+            reminderAdapter.notifyDataSetChanged();
+            tvNoReminders.setVisibility(reminderList.isEmpty() ? View.VISIBLE : View.GONE);
+        } catch (Exception e) {
+            android.util.Log.e("SettingsFragment", "Error loading reminders: " + e.getMessage(), e);
+        }
     }
 
     private void showAddReminderDialog() {
-        String[] taskOptions = {"Toothbrushing", "Handwashing"};
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Add Reminder")
-                .setItems(taskOptions, (dialog, which) -> {
-                    String taskName = taskOptions[which];
-                    Toast.makeText(getContext(), "Reminder for " + taskName + " added.", Toast.LENGTH_SHORT).show();
-                })
-                .show();
+        if (!isAdded() || getContext() == null) {
+            android.util.Log.e("SettingsFragment", "Cannot show add reminder dialog - fragment not attached");
+            return;
+        }
+        try {
+            String[] taskOptions = {"Toothbrushing", "Handwashing"};
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Select Task")
+                    .setItems(taskOptions, (dialog, which) -> {
+                        String taskName = taskOptions[which];
+                        showTimeAndFrequencyDialog(taskName);
+                    })
+                    .show();
+        } catch (Exception e) {
+            android.util.Log.e("SettingsFragment", "Error showing add reminder dialog: " + e.getMessage(), e);
+            Toast.makeText(getContext(), "Error opening reminder dialog", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showTimeAndFrequencyDialog(String taskName) {
+        if (!isAdded() || getContext() == null) {
+            return;
+        }
+
+        try {
+            View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_reminder, null);
+
+            // Time picker
+            TextView tvTimePicker = dialogView.findViewById(R.id.tvTimePicker);
+            if (tvTimePicker == null) {
+                Toast.makeText(getContext(), "Error loading reminder dialog", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            Calendar selectedTime = Calendar.getInstance();
+            selectedTime.set(Calendar.HOUR_OF_DAY, 8);
+            selectedTime.set(Calendar.MINUTE, 0);
+
+            updateTimeDisplay(tvTimePicker, selectedTime);
+
+            tvTimePicker.setOnClickListener(v -> {
+                android.app.TimePickerDialog timePickerDialog = new android.app.TimePickerDialog(
+                        requireContext(),
+                        (view, hourOfDay, minute) -> {
+                            selectedTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                            selectedTime.set(Calendar.MINUTE, minute);
+                            updateTimeDisplay(tvTimePicker, selectedTime);
+                        },
+                        selectedTime.get(Calendar.HOUR_OF_DAY),
+                        selectedTime.get(Calendar.MINUTE),
+                        false
+                );
+                timePickerDialog.show();
+            });
+
+            // Frequency selection
+            RadioGroup rgFrequency = dialogView.findViewById(R.id.rgFrequency);
+            RadioButton rbOnce = dialogView.findViewById(R.id.rbOnce);
+            RadioButton rbDaily = dialogView.findViewById(R.id.rbDaily);
+            RadioButton rbWeekly = dialogView.findViewById(R.id.rbWeekly);
+
+            if (rbOnce == null || rbDaily == null || rbWeekly == null) {
+                Toast.makeText(getContext(), "Error loading reminder dialog", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            rbDaily.setChecked(true); // Default to daily
+
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Add Reminder for " + taskName)
+                    .setView(dialogView)
+                    .setPositiveButton("Add", (dialog, which) -> {
+                        try {
+                            String time = String.format(Locale.getDefault(), "%02d:%02d",
+                                    selectedTime.get(Calendar.HOUR_OF_DAY),
+                                    selectedTime.get(Calendar.MINUTE));
+
+                            String frequency = "daily";
+                            String daysOfWeek = null;
+                            if (rbOnce.isChecked()) {
+                                frequency = "once";
+                            } else if (rbWeekly.isChecked()) {
+                                frequency = "weekly";
+                                // For weekly, default to all days (Mon-Sun)
+                                daysOfWeek = "Mon,Tue,Wed,Thu,Fri,Sat,Sun";
+                            }
+
+                            ReminderModel reminder = new ReminderModel();
+                            reminder.setTaskName(taskName);
+                            reminder.setTime(time);
+                            reminder.setFrequency(frequency);
+                            reminder.setActive(true);
+                            if (daysOfWeek != null) {
+                                reminder.setDaysOfWeek(daysOfWeek);
+                            }
+
+                            // Set profile_id to current profile (if available)
+                            // Get current profile ID from SQLite
+                            AppDataDatabaseHelper appDataDb = new AppDataDatabaseHelper(requireContext());
+                            int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
+                            if (currentProfileId == -1) {
+                                currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
+                            }
+                            if (currentProfileId > 0) {
+                                reminder.setProfileId(currentProfileId);
+                                android.util.Log.d("SettingsFragment", "Setting reminder profile_id to: " + currentProfileId);
+                            } else {
+                                // No profile selected - reminder will be global (profile_id = 0)
+                                reminder.setProfileId(0);
+                                android.util.Log.d("SettingsFragment", "No profile selected - reminder will be global");
+                            }
+
+                            // Validate reminder before inserting
+                            if (reminder.getTaskName() == null || reminder.getTaskName().isEmpty()) {
+                                Toast.makeText(getContext(), "Error: Task name is required", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            if (reminder.getTime() == null || reminder.getTime().isEmpty()) {
+                                Toast.makeText(getContext(), "Error: Time is required", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            if (reminder.getFrequency() == null || reminder.getFrequency().isEmpty()) {
+                                Toast.makeText(getContext(), "Error: Frequency is required", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+
+                            android.util.Log.d("SettingsFragment", "Inserting reminder: " + reminder.getTaskName() +
+                                    " at " + reminder.getTime() + " (" + reminder.getFrequency() + ")");
+
+                            long reminderId = reminderDbHelper.insertReminder(reminder);
+                            if (reminderId > 0) {
+                                reminder.setId((int) reminderId);
+                                // Schedule the reminder
+                                try {
+                                    ReminderManager.scheduleReminder(requireContext(), reminder);
+                                } catch (Exception e) {
+                                    android.util.Log.e("SettingsFragment", "Error scheduling reminder: " + e.getMessage(), e);
+                                    // Continue anyway - reminder is saved in DB
+                                }
+                                loadReminders();
+                                Toast.makeText(getContext(), "Reminder added successfully!", Toast.LENGTH_SHORT).show();
+                            } else {
+                                android.util.Log.e("SettingsFragment", "insertReminder returned -1, check logs for details");
+                                Toast.makeText(getContext(), "Failed to add reminder. Check logs for details.", Toast.LENGTH_LONG).show();
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.e("SettingsFragment", "Error adding reminder: " + e.getMessage(), e);
+                            Toast.makeText(getContext(), "Error adding reminder: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        } catch (Exception e) {
+            android.util.Log.e("SettingsFragment", "Error showing reminder dialog: " + e.getMessage(), e);
+            Toast.makeText(getContext(), "Error loading reminder dialog", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void updateTimeDisplay(TextView tvTimePicker, Calendar calendar) {
+        SimpleDateFormat sdf = new SimpleDateFormat("hh:mm a", Locale.getDefault());
+        tvTimePicker.setText(sdf.format(calendar.getTime()));
     }
 
     private void deleteReminder(int reminderId) {
@@ -471,6 +685,8 @@ public class SettingsFragment extends Fragment {
                 .setTitle("Delete Reminder")
                 .setMessage("Are you sure you want to delete this reminder?")
                 .setPositiveButton("Delete", (dialog, which) -> {
+                    // Cancel the alarm before deleting
+                    ReminderManager.cancelReminder(requireContext(), reminderId);
                     reminderDbHelper.deleteReminder(reminderId);
                     loadReminders();
                     Toast.makeText(getContext(), "Reminder deleted", Toast.LENGTH_SHORT).show();
@@ -523,6 +739,15 @@ public class SettingsFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         view.post(() -> BottomNavHelper.setupBottomNav(this, "settings"));
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh reminders when resuming (profile may have changed)
+        if (reminderDbHelper != null && reminderAdapter != null) {
+            loadReminders();
+        }
     }
 
     // ---------------------------------------------------------------

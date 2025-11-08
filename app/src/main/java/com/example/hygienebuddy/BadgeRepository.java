@@ -28,6 +28,11 @@ public class BadgeRepository {
     public void updateProgress(String badgeKey, int progress) {
         db.updateProgressByKey(badgeKey, progress);
     }
+
+    /** Get a badge by its key */
+    public BadgeModel getBadgeByKey(String badgeKey) {
+        return db.getBadgeByKey(badgeKey);
+    }
 }
 
 

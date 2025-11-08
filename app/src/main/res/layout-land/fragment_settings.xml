@@ -67,7 +67,15 @@
                         android:text="Upload or record custom videos for hygiene tasks."
                         android:textSize="14sp"
                         android:textColor="#666666"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvTasks"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnListVideos"
@@ -76,7 +84,8 @@
                         android:text="List Existing Videos"
                         android:minWidth="200dp"
                         android:textSize="14sp"
-                        style="@style/Widget.Material3.Button.TextButton" />
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_marginTop="8dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -113,7 +122,26 @@
                         android:text="Set reminders for hygiene routines."
                         android:textSize="14sp"
                         android:textColor="#666666"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvReminders"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvNoReminders"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="No reminders set"
+                        android:textSize="14sp"
+                        android:textColor="#999999"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:visibility="gone" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnAddReminder"
@@ -122,7 +150,66 @@
                         android:text="Add New Reminder"
                         android:minWidth="200dp"
                         android:textSize="14sp"
-                        style="@style/Widget.Material3.Button.OutlinedButton" />
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_marginTop="8dp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Badge Theme Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_marginHorizontal="32dp"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="3dp"
+                app:cardUseCompatPadding="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/tvBadgeThemeTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Badge Theme"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#000000"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvBadgeThemeDesc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Choose how badges look across the app"
+                        android:textSize="14sp"
+                        android:textColor="#666666"
+                        android:layout_marginBottom="12dp"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
+
+                    <RadioGroup
+                        android:id="@+id/rgBadgeTheme"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <RadioButton
+                            android:id="@+id/rbBubbleQuest"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Bubble Quest" />
+
+                        <RadioButton
+                            android:id="@+id/rbCleanHeroes"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Clean Heroes" />
+                    </RadioGroup>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
@@ -159,7 +246,9 @@
                         android:text="Record or import your voice to personalize task instructions."
                         android:textSize="14sp"
                         android:textColor="#666666"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnRecordVoice"
@@ -222,7 +311,9 @@
                         android:text="Edit or preview the text-to-speech messages for each hygiene step and other app prompts."
                         android:textSize="14sp"
                         android:textColor="#666666"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="16dp"
+                        android:ellipsize="end"
+                        android:maxLines="3" />
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvTTSTasks"

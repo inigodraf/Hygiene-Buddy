@@ -34,14 +34,17 @@
 
                     <TextView
                         android:id="@+id/tvTaskTitle"
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_centerInParent="true"
+                        android:layout_toStartOf="@id/btnSpeaker"
+                        android:layout_centerVertical="true"
                         android:text="@string/task_title_placeholder"
                         android:textColor="@color/black"
                         android:textSize="22sp"
                         android:textStyle="bold"
-                        android:gravity="center" />
+                        android:gravity="center"
+                        android:ellipsize="end"
+                        android:maxLines="2" />
 
                     <ImageView
                         android:id="@+id/btnSpeaker"
@@ -62,7 +65,9 @@
                     android:text="@string/step_progress_placeholder"
                     android:textSize="15sp"
                     android:gravity="center"
-                    android:layout_marginBottom="10dp" />
+                    android:layout_marginBottom="10dp"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
 
                 <ProgressBar
                     android:id="@+id/progressStep"
@@ -129,7 +134,9 @@
                     android:textColor="@color/black"
                     android:gravity="center"
                     android:layout_marginBottom="16dp"
-                    android:lineSpacingExtra="4dp" />
+                    android:lineSpacingExtra="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="5" />
 
                 <!-- Centered Camera Preview -->
                 <FrameLayout
