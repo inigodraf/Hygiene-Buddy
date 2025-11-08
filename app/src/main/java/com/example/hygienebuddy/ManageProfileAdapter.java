@@ -15,6 +15,7 @@ import android.widget.ImageView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
 
+import java.io.File;
 import java.util.List;
 
 /**
@@ -114,12 +115,20 @@ public class ManageProfileAdapter extends RecyclerView.Adapter<ManageProfileAdap
             tvProfileAge.setText(profile.getAgeDisplayText());
 
             String conditionText = profile.getCondition();
-            // Handle null, empty string, or "None" - all mean no conditions
+            // Safety check: ensure conditions field doesn't contain image URI patterns
             if (conditionText != null && !conditionText.trim().isEmpty() && !conditionText.equalsIgnoreCase("None")) {
-                // Display conditions - handle both comma and space-separated formats
-                String displayText = conditionText.trim();
-                tvProfileCondition.setText("Conditions: " + displayText);
-                android.util.Log.d("ManageProfileAdapter", "Displaying conditions for " + profile.getName() + ": '" + displayText + "'");
+                String conditionsToDisplay = conditionText.trim();
+                // Check if this looks like an image URI instead of conditions
+                if (conditionsToDisplay.contains("/storage/") || conditionsToDisplay.contains("content://") ||
+                        conditionsToDisplay.contains("file://") || conditionsToDisplay.contains("Android/data")) {
+                    // This looks like an image URI, not conditions - treat as empty
+                    android.util.Log.w("ManageProfileAdapter", "Conditions field appears to contain image URI for " + profile.getName() + ", treating as empty: " + conditionsToDisplay.substring(0, Math.min(50, conditionsToDisplay.length())));
+                    tvProfileCondition.setText("No conditions specified");
+                } else {
+                    // Display conditions - handle both comma and space-separated formats
+                    tvProfileCondition.setText("Conditions: " + conditionsToDisplay);
+                    android.util.Log.d("ManageProfileAdapter", "Displaying conditions for " + profile.getName() + ": '" + conditionsToDisplay + "'");
+                }
             } else {
                 tvProfileCondition.setText("No conditions specified");
                 android.util.Log.d("ManageProfileAdapter", "No conditions for " + profile.getName() + " (conditionText: '" + conditionText + "')");
@@ -127,25 +136,96 @@ public class ManageProfileAdapter extends RecyclerView.Adapter<ManageProfileAdap
 
             // Load profile image - always set default first, then try to load custom image
             ivProfileImage.setImageResource(R.drawable.ic_default_user);
+            ivProfileImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            // Ensure ImageView never displays text - set proper contentDescription
+            ivProfileImage.setContentDescription("Profile image for " + (profile.getName() != null ? profile.getName() : "user"));
 
-            if (profile.hasImage() && profile.getImageUri() != null && !profile.getImageUri().isEmpty()) {
-                try {
-                    Uri imageUri = Uri.parse(profile.getImageUri());
-                    if (imageUri != null) {
-                        // Try to load the image URI
-                        ivProfileImage.setImageURI(imageUri);
-
-                        // Verify the image was actually loaded by checking if drawable changed
-                        // If setImageURI fails silently, the default avatar will remain
-                        android.util.Log.d("ManageProfileAdapter", "Loading image URI: " + imageUri.toString());
+            // Enable circular clipping for proper frame fitting
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                ivProfileImage.setClipToOutline(true);
+                // Set outline provider for circular clipping
+                ivProfileImage.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                    @Override
+                    public void getOutline(android.view.View view, android.graphics.Outline outline) {
+                        outline.setOval(0, 0, view.getWidth(), view.getHeight());
                     }
-                } catch (Exception e) {
-                    android.util.Log.e("ManageProfileAdapter", "Error loading profile image: " + e.getMessage(), e);
-                    // Default avatar is already set, so no need to set it again
-                }
+                });
             }
 
-            // Highlight selected profile (Netflix-style)
+            // Try to load custom image if available
+            if (profile.hasImage() && profile.getImageUri() != null && !profile.getImageUri().trim().isEmpty()) {
+                try {
+                    Uri imageUri = null;
+                    String imageUriString = profile.getImageUri();
+
+                    // Check if it's a file path (starts with /)
+                    if (imageUriString.startsWith("/")) {
+                        File imageFile = new File(imageUriString);
+                        if (imageFile.exists()) {
+                            // Use FileProvider for file paths
+                            try {
+                                imageUri = androidx.core.content.FileProvider.getUriForFile(
+                                        context,
+                                        context.getPackageName() + ".fileprovider",
+                                        imageFile
+                                );
+                            } catch (Exception e) {
+                                imageUri = Uri.fromFile(imageFile);
+                            }
+                        }
+                    } else if (imageUriString.startsWith("content://") || imageUriString.startsWith("file://")) {
+                        // It's a content URI or file URI
+                        imageUri = Uri.parse(imageUriString);
+                    } else {
+                        // Try to get from ImageManager
+                        try {
+                            ImageManager imageManager = new ImageManager(context);
+                            Uri imageManagerUri = imageManager.getProfileImageUri(profile.getId());
+                            if (imageManagerUri != null) {
+                                imageUri = imageManagerUri;
+                            }
+                        } catch (Exception e) {
+                            android.util.Log.w("ManageProfileAdapter", "ImageManager not available: " + e.getMessage());
+                        }
+                    }
+
+                    if (imageUri != null) {
+                        // Load image directly - setImageURI handles loading asynchronously
+                        ivProfileImage.setImageURI(imageUri);
+                        ivProfileImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+
+                        // Verify image loaded successfully with a post-delay check
+                        Uri finalImageUri = imageUri;
+                        ivProfileImage.postDelayed(() -> {
+                            try {
+                                if (ivProfileImage.getDrawable() == null) {
+                                    // Image didn't load, use default
+                                    ivProfileImage.setImageResource(R.drawable.ic_default_user);
+                                    android.util.Log.w("ManageProfileAdapter", "Image failed to load for " + profile.getName() + ", using default");
+                                } else {
+                                    android.util.Log.d("ManageProfileAdapter", "Successfully loaded image URI: " + finalImageUri.toString() + " for profile: " + profile.getName());
+                                }
+                            } catch (Exception e) {
+                                android.util.Log.e("ManageProfileAdapter", "Error verifying image load: " + e.getMessage());
+                                ivProfileImage.setImageResource(R.drawable.ic_default_user);
+                            }
+                        }, 200);
+                    } else {
+                        // Could not resolve URI, use default
+                        ivProfileImage.setImageResource(R.drawable.ic_default_user);
+                        android.util.Log.w("ManageProfileAdapter", "Could not resolve image URI for " + profile.getName() + ": " + imageUriString);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("ManageProfileAdapter", "Error parsing image URI for " + profile.getName() + ": " + e.getMessage(), e);
+                    // Ensure default avatar is set on error
+                    ivProfileImage.setImageResource(R.drawable.ic_default_user);
+                }
+            } else {
+                // No image URI or empty, use default
+                ivProfileImage.setImageResource(R.drawable.ic_default_user);
+                android.util.Log.d("ManageProfileAdapter", "No image URI for profile: " + profile.getName() + ", using default");
+            }
+
             if (selectedProfileId == profile.getId()) {
                 cardView.setAlpha(0.9f);
                 cardView.setCardElevation(8f);

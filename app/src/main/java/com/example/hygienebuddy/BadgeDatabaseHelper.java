@@ -168,7 +168,9 @@ public class BadgeDatabaseHelper extends SQLiteOpenHelper {
         if (keyCol >= 0 && !cursor.isNull(keyCol)) {
             key = cursor.getString(keyCol);
         }
-        return new BadgeModel(title, description, isUnlocked, earnedDate, progress, goal, key);
+        // Use the badge key as imageKey (can be overridden if needed)
+        String imageKey = key;
+        return new BadgeModel(key, title, description, isUnlocked, earnedDate, progress, goal, imageKey);
     }
 }
 

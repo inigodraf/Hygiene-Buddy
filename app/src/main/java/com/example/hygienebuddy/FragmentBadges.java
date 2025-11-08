@@ -150,13 +150,14 @@ public class FragmentBadges extends Fragment {
 
             // Create profile-scoped badge model
             BadgeModel profileBadge = new BadgeModel(
-                    badge.getTitle(),
-                    badge.getDescription(),
-                    isUnlocked,
-                    earnedDate,
-                    progress,
-                    badge.getGoal(),
-                    badgeKey
+                    badgeKey,                    // key
+                    badge.getTitle(),            // title
+                    badge.getDescription(),      // description
+                    isUnlocked,                  // isEarned
+                    earnedDate,                  // earnedDate
+                    progress,                    // progress
+                    badge.getGoal(),            // goal
+                    badge.getImageKey() != null ? badge.getImageKey() : badgeKey  // imageKey (use badge's imageKey or fallback to key)
             );
 
             profileScopedBadges.add(profileBadge);

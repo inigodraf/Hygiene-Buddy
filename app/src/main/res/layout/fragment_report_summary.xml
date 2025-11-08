@@ -63,9 +63,9 @@
                     android:id="@+id/ivUserAvatar"
                     android:layout_width="80dp"
                     android:layout_height="80dp"
-                    android:src="@drawable/ic_toothbrush"
+                    android:src="@drawable/ic_default_user"
                     android:contentDescription="User Avatar"
-                    android:background="@drawable/circle_primary"
+                    android:background="@drawable/ic_default_user"
                     android:padding="8dp"
                     android:layout_marginEnd="16dp"
                     android:scaleType="fitCenter" />

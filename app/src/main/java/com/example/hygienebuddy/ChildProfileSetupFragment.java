@@ -73,8 +73,19 @@ public class ChildProfileSetupFragment extends Fragment {
         btnSaveContinue = view.findViewById(R.id.btnSaveContinue);
         btnBack = view.findViewById(R.id.btnBack);
 
-        // Set default avatar
+        // Set default avatar with centerCrop and circular clipping
         ivChildAvatar.setImageResource(R.drawable.default_avatar);
+        ivChildAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            ivChildAvatar.setClipToOutline(true);
+            // Set outline provider for circular clipping
+            ivChildAvatar.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                @Override
+                public void getOutline(android.view.View view, android.graphics.Outline outline) {
+                    outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                }
+            });
+        }
 
         // Avatar edit click → open gallery
         btnEditAvatar.setOnClickListener(v -> openImageChooser());
@@ -112,10 +123,12 @@ public class ChildProfileSetupFragment extends Fragment {
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == Activity.RESULT_OK && data != null) {
             selectedImageUri = data.getData();
             try {
-                Bitmap bitmap = MediaStore.Images.Media.getBitmap(requireActivity().getContentResolver(), selectedImageUri);
-                ivChildAvatar.setImageBitmap(bitmap);
-            } catch (IOException e) {
-                e.printStackTrace();
+                // Set scaleType to centerCrop for proper circular frame fitting
+                ivChildAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                ivChildAvatar.setImageURI(selectedImageUri);
+                android.util.Log.d("ChildProfileSetup", "Successfully loaded image from gallery: " + selectedImageUri.toString());
+            } catch (Exception e) {
+                android.util.Log.e("ChildProfileSetup", "Error loading image: " + e.getMessage(), e);
                 Toast.makeText(requireContext(), "Failed to load image", Toast.LENGTH_SHORT).show();
             }
         }
@@ -155,10 +168,44 @@ public class ChildProfileSetupFragment extends Fragment {
 
         android.util.Log.d("ChildProfileSetup", "Saving conditions: '" + conditions + "'");
 
-        // Save to database so Manage Profile sees it
+        // Save to database first to get the profile ID
         UserProfileDatabaseHelper dbHelper = new UserProfileDatabaseHelper(requireContext());
+
+        // Explicit parameter validation - ensure conditions and imageUri are not swapped
+        android.util.Log.d("ChildProfileSetup", "Saving profile with - name: '" + childName + "', age: " + childAge + ", conditions: '" + conditions + "', imageUri: " + (selectedImageUri != null ? selectedImageUri.toString().substring(0, Math.min(50, selectedImageUri.toString().length())) + "..." : "null"));
+
         long result = dbHelper.insertProfile(childName, Integer.parseInt(childAge),
-                selectedImageUri != null ? selectedImageUri.toString() : null, conditions);
+                null, conditions); // Save without image first
+
+        // If profile was created successfully and image was selected, save image to persistent storage
+        String savedImagePath = null;
+        if (result != -1 && selectedImageUri != null) {
+            try {
+                ImageManager imageManager = new ImageManager(requireContext());
+                String imagePath = imageManager.saveProfileImage((int) result, selectedImageUri);
+                if (imagePath != null) {
+                    // Update profile with saved image path - ensure correct parameter order
+                    android.util.Log.d("ChildProfileSetup", "Updating profile with - id: " + result + ", name: '" + childName + "', age: " + childAge + ", imagePath: '" + imagePath.substring(0, Math.min(50, imagePath.length())) + "...', conditions: '" + conditions + "'");
+                    dbHelper.updateProfile((int) result, childName, Integer.parseInt(childAge), imagePath, conditions);
+                    savedImagePath = imagePath;
+                    android.util.Log.d("ChildProfileSetup", "Image saved to persistent storage: " + imagePath);
+                } else {
+                    // If saving to persistent storage fails, save the URI as fallback
+                    String imageUriString = selectedImageUri.toString();
+                    android.util.Log.d("ChildProfileSetup", "Updating profile with URI fallback - id: " + result + ", name: '" + childName + "', age: " + childAge + ", imageUri: '" + imageUriString.substring(0, Math.min(50, imageUriString.length())) + "...', conditions: '" + conditions + "'");
+                    dbHelper.updateProfile((int) result, childName, Integer.parseInt(childAge), imageUriString, conditions);
+                    savedImagePath = imageUriString;
+                    android.util.Log.w("ChildProfileSetup", "Failed to save image to persistent storage, using URI: " + imageUriString);
+                }
+            } catch (Exception e) {
+                android.util.Log.e("ChildProfileSetup", "Error saving image: " + e.getMessage(), e);
+                // Fallback: save the URI
+                String imageUriString = selectedImageUri.toString();
+                android.util.Log.d("ChildProfileSetup", "Updating profile with URI exception fallback - id: " + result + ", name: '" + childName + "', age: " + childAge + ", imageUri: '" + imageUriString.substring(0, Math.min(50, imageUriString.length())) + "...', conditions: '" + conditions + "'");
+                dbHelper.updateProfile((int) result, childName, Integer.parseInt(childAge), imageUriString, conditions);
+                savedImagePath = imageUriString;
+            }
+        }
         if (result != -1) {
             Toast.makeText(requireContext(), "Profile saved successfully!", Toast.LENGTH_SHORT).show();
 

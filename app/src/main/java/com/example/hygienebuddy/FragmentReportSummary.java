@@ -167,21 +167,108 @@ public class FragmentReportSummary extends Fragment {
                     tvUserName.setText(profile.getName());
                     tvUserAge.setText("Age " + profile.getAge());
                     String conditions = profile.getCondition();
+                    // Safety check: ensure conditions field doesn't contain image URI patterns
                     if (conditions != null && !conditions.trim().isEmpty()) {
-                        tvUserConditions.setText(conditions);
+                        String conditionsToDisplay = conditions.trim();
+                        if (conditionsToDisplay.contains("/storage/") || conditionsToDisplay.contains("content://") ||
+                                conditionsToDisplay.contains("file://") || conditionsToDisplay.contains("Android/data")) {
+                            // This looks like an image URI, not conditions - treat as empty
+                            android.util.Log.w("ReportSummary", "Conditions field appears to contain image URI, treating as empty: " + conditionsToDisplay.substring(0, Math.min(50, conditionsToDisplay.length())));
+                            tvUserConditions.setText("No conditions specified");
+                        } else {
+                            tvUserConditions.setText(conditionsToDisplay);
+                        }
                     } else {
                         tvUserConditions.setText("No conditions specified");
                     }
 
-                    // Load profile image
-                    if (profile.hasImage() && profile.getImageUri() != null) {
+                    // Load profile image with proper validation and centerCrop for circular frame
+                    ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                    ivUserAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    // Ensure ImageView never displays text - set proper contentDescription
+                    ivUserAvatar.setContentDescription("User profile image");
+
+                    // Enable circular clipping for proper frame fitting
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                        ivUserAvatar.setClipToOutline(true);
+                        // Set outline provider for circular clipping
+                        ivUserAvatar.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                            @Override
+                            public void getOutline(android.view.View view, android.graphics.Outline outline) {
+                                outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                            }
+                        });
+                    }
+
+                    if (profile.hasImage() && profile.getImageUri() != null && !profile.getImageUri().trim().isEmpty()) {
                         try {
-                            ivUserAvatar.setImageURI(Uri.parse(profile.getImageUri()));
+                            Uri imageUri = null;
+                            String imageUriString = profile.getImageUri();
+
+                            // Check if it's a file path (starts with /)
+                            if (imageUriString.startsWith("/")) {
+                                File imageFile = new File(imageUriString);
+                                if (imageFile.exists()) {
+                                    // Use FileProvider for file paths
+                                    try {
+                                        imageUri = androidx.core.content.FileProvider.getUriForFile(
+                                                requireContext(),
+                                                requireContext().getPackageName() + ".fileprovider",
+                                                imageFile
+                                        );
+                                    } catch (Exception e) {
+                                        imageUri = Uri.fromFile(imageFile);
+                                    }
+                                }
+                            } else if (imageUriString.startsWith("content://") || imageUriString.startsWith("file://")) {
+                                // It's a content URI or file URI
+                                imageUri = Uri.parse(imageUriString);
+                            } else {
+                                // Try to get from ImageManager
+                                try {
+                                    ImageManager imageManager = new ImageManager(requireContext());
+                                    Uri imageManagerUri = imageManager.getProfileImageUri(currentProfileId);
+                                    if (imageManagerUri != null) {
+                                        imageUri = imageManagerUri;
+                                    }
+                                } catch (Exception e) {
+                                    android.util.Log.w("ReportSummary", "ImageManager not available: " + e.getMessage());
+                                }
+                            }
+
+                            if (imageUri != null) {
+                                // Load image directly - setImageURI handles loading asynchronously
+                                ivUserAvatar.setImageURI(imageUri);
+                                ivUserAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+
+                                // Verify image loaded successfully with a post-delay check
+                                Uri finalImageUri = imageUri;
+                                ivUserAvatar.postDelayed(() -> {
+                                    try {
+                                        if (ivUserAvatar.getDrawable() == null) {
+                                            // Image didn't load, use default
+                                            ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                                            android.util.Log.w("ReportSummary", "Profile image failed to load, using default");
+                                        } else {
+                                            android.util.Log.d("ReportSummary", "Successfully loaded profile image: " + finalImageUri.toString());
+                                        }
+                                    } catch (Exception e) {
+                                        android.util.Log.e("ReportSummary", "Error verifying image load: " + e.getMessage());
+                                        ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                                    }
+                                }, 200);
+                            } else {
+                                // Could not resolve URI, use default
+                                ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                                android.util.Log.w("ReportSummary", "Could not resolve image URI: " + imageUriString);
+                            }
                         } catch (Exception e) {
-                            ivUserAvatar.setImageResource(R.drawable.default_avatar);
+                            android.util.Log.e("ReportSummary", "Error parsing profile image URI: " + e.getMessage(), e);
+                            ivUserAvatar.setImageResource(R.drawable.ic_default_user);
                         }
                     } else {
-                        ivUserAvatar.setImageResource(R.drawable.default_avatar);
+                        // No image URI, use default
+                        ivUserAvatar.setImageResource(R.drawable.ic_default_user);
                     }
                 } else {
                     // Fallback to SQLite app settings
@@ -192,14 +279,16 @@ public class FragmentReportSummary extends Fragment {
                     tvUserName.setText(name);
                     tvUserAge.setText(age != null && !age.isEmpty() ? "Age " + age : "");
                     tvUserConditions.setText(conditions != null && !conditions.trim().isEmpty() ? conditions : "No conditions specified");
-                    ivUserAvatar.setImageResource(R.drawable.default_avatar);
+                    ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                    ivUserAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 }
             } else {
                 // No profile selected
                 tvUserName.setText("No profile selected");
                 tvUserAge.setText("");
                 tvUserConditions.setText("Please select a profile");
-                ivUserAvatar.setImageResource(R.drawable.default_avatar);
+                ivUserAvatar.setImageResource(R.drawable.ic_default_user);
+                ivUserAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
             }
         } catch (Exception e) {
             android.util.Log.e("ReportSummary", "Error loading profile data: " + e.getMessage(), e);
@@ -230,7 +319,7 @@ public class FragmentReportSummary extends Fragment {
             // Calculate total points from badge progress (from SQLite)
             int handwashingProgress = appDataDb.getBadgeProgress(currentProfileId, "handwashing_hero");
             int toothbrushingProgress = appDataDb.getBadgeProgress(currentProfileId, "toothbrushing_champ");
-            int totalCompletedTasks = handwashingProgress + toothbrushingProgress; // Calculate task completion percentage based on actual days and 2 tasks per day
+            int totalCompletedTasks = handwashingProgress + toothbrushingProgress;
             int totalPoints = totalCompletedTasks * 10; // 10 XP per task
             tvTotalPoints.setText(totalPoints + " XP");
 
@@ -239,7 +328,7 @@ public class FragmentReportSummary extends Fragment {
             List<BadgeModel> allBadges = badgeRepository.getAllBadges();
             int earnedBadgesCount = 0;
             for (BadgeModel badge : allBadges) {
-                String badgeKey = badge.getImageKey();
+                String badgeKey = badge.getKey();
                 boolean isUnlocked = appDataDb.isBadgeUnlocked(currentProfileId, badgeKey);
                 if (isUnlocked) {
                     earnedBadgesCount++;
@@ -523,7 +612,7 @@ public class FragmentReportSummary extends Fragment {
             List<BadgeModel> allBadges = badgeRepository.getAllBadges();
             List<String> earnedBadges = new ArrayList<>();
             for (BadgeModel badge : allBadges) {
-                String badgeKey = badge.getImageKey();
+                String badgeKey = badge.getKey();
                 boolean isUnlocked = appDataDb.isBadgeUnlocked(currentProfileId, badgeKey);
                 if (isUnlocked) {
                     String earnedDate = appDataDb.getBadgeEarnedDate(currentProfileId, badgeKey);

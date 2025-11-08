@@ -133,7 +133,7 @@ public class UserProfileDatabaseHelper extends SQLiteOpenHelper {
                         conditions = ""; // Column doesn't exist - default to empty string
                     }
 
-                    profiles.add(new UserProfile(id, name, age, imageUri, conditions));
+                    profiles.add(new UserProfile(id, name, age, conditions, imageUri));
                 } while (cursor.moveToNext());
             }
         } catch (Exception e) {
@@ -180,7 +180,7 @@ public class UserProfileDatabaseHelper extends SQLiteOpenHelper {
                     conditions = ""; // Column doesn't exist - default to empty string
                 }
 
-                return new UserProfile(id, name, age, imageUri, conditions);
+                return new UserProfile(id, name, age, conditions, imageUri);
             }
         } catch (Exception e) {
             android.util.Log.e("UserProfileDatabaseHelper", "Error getting profile by ID: " + e.getMessage(), e);

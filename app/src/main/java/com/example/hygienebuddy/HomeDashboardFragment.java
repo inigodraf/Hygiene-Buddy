@@ -2,6 +2,7 @@ package com.example.hygienebuddy;
 
 import android.content.Context;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,6 +24,7 @@ import androidx.navigation.NavDestination;
 import androidx.navigation.Navigation;
 import androidx.navigation.fragment.NavHostFragment;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -328,35 +330,50 @@ public class HomeDashboardFragment extends Fragment {
             }
 
             // Display streak days with labels
-            for (StreakDayInfo dayInfo : streakDays) {
+            int iconSize = (int) android.util.TypedValue.applyDimension(
+                    android.util.TypedValue.COMPLEX_UNIT_DIP, 24, getResources().getDisplayMetrics());
+            int horizontalMargin = (int) android.util.TypedValue.applyDimension(
+                    android.util.TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics());
+            int verticalMargin = (int) android.util.TypedValue.applyDimension(
+                    android.util.TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics());
+
+            // Use weight-based layout for even distribution across screen width
+            for (int i = 0; i < streakDays.size(); i++) {
+                StreakDayInfo dayInfo = streakDays.get(i);
+
                 // Create container for day label and icon
                 LinearLayout dayContainer = new LinearLayout(getContext());
                 dayContainer.setOrientation(LinearLayout.VERTICAL);
                 dayContainer.setGravity(android.view.Gravity.CENTER);
+
+                // Use weight-based layout params for even distribution
                 LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
+                        0, // width = 0 to use weight
                         LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
+                        1.0f // equal weight for all days
                 );
-                containerParams.setMargins(8, 8, 8, 8);
+
+                int leftMargin = (i == 0) ? 0 : horizontalMargin / 2;
+                int rightMargin = (i == streakDays.size() - 1) ? 0 : horizontalMargin / 2;
+                containerParams.setMargins(leftMargin, verticalMargin, rightMargin, verticalMargin);
                 dayContainer.setLayoutParams(containerParams);
 
                 // Day label (Mon, Tue, Wed, etc.)
                 TextView dayLabel = new TextView(getContext());
                 dayLabel.setText(dayInfo.dayName);
-                dayLabel.setTextSize(10);
+                dayLabel.setTextSize(12);
                 dayLabel.setGravity(android.view.Gravity.CENTER);
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                     dayLabel.setTextColor(getResources().getColor(R.color.subtitle_text, null));
                 } else {
                     dayLabel.setTextColor(getResources().getColor(R.color.subtitle_text));
                 }
-                dayLabel.setPadding(0, 0, 0, 4);
+                dayLabel.setPadding(0, 0, 0, 8);
 
-                // Streak icon
                 ImageView dayView = new ImageView(getContext());
-                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(50, 50);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(iconSize, iconSize);
                 dayView.setLayoutParams(lp);
-                dayView.setPadding(4, 4, 4, 4);
+                dayView.setScaleType(ImageView.ScaleType.FIT_CENTER); // Ensure proper scaling
                 dayView.setImageResource(dayInfo.completed ? R.drawable.ic_streak_filled : R.drawable.ic_streak_empty);
 
                 dayContainer.addView(dayLabel);
@@ -457,23 +474,148 @@ public class HomeDashboardFragment extends Fragment {
             String name = null;
             String age = null;
             String conditions = null;
+            String imageUri = null;
             if (profile != null) {
                 name = profile.getName();
                 age = String.valueOf(profile.getAge());
                 conditions = profile.getCondition();
+                imageUri = profile.getImageUri();
+            }
+
+            // Load profile image with proper circular clipping
+            if (ivChildProfile != null) {
+                // Always set default first
+                ivChildProfile.setImageResource(R.drawable.ic_default_user);
+                ivChildProfile.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                // Ensure ImageView never displays text - set proper contentDescription
+                ivChildProfile.setContentDescription("Child profile image");
+
+                // Enable circular clipping for proper frame fitting
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    ivChildProfile.setClipToOutline(true);
+                    // Set outline provider for circular clipping
+                    ivChildProfile.setOutlineProvider(new android.view.ViewOutlineProvider() {
+                        @Override
+                        public void getOutline(android.view.View view, android.graphics.Outline outline) {
+                            outline.setOval(0, 0, view.getWidth(), view.getHeight());
+                        }
+                    });
+                }
+
+                // Try to load custom image if available
+                if (imageUri != null && !imageUri.trim().isEmpty()) {
+                    try {
+                        Uri uri = null;
+
+                        // Check if it's a file path (starts with /)
+                        if (imageUri.startsWith("/")) {
+                            File imageFile = new File(imageUri);
+                            if (imageFile.exists()) {
+                                // Use FileProvider for file paths
+                                try {
+                                    uri = androidx.core.content.FileProvider.getUriForFile(
+                                            requireContext(),
+                                            requireContext().getPackageName() + ".fileprovider",
+                                            imageFile
+                                    );
+                                } catch (Exception e) {
+                                    uri = Uri.fromFile(imageFile);
+                                }
+                            }
+                        } else if (imageUri.startsWith("content://") || imageUri.startsWith("file://")) {
+                            // It's a content URI or file URI
+                            uri = Uri.parse(imageUri);
+                        } else {
+                            // Try to get from ImageManager
+                            try {
+                                ImageManager imageManager = new ImageManager(requireContext());
+                                if (currentProfileId > 0) {
+                                    Uri imageManagerUri = imageManager.getProfileImageUri(currentProfileId);
+                                    if (imageManagerUri != null) {
+                                        uri = imageManagerUri;
+                                    }
+                                }
+                            } catch (Exception e) {
+                                android.util.Log.w("HomeDashboard", "ImageManager not available: " + e.getMessage());
+                            }
+                        }
+
+                        if (uri != null) {
+                            // Load image directly - setImageURI handles the loading asynchronously
+                            ivChildProfile.setImageURI(uri);
+                            ivChildProfile.setScaleType(ImageView.ScaleType.CENTER_CROP);
+
+                            // Verify image loaded successfully with a post-delay check
+                            Uri finalUri = uri;
+                            ivChildProfile.postDelayed(() -> {
+                                try {
+                                    if (ivChildProfile.getDrawable() == null) {
+                                        // Image didn't load, use default
+                                        ivChildProfile.setImageResource(R.drawable.ic_default_user);
+                                        android.util.Log.w("HomeDashboard", "Profile image failed to load, using default");
+                                    } else {
+                                        android.util.Log.d("HomeDashboard", "Successfully loaded profile image: " + finalUri.toString());
+                                    }
+                                } catch (Exception e) {
+                                    android.util.Log.e("HomeDashboard", "Error verifying image load: " + e.getMessage());
+                                    ivChildProfile.setImageResource(R.drawable.ic_default_user);
+                                }
+                            }, 200);
+                        } else {
+                            // Could not resolve URI, use default
+                            ivChildProfile.setImageResource(R.drawable.ic_default_user);
+                            android.util.Log.w("HomeDashboard", "Could not resolve image URI: " + imageUri);
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e("HomeDashboard", "Error parsing profile image URI: " + e.getMessage(), e);
+                        ivChildProfile.setImageResource(R.drawable.ic_default_user);
+                    }
+                } else {
+                    // No image URI, use default
+                    ivChildProfile.setImageResource(R.drawable.ic_default_user);
+                }
             }
 
             if (name != null && age != null) {
                 String formattedConditions = "";
                 if (conditions != null && !conditions.trim().isEmpty()) {
-                    String[] conditionArray = conditions.trim().split("\\s+");
-                    formattedConditions = String.join(", ", conditionArray);
+                    // Safety check: ensure conditions field doesn't contain image URI patterns
+                    String conditionsToProcess = conditions.trim();
+                    if (conditionsToProcess.contains("/storage/") || conditionsToProcess.contains("content://") ||
+                            conditionsToProcess.contains("file://") || conditionsToProcess.contains("Android/data")) {
+                        // This looks like an image URI, not conditions - treat as empty
+                        android.util.Log.w("HomeDashboard", "Conditions field appears to contain image URI, treating as empty: " + conditionsToProcess.substring(0, Math.min(50, conditionsToProcess.length())));
+                        formattedConditions = "No listed condition";
+                    } else {
+                        // Conditions are stored as comma-separated (e.g., "ASD, ADHD, Down Syndrome")
+                        // Split by comma, trim each part, and rejoin to ensure clean formatting
+                        String[] conditionArray = conditionsToProcess.split(",");
+                        StringBuilder sb = new StringBuilder();
+                        for (int i = 0; i < conditionArray.length; i++) {
+                            String trimmed = conditionArray[i].trim();
+                            if (!trimmed.isEmpty()) {
+                                if (sb.length() > 0) {
+                                    sb.append(", ");
+                                }
+                                sb.append(trimmed);
+                            }
+                        }
+                        formattedConditions = sb.toString();
+                        // If after processing we have an empty string, show "No listed condition"
+                        if (formattedConditions.isEmpty()) {
+                            formattedConditions = "No listed condition";
+                        }
+                    }
                 } else {
                     formattedConditions = "No listed condition";
                 }
 
-                tvChildName.setText(name);
-                tvChildDetails.setText("Age " + age + " • " + formattedConditions);
+                // Ensure TextViews only show name and details, never image URI
+                tvChildName.setText(name != null ? name : "No profile set");
+                String detailsText = "Age " + age + " • " + formattedConditions;
+                tvChildDetails.setText(detailsText);
+
+                android.util.Log.d("HomeDashboard", "Displaying conditions: '" + formattedConditions + "' (raw: '" + conditions + "')");
 
                 android.util.Log.d("HomeDashboard", "Loaded profile: " + name + " (ID: " + currentProfileId + ")");
             } else {
@@ -867,7 +1009,6 @@ public class HomeDashboardFragment extends Fragment {
             layoutWeeklyStreak.setOnClickListener(v -> navigateToFragment(new FragmentTasks()));
         }
 
-        // "View All" button in streak section - navigate to Report Summary
         if (tvViewAllStreak != null) {
             tvViewAllStreak.setOnClickListener(v -> navigateToReportSummary());
         }

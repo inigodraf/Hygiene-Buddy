@@ -1,6 +1,7 @@
 package com.example.hygienebuddy;
 
 public class BadgeModel {
+    private String key;
     private String title;
     private String description;
     private boolean isEarned;
@@ -9,7 +10,8 @@ public class BadgeModel {
     private int goal;
     private String imageKey; // optional explicit key to resolve drawable
 
-    public BadgeModel(String title, String description, boolean isEarned, String earnedDate, int progress, int goal, String imageKey) {
+    public BadgeModel(String key, String title, String description, boolean isEarned, String earnedDate, int progress, int goal, String imageKey) {
+        this.key = key;
         this.title = title;
         this.description = description;
         this.isEarned = isEarned;
@@ -26,4 +28,8 @@ public class BadgeModel {
     public int getProgress() { return progress; }
     public int getGoal() { return goal; }
     public String getImageKey() { return imageKey; }
+
+    public String getKey() {
+        return this.key;
+    }
 }

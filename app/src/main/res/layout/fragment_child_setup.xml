@@ -63,14 +63,14 @@
                 android:id="@+id/avatarContainer"
                 android:layout_width="120dp"
                 android:layout_height="120dp"
-                android:background="@drawable/avatar_bg"
+                android:background="@drawable/ic_default_user"
                 android:gravity="center">
 
                 <ImageView
                     android:id="@+id/ivChildAvatar"
-                    android:layout_width="80dp"
-                    android:layout_height="80dp"
-                    android:src="@drawable/default_avatar"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:src="@drawable/ic_default_user"
                     android:scaleType="fitCenter"
                     android:contentDescription="@string/child_avatar_description" />
 

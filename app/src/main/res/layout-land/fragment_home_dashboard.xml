@@ -268,27 +268,32 @@
                     android:orientation="horizontal"
                     android:weightSum="2">
 
-                    <TextView
-                        android:id="@+id/tvCompletedTotal"
-                        android:layout_width="0dp"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Completed Total: —"
-                        android:textSize="14sp"
-                        android:textColor="@color/subtitle_text"
-                        android:ellipsize="end"
-                        android:maxLines="1" />
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp">
 
-                    <TextView
-                        android:id="@+id/tvLongestStreak"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Longest Streak: —"
-                        android:textSize="14sp"
-                        android:textColor="@color/subtitle_text"
-                        android:ellipsize="end"
-                        android:maxLines="1" />
+                        <TextView
+                            android:id="@+id/tvCompletedTotal"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="start"
+                            android:text="Completed Total: 0 days"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvLongestStreak"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:gravity="end"
+                            android:text="Longest Streak: 0 days"
+                            android:textSize="14sp" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
