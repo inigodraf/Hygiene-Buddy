@@ -35,7 +35,11 @@
     <fragment
         android:id="@+id/manageProfileFragment"
         android:name="com.example.hygienebuddy.ManageProfileFragment"
-        android:label="Manage Profile" />
+        android:label="Manage Profile">
+        <action
+            android:id="@+id/action_manageProfileFragment_to_homeDashboardFragment"
+            app:destination="@id/homeDashboardFragment" />
+    </fragment>
 
     <!-- Tasks -->
     <fragment
@@ -45,6 +49,9 @@
         <action
             android:id="@+id/action_fragmentTasks_to_fragmentTaskSteps"
             app:destination="@id/fragmentTaskSteps" />
+        <action
+            android:id="@+id/action_fragmentTasks_to_manageProfileFragment"
+            app:destination="@id/manageProfileFragment" />
     </fragment>
 
     <!-- Task Steps -->
@@ -57,18 +64,30 @@
     <fragment
         android:id="@+id/fragmentBadges"
         android:name="com.example.hygienebuddy.FragmentBadges"
-        android:label="Badges" />
+        android:label="Badges">
+        <action
+            android:id="@+id/action_fragmentBadges_to_manageProfileFragment"
+            app:destination="@id/manageProfileFragment" />
+    </fragment>
 
     <!-- Report -->
     <fragment
         android:id="@+id/fragmentReportSummary"
         android:name="com.example.hygienebuddy.FragmentReportSummary"
-        android:label="Report" />
+        android:label="Report">
+        <action
+            android:id="@+id/action_fragmentReportSummary_to_manageProfileFragment"
+            app:destination="@id/manageProfileFragment" />
+    </fragment>
 
     <!-- Settings -->
     <fragment
         android:id="@+id/settingsFragment"
         android:name="com.example.hygienebuddy.SettingsFragment"
-        android:label="Settings" />
+        android:label="Settings">
+        <action
+            android:id="@+id/action_settingsFragment_to_manageProfileFragment"
+            app:destination="@id/manageProfileFragment" />
+    </fragment>
 
 </navigation>

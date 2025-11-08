@@ -77,24 +77,10 @@ public class HomeDashboardFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
 
         View view = inflater.inflate(R.layout.fragment_home_dashboard, container, false);
-
-        // Initialize database helper
         appDataDb = new AppDataDatabaseHelper(requireContext());
-
-        // Bind UI elements
         bindViews(view);
-
-        // Set up UI with placeholder (mock) data
         setTodayDate();
-
-        // Initialize last loaded profile ID to -1 to force refresh on first load
-        // This ensures profile change detection works correctly
         lastLoadedProfileId = -1;
-
-        // Load all dashboard data (will detect profile change if needed)
-        // Don't call loadAllDashboardData() directly - let onResume() handle it via refreshDashboardData()
-
-        // Handle clicks & interactivity
         setupListeners(view);
 
         return view;
@@ -110,21 +96,17 @@ public class HomeDashboardFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // Refresh all data when returning to the dashboard (profile may have changed)
         refreshDashboardData();
     }
 
     /** Refresh all dashboard data based on current profile */
     private void refreshDashboardData() {
         if (!isAdded() || appDataDb == null) return;
-
-        // Get current profile ID from SQLite
         int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
         if (currentProfileId == -1) {
             currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
         }
 
-        // Check if profile has changed (or if this is first load)
         boolean profileChanged = (currentProfileId != lastLoadedProfileId);
         boolean isFirstLoad = (lastLoadedProfileId == -1);
 
@@ -132,17 +114,13 @@ public class HomeDashboardFragment extends Fragment {
             android.util.Log.d("HomeDashboard", "Profile " + (isFirstLoad ? "initialized" : "changed") + " from " + lastLoadedProfileId + " to " + currentProfileId);
             lastLoadedProfileId = currentProfileId;
 
-            // Add fade animation when profile changes (skip on first load for faster initial display)
             View rootView = getView();
             if (rootView != null && !isFirstLoad) {
-                // Fade animation for profile changes
                 rootView.animate()
                         .alpha(0.3f)
                         .setDuration(150)
                         .withEndAction(() -> {
-                            // Load all data
                             loadAllDashboardData();
-                            // Fade back in
                             rootView.animate()
                                     .alpha(1.0f)
                                     .setDuration(200)
@@ -150,11 +128,9 @@ public class HomeDashboardFragment extends Fragment {
                         })
                         .start();
             } else {
-                // If view not ready or first load, load data without animation
                 loadAllDashboardData();
             }
         } else {
-            // Profile hasn't changed, just refresh normally
             loadAllDashboardData();
         }
     }
@@ -162,38 +138,25 @@ public class HomeDashboardFragment extends Fragment {
     /** Load all dashboard data (called after animation if profile changed) */
     private void loadAllDashboardData() {
         if (!isAdded()) return;
-
-        // Clear all existing data first to prevent showing old data
         clearDashboardData();
-
-        // Refresh profile display
         loadChildProfile();
-
-        // Refresh reminders (filtered by current profile)
         if (layoutUpcomingTasks != null) {
             loadUpcomingTasks();
         }
-
-        // Refresh task progress (profile-scoped)
         loadTaskProgress();
-
-        // Refresh streak data (profile-scoped)
         loadStreakData();
     }
 
     /** Clear all dashboard data to prevent showing stale data */
     private void clearDashboardData() {
-        // Clear reminders
         if (layoutUpcomingTasks != null) {
             layoutUpcomingTasks.removeAllViews();
         }
 
-        // Clear streak days
         if (layoutStreakDays != null) {
             layoutStreakDays.removeAllViews();
         }
 
-        // Reset progress indicators
         if (progressTasks != null) {
             progressTasks.setProgress(0);
         }
@@ -247,24 +210,20 @@ public class HomeDashboardFragment extends Fragment {
         }
 
         try {
-            // Get current profile ID from SQLite
             int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
                 currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
-            // Calculate daily task completion based on today's task completions from SQLite
             String today = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
             Set<String> completedTasks = appDataDb.getTaskCompletionsForDate(currentProfileId, today);
 
-            // Count completed tasks (handwashing and/or toothbrushing)
             int completedCount = 0;
             if (completedTasks.contains("handwashing")) completedCount++;
             if (completedTasks.contains("toothbrushing")) completedCount++;
 
             int totalTasks = 2; // 2 tasks per day: handwashing and toothbrushing
 
-            // Calculate progress percentage (50% for 1 task, 100% for both)
             int progressPercent = totalTasks > 0 ? (int) ((completedCount / (float) totalTasks) * 100) : 0;
             progressPercent = Math.min(progressPercent, 100); // Cap at 100%
 
@@ -280,7 +239,7 @@ public class HomeDashboardFragment extends Fragment {
             android.util.Log.d("HomeDashboard", "Loaded task progress for profile ID: " + currentProfileId + " - Today: " + completedCount + "/" + totalTasks + " tasks completed (" + progressPercent + "%)");
         } catch (Exception e) {
             android.util.Log.e("HomeDashboard", "Error loading task progress: " + e.getMessage(), e);
-            // Fallback to zero if error
+
             if (progressTasks != null) progressTasks.setProgress(0);
             if (tvTaskProgress != null) tvTaskProgress.setText("0% completed");
             if (tvPoints != null) tvPoints.setText("0 XP");
@@ -299,7 +258,6 @@ public class HomeDashboardFragment extends Fragment {
         }
 
         try {
-            // Get current profile ID from SQLite
             int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
                 currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
@@ -307,11 +265,8 @@ public class HomeDashboardFragment extends Fragment {
 
             layoutStreakDays.removeAllViews();
 
-            // Load completed days from SQLite (profile-scoped)
-            // These are days where BOTH tasks were completed
             Set<String> streakCompletedDays = appDataDb.getStreakDays(currentProfileId);
 
-            // Get last 7 days for weekly streak display
             Calendar cal = Calendar.getInstance();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
             SimpleDateFormat dayNameFormat = new SimpleDateFormat("EEE", Locale.getDefault());
@@ -329,7 +284,6 @@ public class HomeDashboardFragment extends Fragment {
                 streakDays.add(new StreakDayInfo(dayName, bothTasksCompleted));
             }
 
-            // Display streak days with labels
             int iconSize = (int) android.util.TypedValue.applyDimension(
                     android.util.TypedValue.COMPLEX_UNIT_DIP, 24, getResources().getDisplayMetrics());
             int horizontalMargin = (int) android.util.TypedValue.applyDimension(
@@ -337,20 +291,17 @@ public class HomeDashboardFragment extends Fragment {
             int verticalMargin = (int) android.util.TypedValue.applyDimension(
                     android.util.TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics());
 
-            // Use weight-based layout for even distribution across screen width
             for (int i = 0; i < streakDays.size(); i++) {
                 StreakDayInfo dayInfo = streakDays.get(i);
 
-                // Create container for day label and icon
                 LinearLayout dayContainer = new LinearLayout(getContext());
                 dayContainer.setOrientation(LinearLayout.VERTICAL);
                 dayContainer.setGravity(android.view.Gravity.CENTER);
 
-                // Use weight-based layout params for even distribution
                 LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
-                        0, // width = 0 to use weight
+                        0,
                         LinearLayout.LayoutParams.WRAP_CONTENT,
-                        1.0f // equal weight for all days
+                        1.0f
                 );
 
                 int leftMargin = (i == 0) ? 0 : horizontalMargin / 2;
@@ -358,7 +309,6 @@ public class HomeDashboardFragment extends Fragment {
                 containerParams.setMargins(leftMargin, verticalMargin, rightMargin, verticalMargin);
                 dayContainer.setLayoutParams(containerParams);
 
-                // Day label (Mon, Tue, Wed, etc.)
                 TextView dayLabel = new TextView(getContext());
                 dayLabel.setText(dayInfo.dayName);
                 dayLabel.setTextSize(12);
@@ -373,7 +323,7 @@ public class HomeDashboardFragment extends Fragment {
                 ImageView dayView = new ImageView(getContext());
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(iconSize, iconSize);
                 dayView.setLayoutParams(lp);
-                dayView.setScaleType(ImageView.ScaleType.FIT_CENTER); // Ensure proper scaling
+                dayView.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 dayView.setImageResource(dayInfo.completed ? R.drawable.ic_streak_filled : R.drawable.ic_streak_empty);
 
                 dayContainer.addView(dayLabel);
@@ -381,7 +331,6 @@ public class HomeDashboardFragment extends Fragment {
                 layoutStreakDays.addView(dayContainer);
             }
 
-            // Calculate total completed days and longest streak
             int totalCompleted = streakCompletedDays.size();
             int longestStreak = calculateLongestStreak(streakCompletedDays);
 
@@ -391,7 +340,6 @@ public class HomeDashboardFragment extends Fragment {
             android.util.Log.d("HomeDashboard", "Loaded streak data for profile ID: " + currentProfileId + " - Total: " + totalCompleted + ", Longest: " + longestStreak);
         } catch (Exception e) {
             android.util.Log.e("HomeDashboard", "Error loading streak data: " + e.getMessage(), e);
-            // Fallback to empty state
             tvCompletedTotal.setText("Completed Total: 0 days");
             tvLongestStreak.setText("Longest Streak: 0 days");
         }
@@ -418,7 +366,6 @@ public class HomeDashboardFragment extends Fragment {
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
             Calendar cal = Calendar.getInstance();
 
-            // Sort dates
             List<String> sortedDates = new ArrayList<>(completedDays);
             sortedDates.sort(String::compareTo);
 
@@ -439,7 +386,6 @@ public class HomeDashboardFragment extends Fragment {
                     currentStreak = 1;
                 }
             }
-
             return longestStreak;
         } catch (Exception e) {
             android.util.Log.e("HomeDashboard", "Error calculating streak: " + e.getMessage(), e);
@@ -458,13 +404,11 @@ public class HomeDashboardFragment extends Fragment {
         }
 
         try {
-            // Get current profile ID from SQLite
             int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
                 currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
-            // Load profile data from UserProfileDatabaseHelper
             UserProfileDatabaseHelper profileDb = new UserProfileDatabaseHelper(requireContext());
             UserProfile profile = null;
             if (currentProfileId > 0) {
@@ -482,18 +426,13 @@ public class HomeDashboardFragment extends Fragment {
                 imageUri = profile.getImageUri();
             }
 
-            // Load profile image with proper circular clipping
             if (ivChildProfile != null) {
-                // Always set default first
                 ivChildProfile.setImageResource(R.drawable.ic_default_user);
                 ivChildProfile.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                // Ensure ImageView never displays text - set proper contentDescription
                 ivChildProfile.setContentDescription("Child profile image");
 
-                // Enable circular clipping for proper frame fitting
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                     ivChildProfile.setClipToOutline(true);
-                    // Set outline provider for circular clipping
                     ivChildProfile.setOutlineProvider(new android.view.ViewOutlineProvider() {
                         @Override
                         public void getOutline(android.view.View view, android.graphics.Outline outline) {
@@ -502,16 +441,12 @@ public class HomeDashboardFragment extends Fragment {
                     });
                 }
 
-                // Try to load custom image if available
                 if (imageUri != null && !imageUri.trim().isEmpty()) {
                     try {
                         Uri uri = null;
-
-                        // Check if it's a file path (starts with /)
                         if (imageUri.startsWith("/")) {
                             File imageFile = new File(imageUri);
                             if (imageFile.exists()) {
-                                // Use FileProvider for file paths
                                 try {
                                     uri = androidx.core.content.FileProvider.getUriForFile(
                                             requireContext(),
@@ -523,10 +458,8 @@ public class HomeDashboardFragment extends Fragment {
                                 }
                             }
                         } else if (imageUri.startsWith("content://") || imageUri.startsWith("file://")) {
-                            // It's a content URI or file URI
                             uri = Uri.parse(imageUri);
                         } else {
-                            // Try to get from ImageManager
                             try {
                                 ImageManager imageManager = new ImageManager(requireContext());
                                 if (currentProfileId > 0) {
@@ -541,16 +474,12 @@ public class HomeDashboardFragment extends Fragment {
                         }
 
                         if (uri != null) {
-                            // Load image directly - setImageURI handles the loading asynchronously
                             ivChildProfile.setImageURI(uri);
                             ivChildProfile.setScaleType(ImageView.ScaleType.CENTER_CROP);
-
-                            // Verify image loaded successfully with a post-delay check
                             Uri finalUri = uri;
                             ivChildProfile.postDelayed(() -> {
                                 try {
                                     if (ivChildProfile.getDrawable() == null) {
-                                        // Image didn't load, use default
                                         ivChildProfile.setImageResource(R.drawable.ic_default_user);
                                         android.util.Log.w("HomeDashboard", "Profile image failed to load, using default");
                                     } else {
@@ -562,7 +491,6 @@ public class HomeDashboardFragment extends Fragment {
                                 }
                             }, 200);
                         } else {
-                            // Could not resolve URI, use default
                             ivChildProfile.setImageResource(R.drawable.ic_default_user);
                             android.util.Log.w("HomeDashboard", "Could not resolve image URI: " + imageUri);
                         }
@@ -571,7 +499,6 @@ public class HomeDashboardFragment extends Fragment {
                         ivChildProfile.setImageResource(R.drawable.ic_default_user);
                     }
                 } else {
-                    // No image URI, use default
                     ivChildProfile.setImageResource(R.drawable.ic_default_user);
                 }
             }
@@ -579,16 +506,12 @@ public class HomeDashboardFragment extends Fragment {
             if (name != null && age != null) {
                 String formattedConditions = "";
                 if (conditions != null && !conditions.trim().isEmpty()) {
-                    // Safety check: ensure conditions field doesn't contain image URI patterns
                     String conditionsToProcess = conditions.trim();
                     if (conditionsToProcess.contains("/storage/") || conditionsToProcess.contains("content://") ||
                             conditionsToProcess.contains("file://") || conditionsToProcess.contains("Android/data")) {
-                        // This looks like an image URI, not conditions - treat as empty
                         android.util.Log.w("HomeDashboard", "Conditions field appears to contain image URI, treating as empty: " + conditionsToProcess.substring(0, Math.min(50, conditionsToProcess.length())));
                         formattedConditions = "No listed condition";
                     } else {
-                        // Conditions are stored as comma-separated (e.g., "ASD, ADHD, Down Syndrome")
-                        // Split by comma, trim each part, and rejoin to ensure clean formatting
                         String[] conditionArray = conditionsToProcess.split(",");
                         StringBuilder sb = new StringBuilder();
                         for (int i = 0; i < conditionArray.length; i++) {
@@ -601,7 +524,6 @@ public class HomeDashboardFragment extends Fragment {
                             }
                         }
                         formattedConditions = sb.toString();
-                        // If after processing we have an empty string, show "No listed condition"
                         if (formattedConditions.isEmpty()) {
                             formattedConditions = "No listed condition";
                         }
@@ -639,22 +561,16 @@ public class HomeDashboardFragment extends Fragment {
 
             ReminderDatabaseHelper reminderDbHelper = new ReminderDatabaseHelper(requireContext());
 
-            // Get current profile ID from SQLite
             int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
-            // Fallback to selected_profile_id for backward compatibility
             if (currentProfileId == -1) {
                 currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
-            // Use profile-scoped query directly from database
             List<ReminderModel> reminders;
             if (currentProfileId > 0) {
                 // Get reminders filtered by profile ID (ONLY reminders for this profile, excluding global)
-                // If you want to include global reminders (profile_id = 0), use getActiveRemindersByProfile()
-                // For now, let's show only profile-specific reminders
                 reminders = reminderDbHelper.getActiveRemindersByProfile(currentProfileId);
 
-                // Filter out global reminders (profile_id = 0) to show only profile-specific ones
                 List<ReminderModel> profileSpecificReminders = new ArrayList<>();
                 for (ReminderModel reminder : reminders) {
                     if (reminder != null && reminder.getProfileId() != null && reminder.getProfileId() == currentProfileId) {
@@ -665,13 +581,11 @@ public class HomeDashboardFragment extends Fragment {
 
                 android.util.Log.d("HomeDashboard", "Loaded reminders for profile ID: " + currentProfileId + ", found: " + reminders.size() + " profile-specific reminders");
             } else {
-                // No profile selected - show all active reminders
                 reminders = reminderDbHelper.getActiveReminders();
                 android.util.Log.d("HomeDashboard", "No profile selected, showing all active reminders: " + reminders.size());
             }
 
             if (reminders.isEmpty()) {
-                // Show empty state
                 TextView tvEmptyState = new TextView(requireContext());
                 tvEmptyState.setText("No upcoming reminders");
                 tvEmptyState.setTextSize(14);
@@ -686,14 +600,12 @@ public class HomeDashboardFragment extends Fragment {
                 return;
             }
 
-            // Sort reminders by time (nearest first)
             reminders.sort((r1, r2) -> {
                 String time1 = r1.getTime() != null ? r1.getTime() : "";
                 String time2 = r2.getTime() != null ? r2.getTime() : "";
                 return time1.compareTo(time2);
             });
 
-            // Display up to 5 upcoming reminders
             int maxReminders = Math.min(reminders.size(), 5);
             for (int i = 0; i < maxReminders; i++) {
                 ReminderModel reminder = reminders.get(i);
@@ -732,7 +644,6 @@ public class HomeDashboardFragment extends Fragment {
             }
             tvTaskName.setTypeface(null, Typeface.BOLD);
 
-            // Format time display
             String timeStr = reminder.getTime();
             String formattedTime = "Unknown time";
             if (timeStr != null && !timeStr.isEmpty()) {
@@ -749,7 +660,7 @@ public class HomeDashboardFragment extends Fragment {
                     }
                 } catch (Exception e) {
                     android.util.Log.e("HomeDashboard", "Error parsing time: " + timeStr, e);
-                    formattedTime = timeStr; // Fallback to raw time string
+                    formattedTime = timeStr;
                 }
             }
 
@@ -804,13 +715,11 @@ public class HomeDashboardFragment extends Fragment {
         }
 
         try {
-            // Get current profile ID from SQLite
             int currentProfileId = appDataDb.getIntSetting("current_profile_id", -1);
             if (currentProfileId == -1) {
                 currentProfileId = appDataDb.getIntSetting("selected_profile_id", -1);
             }
 
-            // Get profile name for dialog title from SQLite or database
             String profileName = "Child";
             if (currentProfileId > 0) {
                 UserProfileDatabaseHelper profileDb = new UserProfileDatabaseHelper(requireContext());
@@ -818,22 +727,17 @@ public class HomeDashboardFragment extends Fragment {
                 if (profile != null && profile.getName() != null) {
                     profileName = profile.getName();
                 } else {
-                    // Fallback to SQLite app settings
                     profileName = appDataDb.getSetting("child_name", "Child");
                 }
             } else {
                 profileName = appDataDb.getSetting("child_name", "Child");
             }
 
-            // Load reminders for the current profile
             ReminderDatabaseHelper reminderDbHelper = new ReminderDatabaseHelper(requireContext());
             List<ReminderModel> reminders;
 
             if (currentProfileId > 0) {
-                // Get reminders filtered by profile ID (ONLY reminders for this profile, excluding global)
                 reminders = reminderDbHelper.getActiveRemindersByProfile(currentProfileId);
-
-                // Filter out global reminders (profile_id = 0) to show only profile-specific ones
                 List<ReminderModel> profileSpecificReminders = new ArrayList<>();
                 for (ReminderModel reminder : reminders) {
                     if (reminder != null && reminder.getProfileId() != null && reminder.getProfileId() == currentProfileId) {
@@ -842,23 +746,20 @@ public class HomeDashboardFragment extends Fragment {
                 }
                 reminders = profileSpecificReminders;
             } else {
-                // No profile selected - show all active reminders
                 reminders = reminderDbHelper.getActiveReminders();
             }
 
-            // Sort reminders by time (nearest first)
+            // Sort reminders by time
             reminders.sort((r1, r2) -> {
                 String time1 = r1.getTime() != null ? r1.getTime() : "";
                 String time2 = r2.getTime() != null ? r2.getTime() : "";
                 return time1.compareTo(time2);
             });
 
-            // Create dialog container
             LinearLayout dialogContainer = new LinearLayout(requireContext());
             dialogContainer.setOrientation(LinearLayout.VERTICAL);
             dialogContainer.setPadding(24, 24, 24, 24);
 
-            // Title
             TextView tvTitle = new TextView(requireContext());
             tvTitle.setText("Reminder Notifications - " + profileName);
             tvTitle.setTextSize(18);
@@ -871,7 +772,6 @@ public class HomeDashboardFragment extends Fragment {
             tvTitle.setPadding(0, 0, 0, 16);
             dialogContainer.addView(tvTitle);
 
-            // Reminders list or empty state
             if (reminders.isEmpty()) {
                 TextView tvEmpty = new TextView(requireContext());
                 tvEmpty.setText("No pending reminders for " + profileName);
@@ -946,7 +846,6 @@ public class HomeDashboardFragment extends Fragment {
             }
             tvTaskName.setPadding(0, 0, 0, 4);
 
-            // Format time display
             String timeStr = reminder.getTime();
             String formattedTime = "Unknown time";
             if (timeStr != null && !timeStr.isEmpty()) {
@@ -1014,87 +913,75 @@ public class HomeDashboardFragment extends Fragment {
         }
     }
 
-    /** Navigate to ManageProfileFragment using safe navigation approach */
+    /** Navigate to ManageProfileFragment */
     private void navigateToManageProfile() {
-        if (!isAdded()) {
-            android.util.Log.e("HomeDashboard", "Cannot navigate - fragment not added");
+        if (!isAdded() || getActivity() == null) {
+            android.util.Log.e("HomeDashboard", "Cannot navigate - fragment not added or activity is null");
             return;
         }
 
         try {
-            FragmentActivity activity = requireActivity();
+            boolean navControllerSuccess = false;
 
-            // Method 1: Try to find NavController from the fragment's view (preferred)
-            View view = getView();
-            NavController navController = null;
-
-            if (view != null) {
-                try {
-                    navController = Navigation.findNavController(view);
-                    android.util.Log.d("HomeDashboard", "Found NavController from fragment view");
-                } catch (IllegalStateException e) {
-                    android.util.Log.w("HomeDashboard", "NavController not found from fragment view: " + e.getMessage());
-                }
-            }
-
-            // Method 2: Try to find NavController from NavHostFragment by ID
-            if (navController == null) {
-                try {
-                    NavHostFragment navHostFragment = (NavHostFragment) activity.getSupportFragmentManager()
-                            .findFragmentById(R.id.nav_host_fragment);
-                    if (navHostFragment != null) {
-                        navController = navHostFragment.getNavController();
-                        android.util.Log.d("HomeDashboard", "Found NavController from NavHostFragment");
-                    }
-                } catch (Exception e) {
-                    android.util.Log.w("HomeDashboard", "Could not get NavController from NavHostFragment: " + e.getMessage());
-                }
-            }
-
-            // Method 3: Use NavController if found
-            if (navController != null) {
-                try {
-                    navController.navigate(R.id.action_homeDashboardFragment_to_manageProfileFragment);
-                    android.util.Log.d("HomeDashboard", "Navigated to ManageProfile using NavController");
-                    return;
-                } catch (Exception e) {
-                    android.util.Log.e("HomeDashboard", "NavController.navigate() failed: " + e.getMessage(), e);
-                }
-            }
-
-            // Method 4: Fallback - Try fragment_container (if it exists, e.g., in other activities)
-            View fragmentContainer = activity.findViewById(R.id.fragment_container);
-            if (fragmentContainer != null) {
+            try {
+                FragmentActivity activity = requireActivity();
                 FragmentManager fm = activity.getSupportFragmentManager();
-                FragmentTransaction ft = fm.beginTransaction();
-                ft.setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out);
-                ft.replace(R.id.fragment_container, new ManageProfileFragment());
-                ft.addToBackStack(null);
-                ft.commit();
-                android.util.Log.d("HomeDashboard", "Navigated to ManageProfile using fragment_container");
+                Fragment navHostFragment = fm.findFragmentById(R.id.nav_host_fragment);
+
+                if (navHostFragment instanceof NavHostFragment) {
+                    NavController navController = ((NavHostFragment) navHostFragment).getNavController();
+                    NavDestination currentDest = navController.getCurrentDestination();
+
+                    if (currentDest != null) {
+                        int currentDestId = currentDest.getId();
+                        int actionId = -1;
+
+                        if (currentDestId == R.id.homeDashboardFragment) {
+                            actionId = R.id.action_homeDashboardFragment_to_manageProfileFragment;
+                        } else if (currentDestId == R.id.fragmentTasks) {
+                            actionId = R.id.action_fragmentTasks_to_manageProfileFragment;
+                        } else if (currentDestId == R.id.fragmentReportSummary) {
+                            actionId = R.id.action_fragmentReportSummary_to_manageProfileFragment;
+                        } else if (currentDestId == R.id.settingsFragment) {
+                            actionId = R.id.action_settingsFragment_to_manageProfileFragment;
+                        } else if (currentDestId == R.id.fragmentBadges) {
+                            actionId = R.id.action_fragmentBadges_to_manageProfileFragment;
+                        }
+
+                        if (actionId != -1) {
+                            navController.navigate(actionId);
+                            android.util.Log.d("HomeDashboard", "Successfully navigated to ManageProfile using action: " + actionId);
+                            navControllerSuccess = true;
+                        } else {
+                            navController.navigate(R.id.manageProfileFragment);
+                            android.util.Log.d("HomeDashboard", "Successfully navigated to ManageProfile by direct ID");
+                            navControllerSuccess = true;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                android.util.Log.w("HomeDashboard", "NavController navigation failed: " + e.getMessage(), e);
+            }
+
+            if (navControllerSuccess) {
                 return;
             }
 
-            // If all methods fail, show error
-            android.util.Log.e("HomeDashboard", "All navigation methods failed for ManageProfile");
-            if (isAdded() && getContext() != null) {
-                Toast.makeText(getContext(), "Failed to open profile management. Please try again.", Toast.LENGTH_SHORT).show();
-            }
+            android.util.Log.d("HomeDashboard", "Using FragmentTransaction fallback");
+            ManageProfileFragment manageProfileFragment = new ManageProfileFragment();
+            FragmentActivity activity = requireActivity();
+            FragmentManager fm = activity.getSupportFragmentManager();
 
-        } catch (IllegalArgumentException e) {
-            android.util.Log.e("HomeDashboard", "IllegalArgumentException navigating to ManageProfile: " + e.getMessage(), e);
-            if (isAdded() && getContext() != null) {
-                Toast.makeText(getContext(), "Navigation error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        } catch (ClassCastException e) {
-            android.util.Log.e("HomeDashboard", "ClassCastException navigating to ManageProfile: " + e.getMessage(), e);
-            if (isAdded() && getContext() != null) {
-                Toast.makeText(getContext(), "Navigation error: Invalid view type", Toast.LENGTH_SHORT).show();
-            }
+            FragmentTransaction transaction = fm.beginTransaction();
+            transaction.replace(R.id.nav_host_fragment, manageProfileFragment);
+            transaction.addToBackStack(null);
+            transaction.commit();
+            android.util.Log.d("HomeDashboard", "FragmentTransaction completed successfully");
+
         } catch (Exception e) {
             android.util.Log.e("HomeDashboard", "Error navigating to ManageProfile: " + e.getMessage(), e);
             e.printStackTrace();
-            if (isAdded() && getContext() != null) {
+            if (getContext() != null) {
                 Toast.makeText(getContext(), "Failed to open profile management", Toast.LENGTH_SHORT).show();
             }
         }
@@ -1110,7 +997,6 @@ public class HomeDashboardFragment extends Fragment {
         try {
             FragmentActivity activity = requireActivity();
 
-            // Method 1: Try to find NavController from the fragment's view (preferred)
             View view = getView();
             NavController navController = null;
 
@@ -1123,7 +1009,6 @@ public class HomeDashboardFragment extends Fragment {
                 }
             }
 
-            // Method 2: Try to find NavController from NavHostFragment by ID
             if (navController == null) {
                 try {
                     NavHostFragment navHostFragment = (NavHostFragment) activity.getSupportFragmentManager()
@@ -1137,7 +1022,6 @@ public class HomeDashboardFragment extends Fragment {
                 }
             }
 
-            // Method 3: Use NavController if found
             if (navController != null) {
                 try {
                     navController.navigate(R.id.action_homeDashboardFragment_to_fragmentReportSummary);
@@ -1148,7 +1032,6 @@ public class HomeDashboardFragment extends Fragment {
                 }
             }
 
-            // Method 4: Fallback - Try fragment_container (if it exists, e.g., in other activities)
             View fragmentContainer = activity.findViewById(R.id.fragment_container);
             if (fragmentContainer != null) {
                 FragmentManager fm = activity.getSupportFragmentManager();
@@ -1161,7 +1044,6 @@ public class HomeDashboardFragment extends Fragment {
                 return;
             }
 
-            // If all methods fail, show error
             android.util.Log.e("HomeDashboard", "All navigation methods failed for Report Summary");
             if (isAdded() && getContext() != null) {
                 Toast.makeText(getContext(), "Failed to open Report Summary. Please try again.", Toast.LENGTH_SHORT).show();
@@ -1201,7 +1083,6 @@ public class HomeDashboardFragment extends Fragment {
         View view = getView();
         if (view == null) {
             android.util.Log.e("HomeDashboard", "Cannot navigate - view is null, will retry");
-            // Try to navigate after view is ready
             if (getView() != null) {
                 getView().post(() -> navigateToFragment(fragment));
             }
@@ -1224,7 +1105,6 @@ public class HomeDashboardFragment extends Fragment {
                 android.util.Log.w("HomeDashboard", "Unknown fragment type for navigation: " + fragment.getClass().getSimpleName());
             }
         } catch (IllegalArgumentException e) {
-            // NavController not found - fragment might not be in NavHostFragment
             android.util.Log.e("HomeDashboard", "NavController not found. Fragment may not be in NavHostFragment: " + e.getMessage());
             if (isAdded() && getContext() != null) {
                 Toast.makeText(getContext(), "Navigation not available", Toast.LENGTH_SHORT).show();

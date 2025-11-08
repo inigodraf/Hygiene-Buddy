@@ -21,8 +21,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import androidx.fragment.app.FragmentManager;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -693,46 +696,80 @@ public class ManageProfileFragment extends Fragment implements ManageProfileAdap
     /** Navigate back to dashboard with smooth transition */
     private void navigateToDashboardWithAnimation() {
         try {
-            // Method 1: Try NavController with animation
-            try {
-                View view = getView();
-                if (view != null) {
-                    NavController navController = Navigation.findNavController(view);
-                    // Pop back stack with animation
-                    navController.popBackStack();
-                    android.util.Log.d("ManageProfileFragment", "Navigated back via NavController");
-                    return;
-                }
-            } catch (Exception e) {
-                android.util.Log.d("ManageProfileFragment", "NavController not available: " + e.getMessage());
+            if (!isAdded()) {
+                android.util.Log.e("ManageProfileFragment", "Cannot navigate - fragment not added");
+                return;
             }
 
-            // Method 2: Use FragmentManager with smooth animations
-            if (requireActivity().getSupportFragmentManager().getBackStackEntryCount() > 0) {
-                // Pop with animation
-                requireActivity().getSupportFragmentManager().popBackStack();
-                android.util.Log.d("ManageProfileFragment", "Popped back stack");
-            } else {
-                // Replace with animation if no back stack
-                HomeDashboardFragment homeFragment = new HomeDashboardFragment();
-                requireActivity().getSupportFragmentManager()
-                        .beginTransaction()
-                        .setCustomAnimations(
-                                android.R.anim.slide_in_left,  // Enter animation
-                                android.R.anim.slide_out_right, // Exit animation
-                                android.R.anim.slide_in_left,  // Pop enter
-                                android.R.anim.slide_out_right // Pop exit
-                        )
-                        .replace(R.id.fragment_container, homeFragment)
-                        .addToBackStack(null)
-                        .commit();
-                android.util.Log.d("ManageProfileFragment", "Replaced with HomeDashboardFragment");
+            // Method 1: Use Navigation.findNavController(view) - this is the recommended approach
+            View view = getView();
+            if (view != null) {
+                try {
+                    NavController navController = Navigation.findNavController(view);
+                    // Try using the action first
+                    try {
+                        navController.navigate(R.id.action_manageProfileFragment_to_homeDashboardFragment);
+                        android.util.Log.d("ManageProfileFragment", "Navigated to homeDashboardFragment via action");
+                        return;
+                    } catch (IllegalArgumentException e) {
+                        // Action might not be available, try popBackStack
+                        android.util.Log.w("ManageProfileFragment", "Action navigation failed, trying popBackStack: " + e.getMessage());
+                        try {
+                            navController.popBackStack();
+                            android.util.Log.d("ManageProfileFragment", "Popped back stack");
+                            return;
+                        } catch (Exception e2) {
+                            // Try direct navigation to home
+                            android.util.Log.w("ManageProfileFragment", "popBackStack failed, trying direct navigation: " + e2.getMessage());
+                            try {
+                                navController.navigate(R.id.homeDashboardFragment);
+                                android.util.Log.d("ManageProfileFragment", "Navigated to homeDashboardFragment by direct ID");
+                                return;
+                            } catch (Exception e3) {
+                                android.util.Log.e("ManageProfileFragment", "All navigation methods failed: " + e3.getMessage());
+                            }
+                        }
+                    }
+                } catch (IllegalStateException e) {
+                    android.util.Log.w("ManageProfileFragment", "NavController not found from view: " + e.getMessage());
+                    // Fall through to alternative method
+                }
+            }
+
+            // Method 2: Try to get NavController from NavHostFragment via FragmentManager
+            try {
+                FragmentActivity activity = requireActivity();
+                FragmentManager fm = activity.getSupportFragmentManager();
+
+                // Try to find NavHostFragment - but check type first
+                Fragment fragment = fm.findFragmentById(R.id.nav_host_fragment);
+                if (fragment instanceof NavHostFragment) {
+                    NavHostFragment navHostFragment = (NavHostFragment) fragment;
+                    NavController navController = navHostFragment.getNavController();
+                    navController.navigate(R.id.homeDashboardFragment);
+                    android.util.Log.d("ManageProfileFragment", "Navigated to homeDashboardFragment via NavHostFragment");
+                    return;
+                } else if (fragment != null) {
+                    android.util.Log.w("ManageProfileFragment", "Fragment with nav_host_fragment ID is not NavHostFragment: " + fragment.getClass().getName());
+                }
+            } catch (Exception e) {
+                android.util.Log.w("ManageProfileFragment", "NavHostFragment method failed: " + e.getMessage());
+            }
+
+            // Final fallback: use system back
+            android.util.Log.w("ManageProfileFragment", "All navigation methods failed, using system back");
+            if (isAdded()) {
+                requireActivity().onBackPressed();
             }
         } catch (Exception e) {
             android.util.Log.e("ManageProfileFragment", "Error navigating back: " + e.getMessage(), e);
             // Fallback: use system back
             if (isAdded()) {
-                requireActivity().onBackPressed();
+                try {
+                    requireActivity().onBackPressed();
+                } catch (Exception e2) {
+                    android.util.Log.e("ManageProfileFragment", "onBackPressed failed: " + e2.getMessage());
+                }
             }
         }
     }
