@@ -441,6 +441,9 @@ public class FragmentReportSummary extends Fragment {
             int day = tempCal.get(Calendar.DAY_OF_MONTH);
             String dateKey = formatDateKey(tempCal);
             boolean isStreakDay = streakDays.contains(dateKey);
+            if (isStreakDay) {
+                android.util.Log.d("ReportSummary", "Week view: Day " + day + " (" + dateKey + ") is a streak day");
+            }
             addCalendarDay(day, tempCal, isStreakDay);
             tempCal.add(Calendar.DAY_OF_MONTH, 1);
         }
@@ -490,6 +493,9 @@ public class FragmentReportSummary extends Fragment {
             tempCal.set(Calendar.DAY_OF_MONTH, day);
             String dateKey = formatDateKey(tempCal);
             boolean isStreakDay = streakDays.contains(dateKey);
+            if (isStreakDay) {
+                android.util.Log.d("ReportSummary", "Month view: Day " + day + " (" + dateKey + ") is a streak day");
+            }
             addCalendarDay(day, tempCal, isStreakDay);
         }
     }
@@ -510,6 +516,12 @@ public class FragmentReportSummary extends Fragment {
             if (currentProfileId > 0) {
                 // Get streak days from SQLite
                 streakDays = appDataDb.getStreakDays(currentProfileId);
+                android.util.Log.d("ReportSummary", "Retrieved " + streakDays.size() + " streak days for profile ID: " + currentProfileId);
+                if (!streakDays.isEmpty()) {
+                    android.util.Log.d("ReportSummary", "Streak days: " + streakDays.toString());
+                }
+            } else {
+                android.util.Log.w("ReportSummary", "No profile ID found, cannot retrieve streak days");
             }
         } catch (Exception e) {
             android.util.Log.e("ReportSummary", "Error getting streak days: " + e.getMessage(), e);
@@ -540,23 +552,38 @@ public class FragmentReportSummary extends Fragment {
         tvDay.setGravity(android.view.Gravity.CENTER);
         tvDay.setPadding(16, 16, 16, 16);
         tvDay.setTextSize(14f);
+        tvDay.setTypeface(null, android.graphics.Typeface.BOLD); // Make text bold for better visibility
 
         Calendar today = Calendar.getInstance();
         boolean isToday = (day == today.get(Calendar.DAY_OF_MONTH)
                 && dayCalendar.get(Calendar.MONTH) == today.get(Calendar.MONTH)
                 && dayCalendar.get(Calendar.YEAR) == today.get(Calendar.YEAR));
 
-        if (isToday) {
+        // Prioritize streak highlighting - if it's a streak day, show it prominently
+        // If it's also today, we'll use a combination approach
+        if (isStreakDay) {
+            if (isToday) {
+                // Today + Streak: Use completed background with a border to show it's also today
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
+                    tvDay.setBackground(createTodayStreakBackground());
+                } else {
+                    // Fallback for older APIs
+                    tvDay.setBackgroundResource(R.drawable.bg_calendar_day_completed);
+                }
+                tvDay.setTextColor(getResources().getColor(android.R.color.white));
+                android.util.Log.d("ReportSummary", "Day " + day + " is both today and streak day");
+            } else {
+                // Streak day (not today): Use completed background with green color
+                tvDay.setBackgroundResource(R.drawable.bg_calendar_day_completed);
+                tvDay.setTextColor(getResources().getColor(android.R.color.white));
+                android.util.Log.d("ReportSummary", "Day " + day + " is a streak day");
+            }
+        } else if (isToday) {
+            // Today (not a streak day): Use today background
             tvDay.setBackgroundResource(R.drawable.bg_calendar_day_today);
             tvDay.setTextColor(getResources().getColor(android.R.color.white));
-        } else if (isStreakDay) {
-            tvDay.setBackgroundResource(R.drawable.bg_calendar_day_completed);
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                tvDay.setTextColor(getResources().getColor(R.color.black, null));
-            } else {
-                tvDay.setTextColor(getResources().getColor(R.color.black));
-            }
         } else {
+            // Normal day: Use normal background
             tvDay.setBackgroundResource(R.drawable.bg_calendar_day_normal);
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 tvDay.setTextColor(getResources().getColor(R.color.black, null));
@@ -567,7 +594,14 @@ public class FragmentReportSummary extends Fragment {
 
         tvDay.setOnClickListener(v -> {
             String dateStr = formatDateKey(dayCalendar);
-            Toast.makeText(getContext(), "Date: " + dateStr + (isStreakDay ? " (Streak achieved!)" : ""), Toast.LENGTH_SHORT).show();
+            String message = "Date: " + dateStr;
+            if (isStreakDay) {
+                message += " ✓ Streak achieved!";
+            }
+            if (isToday) {
+                message += " (Today)";
+            }
+            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
         });
 
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
@@ -577,6 +611,49 @@ public class FragmentReportSummary extends Fragment {
         tvDay.setLayoutParams(params);
 
         gridCalendar.addView(tvDay);
+    }
+
+    /** Create a drawable that combines today and streak styling */
+    private android.graphics.drawable.Drawable createTodayStreakBackground() {
+        try {
+            // Create a layer list with completed background and today border
+            android.graphics.drawable.Drawable completedBg;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                completedBg = getResources().getDrawable(R.drawable.bg_calendar_day_completed, null);
+            } else {
+                completedBg = getResources().getDrawable(R.drawable.bg_calendar_day_completed);
+            }
+
+            android.graphics.drawable.Drawable border = createTodayBorderDrawable();
+
+            android.graphics.drawable.LayerDrawable layerDrawable = new android.graphics.drawable.LayerDrawable(
+                    new android.graphics.drawable.Drawable[] { completedBg, border }
+            );
+            return layerDrawable;
+        } catch (Exception e) {
+            android.util.Log.e("ReportSummary", "Error creating today+streak background: " + e.getMessage(), e);
+            // Fallback to just completed background
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                return getResources().getDrawable(R.drawable.bg_calendar_day_completed, null);
+            } else {
+                return getResources().getDrawable(R.drawable.bg_calendar_day_completed);
+            }
+        }
+    }
+
+    /** Create a border drawable to indicate today */
+    private android.graphics.drawable.Drawable createTodayBorderDrawable() {
+        android.graphics.drawable.GradientDrawable border = new android.graphics.drawable.GradientDrawable();
+        border.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        border.setColor(android.graphics.Color.TRANSPARENT);
+        int borderColor;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            borderColor = getResources().getColor(android.R.color.white, null);
+        } else {
+            borderColor = getResources().getColor(android.R.color.white);
+        }
+        border.setStroke(3, borderColor); // White border to indicate it's also today
+        return border;
     }
 
     /** Export report data to CSV file */

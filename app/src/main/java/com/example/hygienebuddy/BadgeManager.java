@@ -154,30 +154,18 @@ public class BadgeManager {
         // Get profile-scoped progress from SQLite
         int current = appDataDb.getBadgeProgress(profileId, badgeKey);
         int next = current + 1;
-
-        // Save profile-scoped progress to SQLite
         appDataDb.setBadgeProgress(profileId, badgeKey, next);
-
-        // Also update badge database (for backward compatibility)
         repository.updateProgress(badgeKey, next);
 
         if (next >= goal) {
-            // Save profile-scoped unlock status to SQLite
             appDataDb.setBadgeUnlocked(profileId, badgeKey, true, date);
-
-            // Also update badge database
             repository.unlockBadge(badgeKey, date);
-
-            // Show Toast notification for badge unlock
             showBadgeUnlockToast(badgeKey);
         }
     }
 
     private void updateProgress(String badgeKey, int progress, int profileId) {
-        // Save profile-scoped progress to SQLite
         appDataDb.setBadgeProgress(profileId, badgeKey, progress);
-
-        // Also update badge database (for backward compatibility)
         repository.updateProgress(badgeKey, progress);
     }
 
@@ -187,15 +175,9 @@ public class BadgeManager {
     }
 
     private void unlockIfNotUnlocked(String badgeKey, String date, int profileId) {
-        // Check profile-scoped unlock status from SQLite
         if (!appDataDb.isBadgeUnlocked(profileId, badgeKey)) {
-            // Save profile-scoped unlock to SQLite
             appDataDb.setBadgeUnlocked(profileId, badgeKey, true, date);
-
-            // Also update badge database (for backward compatibility)
             repository.unlockBadge(badgeKey, date);
-
-            // Show Toast notification for badge unlock
             showBadgeUnlockToast(badgeKey);
         }
     }
