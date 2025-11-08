@@ -312,10 +312,7 @@ public class FragmentTaskSteps extends Fragment {
     }
 
     private void navigateToQuiz() {
-        FragmentQuiz fragmentQuiz = new FragmentQuiz();
-        Bundle args = new Bundle();
-        args.putString("taskType", taskType);
-        fragmentQuiz.setArguments(args);
+        FragmentQuiz fragmentQuiz = FragmentQuiz.newInstance(taskType);
         requireActivity().getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.fragment_container, fragmentQuiz)

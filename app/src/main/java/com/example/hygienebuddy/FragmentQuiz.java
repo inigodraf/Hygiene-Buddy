@@ -19,42 +19,82 @@ import java.util.List;
 
 public class FragmentQuiz extends Fragment {
 
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
-
-    private String mParam1;
-    private String mParam2;
+    private static final String ARG_TASK_TYPE = "taskType";
 
     // Quiz elements
     private ImageView image1, image2, image3, image4;
-    private TextView instructionText, resultText;
+    private TextView questionText, resultText;
     private Button resetButton, homeButton;
     private View celebrationOverlay;
 
     // Quiz logic
-    private List<Integer> correctOrder = Arrays.asList(1, 2, 3, 4);
-    private List<Integer> userSequence = new ArrayList<>();
-    private List<Integer> currentImagePositions = new ArrayList<>();
+    private int correctAnswerIndex = -1;
+    private boolean answerSelected = false;
+    private List<Integer> currentImageResources = new ArrayList<>();
 
-    // Image resources
-    private int[] imageResources = {
+    // Task type
+    private String taskType;
+
+    // Questions and images for different tasks
+    private class QuizQuestion {
+        String question;
+        int correctImageRes;
+        int[] optionImageRes;
+
+        QuizQuestion(String question, int correctImageRes, int[] optionImageRes) {
+            this.question = question;
+            this.correctImageRes = correctImageRes;
+            this.optionImageRes = optionImageRes;
+        }
+    }
+
+    // Quiz questions for different tasks
+    private List<QuizQuestion> toothbrushingQuestions = Arrays.asList(
+            new QuizQuestion("Which image shows a toothbrush?",
+                    R.drawable.ic_toothbrush_correct,
+                    new int[]{R.drawable.ic_toothbrush_wrong1, R.drawable.ic_toothbrush_wrong2, R.drawable.ic_toothbrush_wrong3, R.drawable.ic_toothbrush_correct}),
+            new QuizQuestion("Which image shows toothpaste?",
+                    R.drawable.ic_toothpaste_correct,
+                    new int[]{R.drawable.ic_toothpaste_wrong1, R.drawable.ic_toothpaste_correct, R.drawable.ic_toothpaste_wrong2, R.drawable.ic_toothpaste_wrong3})
+    );
+
+    private List<QuizQuestion> handwashingQuestions = Arrays.asList(
+            new QuizQuestion("Which image shows a faucet?",
+                    R.drawable.ic_faucet_correct,
+                    new int[]{R.drawable.ic_faucet_wrong1, R.drawable.ic_faucet_wrong2, R.drawable.ic_faucet_correct, R.drawable.ic_faucet_wrong3}),
+            new QuizQuestion("Which image shows soap?",
+                    R.drawable.ic_soap_correct,
+                    new int[]{R.drawable.ic_soap_wrong1, R.drawable.ic_soap_correct, R.drawable.ic_soap_wrong2, R.drawable.ic_soap_wrong3})
+    );
+
+    // Default images as fallback
+    private int[] defaultImages = {
             R.drawable.app_logo,
-            R.drawable.ic_add,
-            R.drawable.ic_data,
-            R.drawable.ic_checklist
+            R.drawable.app_logo,
+            R.drawable.app_logo,
+            R.drawable.app_logo
     };
+
+    private QuizQuestion currentQuestion;
 
     public FragmentQuiz() {
         // Required empty public constructor
     }
 
-    public static FragmentQuiz newInstance(String param1, String param2) {
+    public static FragmentQuiz newInstance(String taskType) {
         FragmentQuiz fragment = new FragmentQuiz();
         Bundle args = new Bundle();
-        args.putString(ARG_PARAM1, param1);
-        args.putString(ARG_PARAM2, param2);
+        args.putString(ARG_TASK_TYPE, taskType);
         fragment.setArguments(args);
         return fragment;
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (getArguments() != null) {
+            taskType = getArguments().getString(ARG_TASK_TYPE, "toothbrushing");
+        }
     }
 
     @Override
@@ -64,7 +104,7 @@ public class FragmentQuiz extends Fragment {
 
         initializeViews(view);
         setupClickListeners();
-        resetQuiz();
+        loadNewQuestion();
 
         return view;
     }
@@ -74,11 +114,19 @@ public class FragmentQuiz extends Fragment {
         image2 = view.findViewById(R.id.image2);
         image3 = view.findViewById(R.id.image3);
         image4 = view.findViewById(R.id.image4);
-        instructionText = view.findViewById(R.id.instructionText);
+        questionText = view.findViewById(R.id.questionText);
         resultText = view.findViewById(R.id.resultText);
         resetButton = view.findViewById(R.id.resetButton);
         homeButton = view.findViewById(R.id.homeButton);
         celebrationOverlay = view.findViewById(R.id.celebrationOverlay);
+    }
+
+    private List<QuizQuestion> getQuestionsForTask() {
+        if ("handwashing".equals(taskType)) {
+            return handwashingQuestions;
+        } else { // Default to toothbrushing
+            return toothbrushingQuestions;
+        }
     }
 
     private void setupClickListeners() {
@@ -91,149 +139,153 @@ public class FragmentQuiz extends Fragment {
         homeButton.setOnClickListener(v -> navigateToHome());
     }
 
-    private void shuffleImages() {
-        List<Integer> imageIndices = new ArrayList<>();
-        for (int i = 0; i < imageResources.length; i++) {
-            imageIndices.add(i);
-        }
-        Collections.shuffle(imageIndices);
-
-        image1.setImageResource(imageResources[imageIndices.get(0)]);
-        image2.setImageResource(imageResources[imageIndices.get(1)]);
-        image3.setImageResource(imageResources[imageIndices.get(2)]);
-        image4.setImageResource(imageResources[imageIndices.get(3)]);
-
-        // Reset all borders to normal
-        resetAllBorders();
-
-        currentImagePositions.clear();
-        for (int i = 0; i < imageIndices.size(); i++) {
-            currentImagePositions.add(imageIndices.get(i) + 1);
-        }
-    }
-
-    private void onImageClicked(int position) {
-        if (userSequence.contains(position)) {
-            Toast.makeText(getContext(), "You already clicked this image!", Toast.LENGTH_SHORT).show();
+    private void loadNewQuestion() {
+        List<QuizQuestion> questions = getQuestionsForTask();
+        if (questions.isEmpty()) {
+            // Fallback if no questions are defined
+            setupFallbackQuestion();
             return;
         }
 
-        userSequence.add(position);
-        highlightImage(position);
+        // Select a random question
+        Collections.shuffle(questions);
+        currentQuestion = questions.get(0);
 
-        if (userSequence.size() == correctOrder.size()) {
-            checkSequence();
-        } else {
-            instructionText.setText("Selected " + userSequence.size() + " of 4 images\nClick next image in sequence");
+        questionText.setText(currentQuestion.question);
+
+        // Shuffle the images
+        List<Integer> imageOptions = new ArrayList<>();
+        for (int resId : currentQuestion.optionImageRes) {
+            imageOptions.add(resId);
         }
+        Collections.shuffle(imageOptions);
+
+        // Set images to ImageViews
+        image1.setImageResource(imageOptions.get(0));
+        image2.setImageResource(imageOptions.get(1));
+        image3.setImageResource(imageOptions.get(2));
+        image4.setImageResource(imageOptions.get(3));
+
+        // Find which index has the correct answer
+        correctAnswerIndex = imageOptions.indexOf(currentQuestion.correctImageRes);
+        currentImageResources = imageOptions;
+
+        // Reset UI state
+        answerSelected = false;
+        resetAllBorders();
+        resultText.setText("");
+        resetButton.setVisibility(View.GONE);
+        celebrationOverlay.setVisibility(View.GONE);
     }
 
-    private void highlightImage(int position) {
-        int highlightColor = R.drawable.image_border_selected;
+    private void setupFallbackQuestion() {
+        // Fallback question if no specific questions are defined
+        currentQuestion = new QuizQuestion(
+                "Select the correct image!",
+                R.drawable.app_logo,
+                defaultImages
+        );
 
-        switch (position) {
-            case 0:
-                image1.setBackgroundResource(highlightColor);
-                break;
-            case 1:
-                image2.setBackgroundResource(highlightColor);
-                break;
-            case 2:
-                image3.setBackgroundResource(highlightColor);
-                break;
-            case 3:
-                image4.setBackgroundResource(highlightColor);
-                break;
+        questionText.setText(currentQuestion.question);
+
+        List<Integer> imageOptions = new ArrayList<>();
+        for (int resId : defaultImages) {
+            imageOptions.add(resId);
         }
+        Collections.shuffle(imageOptions);
+
+        image1.setImageResource(imageOptions.get(0));
+        image2.setImageResource(imageOptions.get(1));
+        image3.setImageResource(imageOptions.get(2));
+        image4.setImageResource(imageOptions.get(3));
+
+        correctAnswerIndex = imageOptions.indexOf(R.drawable.app_logo);
+        currentImageResources = imageOptions;
     }
 
-    private void checkSequence() {
-        List<Integer> userImageSequence = new ArrayList<>();
-        for (int position : userSequence) {
-            userImageSequence.add(currentImagePositions.get(position));
+    private void onImageClicked(int position) {
+        if (answerSelected) {
+            Toast.makeText(getContext(), "Question already answered! Click 'Try Again' for new question.", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        if (userImageSequence.equals(correctOrder)) {
+        answerSelected = true;
+
+        if (position == correctAnswerIndex) {
+            // Correct answer
             showCelebration();
-            resultText.setText("Correct! Good job!");
+            resultText.setText("Correct! Well done!");
             resultText.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+            highlightCorrectAnswer();
+
         } else {
-            showWrongSequence();
-            resultText.setText("Wrong sequence! Try again.");
+            // Wrong answer
+            resultText.setText("Wrong answer! Try again.");
             resultText.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+            highlightWrongAnswer(position);
+            highlightCorrectAnswer();
         }
 
         resetButton.setVisibility(View.VISIBLE);
-        instructionText.setText("Sequence complete!");
+        resetButton.setText("Next Question");
+    }
+
+    private ImageView getImageViewByIndex(int index) {
+        switch (index) {
+            case 0: return image1;
+            case 1: return image2;
+            case 2: return image3;
+            case 3: return image4;
+            default: return null;
+        }
+    }
+
+    private void highlightCorrectAnswer() {
+        ImageView correctImageView = getImageViewByIndex(correctAnswerIndex);
+        if (correctImageView != null) {
+            // Get the parent FrameLayout and set its background
+            View parent = (View) correctImageView.getParent();
+            if (parent != null) {
+                parent.setBackgroundResource(R.drawable.image_border_correct);
+            }
+        }
+    }
+
+    private void highlightWrongAnswer(int wrongPosition) {
+        ImageView wrongImageView = getImageViewByIndex(wrongPosition);
+        if (wrongImageView != null) {
+            // Get the parent FrameLayout and set its background
+            View parent = (View) wrongImageView.getParent();
+            if (parent != null) {
+                parent.setBackgroundResource(R.drawable.image_border_wrong);
+            }
+        }
     }
 
     private void showCelebration() {
         // Show celebration overlay
         celebrationOverlay.setVisibility(View.VISIBLE);
 
-        // Set all correct images to green border
-        for (int i = 0; i < userSequence.size(); i++) {
-            int position = userSequence.get(i);
-            switch (position) {
-                case 0:
-                    image1.setBackgroundResource(R.drawable.image_border_correct);
-                    break;
-                case 1:
-                    image2.setBackgroundResource(R.drawable.image_border_correct);
-                    break;
-                case 2:
-                    image3.setBackgroundResource(R.drawable.image_border_correct);
-                    break;
-                case 3:
-                    image4.setBackgroundResource(R.drawable.image_border_correct);
-                    break;
-            }
-        }
-
-        // Hide celebration after 3 seconds
+        // Hide celebration after 2 seconds
         celebrationOverlay.postDelayed(() -> {
             celebrationOverlay.setVisibility(View.GONE);
-        }, 3000);
-    }
-
-    private void showWrongSequence() {
-        // Set all images to red border
-        for (int position : userSequence) {
-            switch (position) {
-                case 0:
-                    image1.setBackgroundResource(R.drawable.image_border_wrong);
-                    break;
-                case 1:
-                    image2.setBackgroundResource(R.drawable.image_border_wrong);
-                    break;
-                case 2:
-                    image3.setBackgroundResource(R.drawable.image_border_wrong);
-                    break;
-                case 3:
-                    image4.setBackgroundResource(R.drawable.image_border_wrong);
-                    break;
-            }
-        }
-
-        // Flash the result text
-        resultText.setAlpha(0f);
-        resultText.animate().alpha(1f).setDuration(500).start();
+        }, 2000);
     }
 
     private void resetAllBorders() {
-        image1.setBackgroundResource(R.drawable.image_border);
-        image2.setBackgroundResource(R.drawable.image_border);
-        image3.setBackgroundResource(R.drawable.image_border);
-        image4.setBackgroundResource(R.drawable.image_border);
+        for (int i = 0; i < 4; i++) {
+            ImageView imageView = getImageViewByIndex(i);
+            if (imageView != null) {
+                View parent = (View) imageView.getParent();
+                if (parent != null) {
+                    parent.setBackgroundResource(R.drawable.image_border);
+                }
+            }
+        }
     }
 
     private void resetQuiz() {
-        userSequence.clear();
-        resultText.setText("");
-        shuffleImages();
-        resetButton.setVisibility(View.GONE);
-        celebrationOverlay.setVisibility(View.GONE);
-        instructionText.setText("Click the images in the correct order!");
+        loadNewQuestion();
     }
 
     private void navigateToHome() {
