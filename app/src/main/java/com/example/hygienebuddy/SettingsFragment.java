@@ -4,6 +4,11 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.common.MediaItem;
+import androidx.media3.ui.PlayerView;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -42,8 +47,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.exoplayer2.MediaItem;
-import com.google.android.exoplayer2.ui.PlayerView;
+
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -266,6 +270,8 @@ public class SettingsFragment extends Fragment {
         return view;
     }
 
+
+
     private void setupBadgeThemeSelector() {
         if (rgBadgeTheme == null || rbBubbleQuest == null || rbCleanHeroes == null) return;
         BadgeThemeManager.Theme current = BadgeThemeManager.getCurrentTheme(requireContext());
@@ -384,6 +390,7 @@ public class SettingsFragment extends Fragment {
         taskAdapter.setTasks(tasks);
     }
 
+
     private void selectStepForVideo(String taskType, int stepNumber) {
         currentTaskSelected = taskType;
         currentStepSelected = stepNumber;
@@ -405,20 +412,21 @@ public class SettingsFragment extends Fragment {
         }
     }
 
+
     private void showExistingVideoPreview(File videoFile) {
         View previewLayout = LayoutInflater.from(getContext())
                 .inflate(R.layout.dialog_video_preview_exoplayer, null);
 
         PlayerView playerView = previewLayout.findViewById(R.id.playerView);
-        com.google.android.exoplayer2.ExoPlayer player =
-                new com.google.android.exoplayer2.ExoPlayer.Builder(requireContext()).build();
+        ExoPlayer player = new ExoPlayer.Builder(requireContext()).build();
         playerView.setPlayer(player);
 
         Uri videoUri = Uri.fromFile(videoFile);
         MediaItem mediaItem = MediaItem.fromUri(videoUri);
         player.setMediaItem(mediaItem);
         player.prepare();
-        player.setPlayWhenReady(true);
+        player.play();
+
 
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Preview Existing Video")
@@ -463,6 +471,16 @@ public class SettingsFragment extends Fragment {
         videoRecorderLauncher.launch(recordIntent);
     }
 
+    private boolean checkStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_VIDEO)
+                    == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+    }
+
     private void saveVideoToLocalStorage(Uri videoUri) {
         if (videoUri == null) return;
 
@@ -470,14 +488,14 @@ public class SettingsFragment extends Fragment {
                 .inflate(R.layout.dialog_video_preview_exoplayer, null);
 
         PlayerView playerView = previewLayout.findViewById(R.id.playerView);
-        com.google.android.exoplayer2.ExoPlayer player = new com.google.android.exoplayer2.ExoPlayer.Builder(requireContext()).build();
+        ExoPlayer player = new ExoPlayer.Builder(requireContext()).build();
         playerView.setPlayer(player);
 
         // Prepare media
         MediaItem mediaItem = MediaItem.fromUri(videoUri);
         player.setMediaItem(mediaItem);
         player.prepare();
-        player.setPlayWhenReady(true);
+        player.play();
 
         // Show dialog
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
@@ -503,8 +521,6 @@ public class SettingsFragment extends Fragment {
                 .setOnDismissListener(dialog -> player.release())
                 .show();
     }
-
-
 
 
     private void showExistingVideosDialog() {
@@ -540,16 +556,6 @@ public class SettingsFragment extends Fragment {
                 .setMessage(message.toString())
                 .setPositiveButton("OK", null)
                 .show();
-    }
-
-    private boolean checkStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_VIDEO)
-                    == PackageManager.PERMISSION_GRANTED;
-        } else {
-            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED;
-        }
     }
 
     private boolean checkCameraPermission() {
