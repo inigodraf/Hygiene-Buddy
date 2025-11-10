@@ -2,12 +2,12 @@ package com.example.hygienebuddy;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.common.MediaItem;
 import androidx.media3.ui.PlayerView;
+import java.util.concurrent.TimeUnit;
+import okhttp3.ResponseBody;
 
 import android.content.Context;
 import android.content.Intent;
@@ -27,7 +27,6 @@ import android.widget.TextView;
 import android.widget.RadioGroup;
 import android.widget.RadioButton;
 import android.widget.Toast;
-import android.widget.VideoView;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
@@ -39,10 +38,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -61,13 +58,10 @@ import okhttp3.Call;
 import okhttp3.Response;
 
 
-import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.IOException;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
+
 import android.widget.EditText;
 
 import java.io.File;
@@ -118,6 +112,36 @@ public class SettingsFragment extends Fragment {
     private ActivityResultLauncher<Intent> audioRecorderLauncher;
 
     private static final String SERVER_URL = "http://192.168.68.112:5000";
+
+    private final OkHttpClient http = new OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(3, TimeUnit.MINUTES)    // TTS can be slow
+            .writeTimeout(3, TimeUnit.MINUTES)
+            .build();
+
+    private File writeResponseToFile(ResponseBody body, File dest) throws IOException {
+        File dir = dest.getParentFile();
+        if (dir != null && !dir.exists()) dir.mkdirs();
+
+        File temp = new File(dest.getAbsolutePath() + ".part");
+        try (InputStream in = body.byteStream();
+             FileOutputStream out = new FileOutputStream(temp)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+            out.flush();
+        }
+        // Atomic replace
+        if (dest.exists() && !dest.delete()) {
+            // best effort; continue
+        }
+        if (!temp.renameTo(dest)) {
+            throw new IOException("Failed to move temp file into place: " + dest.getAbsolutePath());
+        }
+        return dest;
+    }
+
+
 
     // 🧼 Handwashing (English / Filipino)
     private final String[] handwashingStepsEN = {
@@ -1307,18 +1331,24 @@ public class SettingsFragment extends Fragment {
     }
 
     private void playSampleVoice() {
-        MediaPlayer player = new MediaPlayer();
         try {
-            player.setDataSource(SERVER_URL + "/preview");
+            ExoPlayer player = new ExoPlayer.Builder(requireContext()).build();
+            MediaItem item = MediaItem.fromUri(Uri.parse(SERVER_URL + "/preview"));
+            player.setMediaItem(item);
             player.prepare();
-            player.start();
-            Toast.makeText(getContext(), "Playing uploaded voice sample...", Toast.LENGTH_SHORT).show();
+            player.play();
+
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Playing uploaded voice…")
+                    .setMessage("Close to stop.")
+                    .setPositiveButton("Close", (d, w) -> player.release())
+                    .setOnDismissListener(d -> player.release())
+                    .show();
         } catch (Exception e) {
             Toast.makeText(getContext(), "Playback failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
-
-        player.setOnCompletionListener(mp -> player.release());
     }
+
 
 
     private void generateVoicePreview(String uid) {
@@ -1407,9 +1437,12 @@ public class SettingsFragment extends Fragment {
     private void uploadVoiceToServer(File voiceFile) {
         showLoading("Uploading voice sample...");
 
-        OkHttpClient client = new OkHttpClient();
+        String ext = voiceFile.getName().toLowerCase(Locale.US);
+        String mime = ext.endsWith(".wav") ? "audio/wav"
+                : ext.endsWith(".mp3") ? "audio/mpeg"
+                : "application/octet-stream";
 
-        RequestBody fileBody = RequestBody.create(voiceFile, MediaType.parse("audio/wav"));
+        RequestBody fileBody = RequestBody.create(voiceFile, MediaType.parse(mime));
         MultipartBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("file", voiceFile.getName(), fileBody)
@@ -1420,45 +1453,43 @@ public class SettingsFragment extends Fragment {
                 .post(requestBody)
                 .build();
 
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
+        http.newCall(request).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
                 requireActivity().runOnUiThread(() -> {
                     hideLoading();
                     Toast.makeText(getContext(), "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                String body = response.body() != null ? response.body().string() : "";
                 requireActivity().runOnUiThread(() -> hideLoading());
 
-                if (response.isSuccessful() && response.body() != null) {
-                    String json = response.body().string();
-
-                    try {
-                        JSONObject obj = new JSONObject(json);
-                        String uid = obj.optString("id", "");
-                        String message = obj.optString("message", "Voice uploaded successfully!");
-
-                        requireActivity().runOnUiThread(() -> {
-                            savedUid = uid; // ✅ store UID for later use
-                            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
-                        });
-
-                    } catch (JSONException e) {
-                        requireActivity().runOnUiThread(() ->
-                                Toast.makeText(getContext(), "Invalid server response", Toast.LENGTH_SHORT).show()
-                        );
-                    }
-                } else {
+                if (!response.isSuccessful()) {
                     requireActivity().runOnUiThread(() ->
-                            Toast.makeText(getContext(), "Upload failed: " + response.message(), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(getContext(), "Server error: " + response.code(), Toast.LENGTH_SHORT).show()
+                    );
+                    return;
+                }
+                try {
+                    JSONObject obj = new JSONObject(body);
+                    // Your server returns {message, path}; accept optional id if present
+                    String uid = obj.optString("id", ""); // may be empty; that's fine
+                    String msg = obj.optString("message", "Voice uploaded successfully!");
+
+                    requireActivity().runOnUiThread(() -> {
+                        savedUid = uid;  // ok if ""
+                        Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+                    });
+                } catch (JSONException je) {
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Unexpected response", Toast.LENGTH_SHORT).show()
                     );
                 }
             }
         });
     }
+
 
 
     private void addStepRow(LinearLayout parent, String stepText) {
@@ -1537,94 +1568,96 @@ public class SettingsFragment extends Fragment {
     }
 
     private void generateTTSForStep(String stepText) {
-        // Load saved text from SharedPreferences
         boolean isEnglish = requireContext()
                 .getSharedPreferences("tts_settings", Context.MODE_PRIVATE)
                 .getBoolean("isEnglish", false);
 
-        String lang = isEnglish ? "ENG" : "PH";
         String endpoint = SERVER_URL + (isEnglish ? "/generatetts_eng" : "/generatetts_ph");
         String text = getSavedTTSText(stepText);
-
         if (text == null || text.trim().isEmpty()) {
-            Toast.makeText(getContext(), "⚠️ No text found. Please edit first.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "Please set the text first (Edit).", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Determine filename prefix based on section
         String filenamePrefix;
-        if (stepText.toLowerCase().contains("attention")) {
+        String lower = stepText.toLowerCase(Locale.US);
+        if (lower.contains("attention")) {
             filenamePrefix = "Attention";
-        } else if (stepText.toLowerCase().contains("completion")) {
+        } else if (lower.contains("completion")) {
             filenamePrefix = "Completion";
-        } else if (stepText.toLowerCase().contains("hand") || stepText.toLowerCase().contains("kama")) {
+        } else if (lower.contains("hand") || lower.contains("kama")) {
             filenamePrefix = "HWSteps";
         } else {
             filenamePrefix = "TBSteps";
         }
 
-        // Determine step number if applicable
         int stepNumber = findStepNumber(stepText);
-        String outputName;
-        if (filenamePrefix.equals("HWSteps") || filenamePrefix.equals("TBSteps")) {
-            outputName = filenamePrefix + stepNumber + "_" + lang + ".wav";
-        } else {
-            outputName = filenamePrefix + "_" + lang + ".wav";
-        }
+        String lang = isEnglish ? "ENG" : "PH";
+        String fileName = (filenamePrefix.equals("HWSteps") || filenamePrefix.equals("TBSteps"))
+                ? (filenamePrefix + stepNumber + "_" + lang + ".wav")
+                : (filenamePrefix + "_" + lang + ".wav");
 
         showLoading("Generating " + (isEnglish ? "English" : "Filipino") + " TTS...");
 
-        // Build JSON payload
-        OkHttpClient client = new OkHttpClient();
         JSONObject json = new JSONObject();
         try {
             json.put("text", text);
-        } catch (JSONException e) {
-            e.printStackTrace();
-            Toast.makeText(getContext(), "Error creating JSON request", Toast.LENGTH_SHORT).show();
-            return;
-        }
+            // If your server accepts "filename", you can hint it:
+            json.put("filename", fileName);
+        } catch (JSONException ignore) {}
 
         RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json"));
-        Request request = new Request.Builder().url(endpoint).post(body).build();
+        Request request = new Request.Builder()
+                .url(endpoint)
+                .post(body)
+                .build();
 
-        client.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
+        http.newCall(request).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
                 requireActivity().runOnUiThread(() -> {
                     hideLoading();
-                    Toast.makeText(getContext(), "❌ Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
             }
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                ResponseBody rb = response.body();
                 requireActivity().runOnUiThread(() -> hideLoading());
 
-                if (response.isSuccessful() && response.body() != null) {
-                    File ttsDir = new File(requireContext().getFilesDir(), "tts_audio");
-                    if (!ttsDir.exists()) ttsDir.mkdirs();
+                if (!response.isSuccessful() || rb == null) {
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Server error: " + response.code(), Toast.LENGTH_SHORT).show()
+                    );
+                    return;
+                }
 
-                    File outFile = new File(ttsDir, outputName);
+                // Some servers return JSON on error; sniff content-type
+                String ctype = response.header("Content-Type", "");
+                if (ctype.contains("application/json")) {
+                    String errJson = rb.string();
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Server said: " + errJson, Toast.LENGTH_SHORT).show()
+                    );
+                    return;
+                }
 
-                    try (FileOutputStream out = new FileOutputStream(outFile);
-                         InputStream in = response.body().byteStream()) {
-                        byte[] buffer = new byte[4096];
-                        int bytesRead;
-                        while ((bytesRead = in.read(buffer)) != -1) out.write(buffer, 0, bytesRead);
-                    }
+                File ttsDir = new File(requireContext().getFilesDir(), "tts_audio");
+                File outFile = new File(ttsDir, fileName);
 
-                    requireActivity().runOnUiThread(() -> {
-                        Toast.makeText(getContext(), "✅ Generated: " + outputName, Toast.LENGTH_SHORT).show();
-                    });
-                } else {
-                    requireActivity().runOnUiThread(() -> {
-                        Toast.makeText(getContext(), "Server error: " + response.message(), Toast.LENGTH_SHORT).show();
-                    });
+                try {
+                    writeResponseToFile(rb, outFile);
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Saved: " + fileName, Toast.LENGTH_SHORT).show()
+                    );
+                } catch (IOException ioe) {
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Write failed: " + ioe.getMessage(), Toast.LENGTH_SHORT).show()
+                    );
                 }
             }
         });
     }
+
 
     private int findStepNumber(String stepText) {
         // Extract first number found in the step text, default to 1 if none
