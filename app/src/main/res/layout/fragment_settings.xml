@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:background="#FFFFFF">
 
-    <!-- Scrollable Content -->
     <ScrollView
         android:id="@+id/scrollContent"
         android:layout_width="match_parent"
@@ -20,7 +19,6 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Header Section -->
             <TextView
                 android:id="@+id/tvPersonalizationTitle"
                 android:layout_width="match_parent"
@@ -32,7 +30,6 @@
                 android:gravity="center"
                 android:layout_marginBottom="24dp" />
 
-            <!-- Custom Instruction Videos Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -85,7 +82,6 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Reminders Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -149,7 +145,6 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Badge Theme Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -206,11 +201,12 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Voice Cloning -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="2dp"
                 app:cardUseCompatPadding="true">
 
                 <LinearLayout
@@ -254,19 +250,35 @@
                         android:text="Import Voice"
                         android:textSize="14sp"
                         style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_marginBottom="8dp" />
+                        android:layout_marginBottom="16dp" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnSampleVoice"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Play Sample Voice"
-                        android:textSize="14sp"
-                        style="@style/Widget.Material3.Button.TextButton" />
+                        android:orientation="horizontal"
+                        android:weightSum="2">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSampleVoiceEn"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="Preview EN"
+                            style="@style/Widget.Material3.Button.TextButton" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSampleVoicePh"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:text="Preview PH"
+                            style="@style/Widget.Material3.Button.TextButton" />
+                    </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Customize Speech Instructions -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -295,28 +307,27 @@
                         android:id="@+id/tvEditVoiceCloningDesc"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Edit or preview the text-to-speech messages for each hygiene step and other app prompts."
+                        android:text="Edit or preview the text-to-speech messages for each hygiene step."
                         android:textSize="14sp"
                         android:textColor="#666666"
                         android:layout_marginBottom="16dp" />
 
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rvTTSTasks"
+                    <LinearLayout
+                        android:id="@+id/llStepsContainer"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false" />
+                        android:orientation="vertical" />
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>
     </ScrollView>
 
-    <!-- Fixed Bottom Navigation -->
-    <!-- Bottom Navigation -->
     <include
         android:id="@+id/layoutBottomNav"
         layout="@layout/layout_bottom_nav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true" />
+
 </RelativeLayout>

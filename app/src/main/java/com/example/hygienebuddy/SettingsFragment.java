@@ -3,12 +3,18 @@ package com.example.hygienebuddy;
 import android.Manifest;
 import android.app.Activity;
 
+import android.util.Log;
+
+
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.common.MediaItem;
 import androidx.media3.ui.PlayerView;
 import java.util.concurrent.TimeUnit;
 import okhttp3.ResponseBody;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -111,7 +117,9 @@ public class SettingsFragment extends Fragment {
 
     private ActivityResultLauncher<Intent> audioRecorderLauncher;
 
-    private static final String SERVER_URL = "http://192.168.68.112:5000";
+    private String currentVoiceUid = null;
+
+    private static final String SERVER_URL = "http://192.168.68.136:5000";
 
     private final OkHttpClient http = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -229,7 +237,7 @@ public class SettingsFragment extends Fragment {
 
 
     public SettingsFragment() {}
-
+    
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -260,7 +268,7 @@ public class SettingsFragment extends Fragment {
                 btnListVideos.setOnClickListener(v -> showExistingVideosDialog());
             }
 
-            // Reminder setup - with null checks
+            // Reminder setup
             if (rvReminders != null && btnAddReminder != null && tvNoReminders != null) {
                 setupRemindersRecyclerView();
                 btnAddReminder.setOnClickListener(v -> showAddReminderDialog());
@@ -270,26 +278,45 @@ public class SettingsFragment extends Fragment {
             }
         } catch (Exception e) {
             android.util.Log.e("SettingsFragment", "Error initializing SettingsFragment: " + e.getMessage(), e);
-            // Don't crash - just log the error
         }
-
 
         // Badge Theme setup
         setupBadgeThemeSelector();
 
+        // 🧬 VOICE CLONING BUTTONS (Upload/Record)
         View btnImportVoice = view.findViewById(R.id.btnImportVoice);
-        if (btnImportVoice != null)
+        if (btnImportVoice != null) {
             btnImportVoice.setOnClickListener(v -> importVoiceSample());
-
+        }
 
         View btnRecordVoice = view.findViewById(R.id.btnRecordVoice);
-        if (btnRecordVoice != null)
+        if (btnRecordVoice != null) {
             btnRecordVoice.setOnClickListener(v -> recordVoice());
+        }
 
-        View btnSampleVoice = view.findViewById(R.id.btnSampleVoice);
-        if (btnSampleVoice != null)
-            btnSampleVoice.setOnClickListener(v -> playSampleVoice());
+        // ============================================================
+        // 🔊 FIXED PREVIEW BUTTONS
+        // We removed the "if (currentVoiceUid != null)" check.
+        // The buttons now DIRECTLY ask the server to play the voice.
+        // ============================================================
 
+        // English Preview Button
+        View btnSampleVoiceEn = view.findViewById(R.id.btnSampleVoiceEn);
+        if (btnSampleVoiceEn != null) {
+            btnSampleVoiceEn.setOnClickListener(v -> {
+                // Force call to English endpoint
+                playPreview(SERVER_URL + "/preview_eng");
+            });
+        }
+
+        // Filipino Preview Button
+        View btnSampleVoicePh = view.findViewById(R.id.btnSampleVoicePh);
+        if (btnSampleVoicePh != null) {
+            btnSampleVoicePh.setOnClickListener(v -> {
+                // Force call to Filipino endpoint
+                playPreview(SERVER_URL + "/preview_ph");
+            });
+        }
 
         return view;
     }
@@ -1070,9 +1097,8 @@ public class SettingsFragment extends Fragment {
             player.release();
             dialog.dismiss();
             showLoading("Uploading selected voice...");
-            uploadVoiceToServer(audioFile);
+            uploadVoiceToBackend(audioFile);
         });
-
         btnCancel.setOnClickListener(v -> {
             player.release();
             dialog.dismiss();
@@ -1236,10 +1262,6 @@ public class SettingsFragment extends Fragment {
     }
 
 
-
-
-
-
     private void setupVoiceImportLaunchers() {
         // 🎙 RECORD AUDIO
         audioRecorderLauncher = registerForActivityResult(
@@ -1330,25 +1352,44 @@ public class SettingsFragment extends Fragment {
         audioRecorderLauncher.launch(recordIntent);
     }
 
-    private void playSampleVoice() {
-        try {
-            ExoPlayer player = new ExoPlayer.Builder(requireContext()).build();
-            MediaItem item = MediaItem.fromUri(Uri.parse(SERVER_URL + "/preview"));
-            player.setMediaItem(item);
-            player.prepare();
-            player.play();
+    private void playPreview(String baseUrl) {
+        ProgressDialog progressDialog = new ProgressDialog(getContext());
+        progressDialog.setMessage("Generating AI Voice Preview...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
 
-            new MaterialAlertDialogBuilder(requireContext())
-                    .setTitle("Playing uploaded voice…")
-                    .setMessage("Close to stop.")
-                    .setPositiveButton("Close", (d, w) -> player.release())
-                    .setOnDismissListener(d -> player.release())
-                    .show();
-        } catch (Exception e) {
-            Toast.makeText(getContext(), "Playback failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
+        // The timestamp (?t=...) forces the app to get the newest file, not a cached one
+        String finalUrl = baseUrl + "?t=" + System.currentTimeMillis();
+
+        // Log the URL so you can check it in the "Logcat" tab at the bottom of Android Studio
+        Log.d("SettingsFragment", "Requesting Audio: " + finalUrl);
+
+        ExoPlayer player = new ExoPlayer.Builder(requireContext()).build();
+        MediaItem mediaItem = MediaItem.fromUri(finalUrl);
+        player.setMediaItem(mediaItem);
+        player.prepare();
+
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onPlaybackStateChanged(int state) {
+                if (state == Player.STATE_READY) {
+                    progressDialog.dismiss();
+                    player.play();
+                }
+            }
+
+            @Override
+            public void onPlayerError(PlaybackException error) {
+                progressDialog.dismiss();
+                Log.e("TTS_ERROR", "Server Error: " + error.getMessage());
+
+                // This toast tells you if the SERVER failed (e.g. voice.pth is missing)
+                Toast.makeText(getContext(),
+                        "Server Error: Have you uploaded a voice yet?",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
     }
-
 
 
     private void generateVoicePreview(String uid) {
@@ -1434,18 +1475,21 @@ public class SettingsFragment extends Fragment {
         }
     }
 
-    private void uploadVoiceToServer(File voiceFile) {
-        showLoading("Uploading voice sample...");
+    private void uploadVoiceToBackend(File file) {
+        // Show loading
+        if (loadingDialog == null) {
+            loadingDialog = new AlertDialog.Builder(requireContext())
+                    .setView(new android.widget.ProgressBar(requireContext()))
+                    .setMessage("Uploading and Processing Voice...")
+                    .setCancelable(false)
+                    .create();
+        }
+        loadingDialog.show();
 
-        String ext = voiceFile.getName().toLowerCase(Locale.US);
-        String mime = ext.endsWith(".wav") ? "audio/wav"
-                : ext.endsWith(".mp3") ? "audio/mpeg"
-                : "application/octet-stream";
-
-        RequestBody fileBody = RequestBody.create(voiceFile, MediaType.parse(mime));
-        MultipartBody requestBody = new MultipartBody.Builder()
+        RequestBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
-                .addFormDataPart("file", voiceFile.getName(), fileBody)
+                .addFormDataPart("file", "voice.wav", // We name it voice.wav for the server
+                        RequestBody.create(file, MediaType.parse("audio/wav")))
                 .build();
 
         Request request = new Request.Builder()
@@ -1454,37 +1498,30 @@ public class SettingsFragment extends Fragment {
                 .build();
 
         http.newCall(request).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
-                requireActivity().runOnUiThread(() -> {
-                    hideLoading();
-                    Toast.makeText(getContext(), "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        if (loadingDialog != null) loadingDialog.dismiss();
+                        Toast.makeText(getContext(), "Upload Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
             }
 
-            @Override public void onResponse(Call call, Response response) throws IOException {
-                String body = response.body() != null ? response.body().string() : "";
-                requireActivity().runOnUiThread(() -> hideLoading());
-
-                if (!response.isSuccessful()) {
-                    requireActivity().runOnUiThread(() ->
-                            Toast.makeText(getContext(), "Server error: " + response.code(), Toast.LENGTH_SHORT).show()
-                    );
-                    return;
-                }
-                try {
-                    JSONObject obj = new JSONObject(body);
-                    // Your server returns {message, path}; accept optional id if present
-                    String uid = obj.optString("id", ""); // may be empty; that's fine
-                    String msg = obj.optString("message", "Voice uploaded successfully!");
-
-                    requireActivity().runOnUiThread(() -> {
-                        savedUid = uid;  // ok if ""
-                        Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        if (loadingDialog != null) loadingDialog.dismiss();
+                        if (response.isSuccessful()) {
+                            // We don't need to save UID anymore. Just tell user it worked.
+                            Toast.makeText(getContext(), "Voice Profile Updated Successfully!", Toast.LENGTH_SHORT).show();
+                            // Mark that we have a voice ready (optional flag)
+                            currentVoiceUid = "ready";
+                        } else {
+                            Toast.makeText(getContext(), "Server Error: " + response.code(), Toast.LENGTH_SHORT).show();
+                        }
                     });
-                } catch (JSONException je) {
-                    requireActivity().runOnUiThread(() ->
-                            Toast.makeText(getContext(), "Unexpected response", Toast.LENGTH_SHORT).show()
-                    );
                 }
             }
         });
