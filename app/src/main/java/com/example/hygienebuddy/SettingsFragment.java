@@ -119,7 +119,7 @@ public class SettingsFragment extends Fragment {
 
     private String currentVoiceUid = null;
 
-    private static final String SERVER_URL = "http://192.168.68.136:5000";
+    private static final String SERVER_URL = "http://192.168.1.6:5000";
 
     private final OkHttpClient http = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -1610,36 +1610,43 @@ public class SettingsFragment extends Fragment {
                 .getBoolean("isEnglish", false);
 
         String endpoint = SERVER_URL + (isEnglish ? "/generatetts_eng" : "/generatetts_ph");
+
+        // 1. Get the actual text to be spoken
         String text = getSavedTTSText(stepText);
         if (text == null || text.trim().isEmpty()) {
             Toast.makeText(getContext(), "Please set the text first (Edit).", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // 2. Identify Task and Step Index using the arrays directly
         String filenamePrefix;
-        String lower = stepText.toLowerCase(Locale.US);
-        if (lower.contains("attention")) {
+        int stepNumber = 1;
+
+        if (stepText.equalsIgnoreCase("Attention Warning")) {
             filenamePrefix = "Attention";
-        } else if (lower.contains("completion")) {
+        } else if (stepText.equalsIgnoreCase("Completion")) {
             filenamePrefix = "Completion";
-        } else if (lower.contains("hand") || lower.contains("kama")) {
+        } else if (isStringInArray(stepText, handwashingStepsEN) || isStringInArray(stepText, handwashingStepsPH)) {
             filenamePrefix = "HWSteps";
+            stepNumber = getStepIndex(stepText, handwashingStepsEN, handwashingStepsPH);
         } else {
+            // If it's not a system prompt and not handwashing, it must be toothbrushing
             filenamePrefix = "TBSteps";
+            stepNumber = getStepIndex(stepText, brushingStepsEN, brushingStepsPH);
         }
 
-        int stepNumber = findStepNumber(stepText);
+        // 3. Construct the filename
         String lang = isEnglish ? "ENG" : "PH";
-        String fileName = (filenamePrefix.equals("HWSteps") || filenamePrefix.equals("TBSteps"))
+        final String fileName = (filenamePrefix.equals("HWSteps") || filenamePrefix.equals("TBSteps"))
                 ? (filenamePrefix + stepNumber + "_" + lang + ".wav")
                 : (filenamePrefix + "_" + lang + ".wav");
 
-        showLoading("Generating " + (isEnglish ? "English" : "Filipino") + " TTS...");
+        showLoading("Generating " + fileName + "...");
 
+        // 4. Build JSON Request
         JSONObject json = new JSONObject();
         try {
             json.put("text", text);
-            // If your server accepts "filename", you can hint it:
             json.put("filename", fileName);
         } catch (JSONException ignore) {}
 
@@ -1649,50 +1656,76 @@ public class SettingsFragment extends Fragment {
                 .post(body)
                 .build();
 
+        // 5. Execute Network Call
         http.newCall(request).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
-                requireActivity().runOnUiThread(() -> {
-                    hideLoading();
-                    Toast.makeText(getContext(), "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                if (isAdded()) {
+                    requireActivity().runOnUiThread(() -> {
+                        hideLoading();
+                        Toast.makeText(getContext(), "Network Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
             }
 
-            @Override public void onResponse(Call call, Response response) throws IOException {
-                ResponseBody rb = response.body();
-                requireActivity().runOnUiThread(() -> hideLoading());
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                try (ResponseBody rb = response.body()) {
+                    if (isAdded()) requireActivity().runOnUiThread(() -> hideLoading());
 
-                if (!response.isSuccessful() || rb == null) {
-                    requireActivity().runOnUiThread(() ->
-                            Toast.makeText(getContext(), "Server error: " + response.code(), Toast.LENGTH_SHORT).show()
-                    );
-                    return;
-                }
+                    if (!response.isSuccessful() || rb == null) {
+                        if (isAdded()) requireActivity().runOnUiThread(() ->
+                                Toast.makeText(getContext(), "Server Error: " + response.code(), Toast.LENGTH_SHORT).show());
+                        return;
+                    }
 
-                // Some servers return JSON on error; sniff content-type
-                String ctype = response.header("Content-Type", "");
-                if (ctype.contains("application/json")) {
-                    String errJson = rb.string();
-                    requireActivity().runOnUiThread(() ->
-                            Toast.makeText(getContext(), "Server said: " + errJson, Toast.LENGTH_SHORT).show()
-                    );
-                    return;
-                }
+                    // Check for JSON error response from server
+                    String contentType = response.header("Content-Type", "");
+                    if (contentType != null && contentType.contains("application/json")) {
+                        String errorMsg = rb.string();
+                        if (isAdded()) requireActivity().runOnUiThread(() ->
+                                Toast.makeText(getContext(), "Server: " + errorMsg, Toast.LENGTH_LONG).show());
+                        return;
+                    }
 
-                File ttsDir = new File(requireContext().getFilesDir(), "tts_audio");
-                File outFile = new File(ttsDir, fileName);
+                    // Prepare directory and file
+                    File ttsDir = new File(requireContext().getFilesDir(), "tts_audio");
+                    if (!ttsDir.exists()) ttsDir.mkdirs();
+                    File outFile = new File(ttsDir, fileName);
 
-                try {
-                    writeResponseToFile(rb, outFile);
-                    requireActivity().runOnUiThread(() ->
-                            Toast.makeText(getContext(), "Saved: " + fileName, Toast.LENGTH_SHORT).show()
-                    );
-                } catch (IOException ioe) {
-                    requireActivity().runOnUiThread(() ->
-                            Toast.makeText(getContext(), "Write failed: " + ioe.getMessage(), Toast.LENGTH_SHORT).show()
-                    );
+                    try {
+                        writeResponseToFile(rb, outFile);
+                        if (isAdded()) requireActivity().runOnUiThread(() ->
+                                Toast.makeText(getContext(), "Success! Saved: " + fileName, Toast.LENGTH_SHORT).show()
+                        );
+                    } catch (IOException ioe) {
+                        if (isAdded()) requireActivity().runOnUiThread(() ->
+                                Toast.makeText(getContext(), "Write Error: " + ioe.getMessage(), Toast.LENGTH_SHORT).show()
+                        );
+                    }
                 }
             }
         });
+    }
+
+// --- HELPER METHODS ---
+
+    private boolean isStringInArray(String target, String[] array) {
+        if (target == null || array == null) return false;
+        for (String s : array) {
+            if (s.equalsIgnoreCase(target)) return true;
+        }
+        return false;
+    }
+
+    private int getStepIndex(String text, String[] arrayEn, String[] arrayPh) {
+        for (int i = 0; i < arrayEn.length; i++) {
+            if (arrayEn[i].equalsIgnoreCase(text)) return i + 1;
+        }
+        for (int i = 0; i < arrayPh.length; i++) {
+            if (arrayPh[i].equalsIgnoreCase(text)) return i + 1;
+        }
+        return 1; // Default fallback
     }
 
 
@@ -1713,19 +1746,23 @@ public class SettingsFragment extends Fragment {
 
         String lang = isEnglish ? "ENG" : "PH";
 
-        // Match the same filename logic used during generation
+        // 1. Identify the prefix and index (Using the same logic as Generate)
         String filenamePrefix;
-        if (stepText.toLowerCase().contains("attention")) {
+        int stepNumber = 1;
+
+        if (stepText.equalsIgnoreCase("Attention Warning")) {
             filenamePrefix = "Attention";
-        } else if (stepText.toLowerCase().contains("completion")) {
+        } else if (stepText.equalsIgnoreCase("Completion")) {
             filenamePrefix = "Completion";
-        } else if (stepText.toLowerCase().contains("hand") || stepText.toLowerCase().contains("kama")) {
+        } else if (isStringInArray(stepText, handwashingStepsEN) || isStringInArray(stepText, handwashingStepsPH)) {
             filenamePrefix = "HWSteps";
+            stepNumber = getStepIndex(stepText, handwashingStepsEN, handwashingStepsPH);
         } else {
             filenamePrefix = "TBSteps";
+            stepNumber = getStepIndex(stepText, brushingStepsEN, brushingStepsPH);
         }
 
-        int stepNumber = findStepNumber(stepText);
+        // 2. Build the output name exactly as it was saved
         String outputName;
         if (filenamePrefix.equals("HWSteps") || filenamePrefix.equals("TBSteps")) {
             outputName = filenamePrefix + stepNumber + "_" + lang + ".wav";
@@ -1733,29 +1770,41 @@ public class SettingsFragment extends Fragment {
             outputName = filenamePrefix + "_" + lang + ".wav";
         }
 
-        File ttsFile = new File(requireContext().getFilesDir(), "tts_audio/" + outputName);
+        // 3. Locate the file in the tts_audio directory
+        File ttsDir = new File(requireContext().getFilesDir(), "tts_audio");
+        File ttsFile = new File(ttsDir, outputName);
 
         if (!ttsFile.exists()) {
-            Toast.makeText(getContext(), "No generated TTS found. Please generate first.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "Audio file not found: " + outputName, Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // 4. Play the audio
         MediaPlayer player = new MediaPlayer();
         try {
             player.setDataSource(ttsFile.getAbsolutePath());
-            player.prepare();
-            player.start();
-            Toast.makeText(getContext(), "Playing " + outputName, Toast.LENGTH_SHORT).show();
+            player.prepareAsync(); // Use Async to prevent UI freezing on slow storage
+            player.setOnPreparedListener(mp -> {
+                mp.start();
+                Toast.makeText(getContext(), "Playing preview: " + outputName, Toast.LENGTH_SHORT).show();
+            });
+
+            player.setOnErrorListener((mp, what, extra) -> {
+                Toast.makeText(getContext(), "Error playing audio file", Toast.LENGTH_SHORT).show();
+                mp.release();
+                return true;
+            });
+
         } catch (Exception e) {
             Toast.makeText(getContext(), "Playback error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
 
-        player.setOnCompletionListener(mp -> player.release());
+        // 5. Cleanup when done
+        player.setOnCompletionListener(mp -> {
+            mp.release();
+            Log.d("PreviewTTS", "MediaPlayer released.");
+        });
     }
-
-
-
-
 
     private void saveTTSText(String step, String lang, String text) {
         String key = step + "_" + lang;
