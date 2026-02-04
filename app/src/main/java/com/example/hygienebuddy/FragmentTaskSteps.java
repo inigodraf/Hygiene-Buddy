@@ -1,7 +1,11 @@
 package com.example.hygienebuddy;
 
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,7 +24,10 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import android.content.res.Resources;
+import android.widget.Toast;
+
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -30,7 +37,7 @@ public class FragmentTaskSteps extends Fragment {
     // UI elements
     private TextView tvTaskTitle, tvStepProgress, tvInstruction, tvNoVideo;
     private ImageView ivStepImage;
-    private ImageView btnSpeaker;
+    private ImageView btnSpeaker; // acts as play/pause for step voice
     private ImageButton btnLangToggle;
     private ProgressBar progressStep;
     private Button btnNext, btnQuiz, btnHome;
@@ -51,6 +58,18 @@ public class FragmentTaskSteps extends Fragment {
 
     // Video management
     private VideoManager videoManager;
+
+    // 🔊 Audio
+    private MediaPlayer voicePlayer;
+    private boolean isVoicePaused = false;
+    private boolean attentionPlayedThisStep = false; // prevent spam
+    private long lastAttentionAtMs = 0L; // cooldown across rapid look-away events
+    private static final long ATTENTION_COOLDOWN_MS = 6000L;
+
+    // 🔁 Step-voice looping (4s gap)
+    private Handler voiceLoopHandler = new Handler(Looper.getMainLooper());
+    private Runnable voiceLoopRunnable = null;
+    private File lastStepVoiceFile = null;
 
     public FragmentTaskSteps() {}
 
@@ -100,12 +119,18 @@ public class FragmentTaskSteps extends Fragment {
         btnQuiz.setOnClickListener(v -> navigateToQuiz());
         btnHome.setOnClickListener(v -> navigateToHome());
 
+        // Speaker: play/pause current step voice
+        btnSpeaker.setOnClickListener(v -> toggleStepVoice());
+
         // Language toggle
         btnLangToggle.setOnClickListener(v -> {
             String currentLang = LocaleManager.getLanguage(requireContext());
             LocaleManager.setLanguage(requireContext(), currentLang.equals("en") ? "tl" : "en");
+            // cancel any pending loops, reload, and auto-play current step (new language)
+            cancelVoiceLoop();
             reloadLocalizedResourcesPreserveIndex(true);
             updateLangToggleIcon();
+            autoPlayStepVoice();
         });
 
         updateLangToggleIcon();
@@ -115,7 +140,7 @@ public class FragmentTaskSteps extends Fragment {
         if (mediaContainer != null) mediaContainer.post(this::resizeMediaContainer);
     }
 
-    /** Configure VideoView */
+    /** Configure VideoView (muted & looped) */
     private void setupVideoView() {
         videoViewTask.setMediaController(null);
     }
@@ -144,6 +169,11 @@ public class FragmentTaskSteps extends Fragment {
         if (index < 0 || index >= steps.size()) return;
         TaskStep current = steps.get(index);
 
+        // reset attention flag + cancel any pending voice loop from previous step
+        attentionPlayedThisStep = false;
+        cancelVoiceLoop();
+        stopAndReleaseVoice();
+
         tvStepProgress.setText(String.format(Locale.getDefault(),
                 getLocalizedString(R.string.ui_step_of), current.getStepNumber(), steps.size()));
         tvInstruction.setText(current.getInstruction());
@@ -162,6 +192,9 @@ public class FragmentTaskSteps extends Fragment {
             autoPlayVideo();
         }
 
+        // auto-play step voice if available (starts loop cycle)
+        autoPlayStepVoice();
+
         // 👁️ Start eye tracking for this step
         startEyeTracking();
 
@@ -172,12 +205,15 @@ public class FragmentTaskSteps extends Fragment {
     /** Go to next step */
     private void goToNextStep() {
         stopEyeTracking();
+        cancelVoiceLoop();
+        stopAndReleaseVoice();
         if (videoViewTask != null) videoViewTask.stopPlayback();
 
         if (currentStepIndex < steps.size() - 1) {
             currentStepIndex++;
             showStep(currentStepIndex);
         } else {
+            // Completed
             tvInstruction.setText(getLocalizedString(R.string.ui_great_job));
             tvStepProgress.setText(getLocalizedString(R.string.ui_task_completed));
             btnNext.setVisibility(View.GONE);
@@ -186,10 +222,14 @@ public class FragmentTaskSteps extends Fragment {
             ivStepImage.setImageResource(R.drawable.ic_placeholder_video);
             videoViewTask.setVisibility(View.GONE);
             tvNoVideo.setVisibility(View.GONE);
+
             // Record task completion for badge progress/unlocks
             try {
                 new BadgeManager(requireContext()).recordTaskCompletion(taskType);
             } catch (Exception ignored) {}
+
+            // 🔊 play completion chime/voice if available (no loop)
+            playCompletionVoice();
         }
     }
 
@@ -220,15 +260,24 @@ public class FragmentTaskSteps extends Fragment {
             if (videoFile != null && videoFile.exists()) {
                 Uri videoUri = Uri.fromFile(videoFile);
                 videoViewTask.setVideoURI(videoUri);
-                videoViewTask.setOnCompletionListener(mp -> videoViewTask.start());
-                videoViewTask.setOnErrorListener((mp, what, extra) -> {
-                    fallbackToImage();
-                    return true;
-                });
+
+                // Mute + loop
                 videoViewTask.setOnPreparedListener(mp -> {
+                    try {
+                        mp.setVolume(0f, 0f);    // ✅ mute video
+                        mp.setLooping(true);     // loop silently
+                    } catch (Throwable ignored) {}
                     videoViewTask.setVisibility(View.VISIBLE);
                     tvNoVideo.setVisibility(View.GONE);
                     ivStepImage.setVisibility(View.GONE);
+                });
+
+                // We handle looping in onPrepared via mp.setLooping(true)
+                videoViewTask.setOnCompletionListener(null);
+
+                videoViewTask.setOnErrorListener((mp, what, extra) -> {
+                    fallbackToImage();
+                    return true;
                 });
                 return true;
             }
@@ -284,7 +333,10 @@ public class FragmentTaskSteps extends Fragment {
                 new EyeTrackerHelper.EyeTrackerListener() {
                     @Override
                     public void onUserLookAway() {
-                        requireActivity().runOnUiThread(() -> tvFocusWarning.setVisibility(View.VISIBLE));
+                        requireActivity().runOnUiThread(() -> {
+                            tvFocusWarning.setVisibility(View.VISIBLE);
+                            maybePlayAttentionVoice(); // does not loop
+                        });
                     }
 
                     @Override
@@ -309,6 +361,8 @@ public class FragmentTaskSteps extends Fragment {
         super.onDestroyView();
         if (videoViewTask != null) videoViewTask.stopPlayback();
         stopEyeTracking();
+        cancelVoiceLoop();
+        stopAndReleaseVoice();
     }
 
     private void navigateToQuiz() {
@@ -327,5 +381,178 @@ public class FragmentTaskSteps extends Fragment {
                 .replace(R.id.nav_host_fragment, homeFragment)
                 .addToBackStack(null)
                 .commit();
+    }
+
+    // =========================
+    // 🔊 VOICE: helpers
+    // =========================
+
+    private void toggleStepVoice() {
+        if (voicePlayer == null) {
+            // try to start (and loop)
+            autoPlayStepVoice();
+            return;
+        }
+        if (voicePlayer.isPlaying()) {
+            voicePlayer.pause();
+            isVoicePaused = true;
+            setSpeakerIcon(false);
+            cancelVoiceLoop(); // pause loop while paused
+        } else {
+            try {
+                voicePlayer.start();
+                isVoicePaused = false;
+                setSpeakerIcon(true);
+                scheduleNextLoop(); // resume loop
+            } catch (IllegalStateException ignored) {
+                autoPlayStepVoice();
+            }
+        }
+    }
+
+    private void autoPlayStepVoice() {
+        File f = getCurrentStepVoiceFile();
+        lastStepVoiceFile = f;
+        if (f == null || !f.exists()) {
+            setSpeakerIcon(false);
+            cancelVoiceLoop();
+            return;
+        }
+        playVoiceFile(f, /*shouldLoop*/true);
+    }
+
+    private void maybePlayAttentionVoice() {
+        long now = System.currentTimeMillis();
+        if (attentionPlayedThisStep && (now - lastAttentionAtMs) < ATTENTION_COOLDOWN_MS) {
+            return;
+        }
+        File f = getAttentionVoiceFile();
+        if (f != null && f.exists()) {
+            // Attention does NOT loop; cancel current loop temporarily, resume step loop after
+            cancelVoiceLoop();
+            playVoiceFile(f, /*shouldLoop*/false);
+            attentionPlayedThisStep = true;
+            lastAttentionAtMs = now;
+
+            // after attention finishes, restart step loop if file exists and not paused
+            voiceLoopHandler.postDelayed(() -> {
+                if (!isAdded()) return;
+                if (!isVoicePaused) autoPlayStepVoice();
+            }, 1000); // small grace after attention
+        }
+    }
+
+    private void playCompletionVoice() {
+        File f = getCompletionVoiceFile();
+        if (f != null && f.exists()) {
+            // Completion does NOT loop; stop step loop
+            cancelVoiceLoop();
+            playVoiceFile(f, /*shouldLoop*/false);
+        }
+    }
+
+    private void playVoiceFile(File file, boolean shouldLoop) {
+        stopAndReleaseVoice(); // stop current
+        try {
+            voicePlayer = new MediaPlayer();
+            voicePlayer.setAudioAttributes(
+                    new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+            );
+            voicePlayer.setDataSource(file.getAbsolutePath());
+            voicePlayer.setOnPreparedListener(mp -> {
+                mp.start();
+                isVoicePaused = false;
+                setSpeakerIcon(true);
+            });
+            voicePlayer.setOnCompletionListener(mp -> {
+                setSpeakerIcon(false);
+                if (shouldLoop) {
+                    // schedule replay of the LAST step file after 4 seconds
+                    scheduleNextLoop();
+                }
+            });
+            voicePlayer.setOnErrorListener((mp, what, extra) -> {
+                setSpeakerIcon(false);
+                cancelVoiceLoop();
+                Toast.makeText(requireContext(), "Audio error", Toast.LENGTH_SHORT).show();
+                return true;
+            });
+            voicePlayer.prepareAsync();
+        } catch (IOException e) {
+            setSpeakerIcon(false);
+            cancelVoiceLoop();
+            Toast.makeText(requireContext(), "Cannot play audio", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void scheduleNextLoop() {
+        cancelVoiceLoop();
+        if (lastStepVoiceFile == null || !lastStepVoiceFile.exists()) return;
+        if (!isAdded() || isVoicePaused) return;
+
+        voiceLoopRunnable = () -> {
+            if (!isAdded() || isVoicePaused) return;
+            // re-verify current step file (in case language/step changed)
+            File current = getCurrentStepVoiceFile();
+            lastStepVoiceFile = current;
+            if (current != null && current.exists()) {
+                playVoiceFile(current, /*shouldLoop*/true);
+            }
+        };
+        voiceLoopHandler.postDelayed(voiceLoopRunnable, 4000); // 4 seconds gap
+    }
+
+    private void cancelVoiceLoop() {
+        if (voiceLoopRunnable != null) {
+            voiceLoopHandler.removeCallbacks(voiceLoopRunnable);
+            voiceLoopRunnable = null;
+        }
+    }
+
+    private void stopAndReleaseVoice() {
+        if (voicePlayer != null) {
+            try {
+                voicePlayer.stop();
+            } catch (IllegalStateException ignored) {}
+            voicePlayer.release();
+            voicePlayer = null;
+        }
+        isVoicePaused = false;
+        setSpeakerIcon(false);
+    }
+
+    private void setSpeakerIcon(boolean playing) {
+        // swap icon if you have separate drawables; otherwise just keep one
+        btnSpeaker.setAlpha(playing ? 1f : 0.6f);
+    }
+
+    private String resolveLangCodeSuffix() {
+        // LocaleManager: "en" or "tl"
+        String lang = LocaleManager.getLanguage(requireContext());
+        return "en".equals(lang) ? "ENG" : "PH";
+    }
+
+    private File getCurrentStepVoiceFile() {
+        if (currentStepIndex < 0 || currentStepIndex >= steps.size()) return null;
+        TaskStep current = steps.get(currentStepIndex);
+        String lang = resolveLangCodeSuffix();
+        String prefix = "handwashing".equals(taskType) ? "HWSteps" : "TBSteps";
+        String fileName = prefix + current.getStepNumber() + "_" + lang + ".wav";
+        return new File(requireContext().getFilesDir(), "tts_audio/" + fileName);
+    }
+
+    private File getAttentionVoiceFile() {
+        String lang = resolveLangCodeSuffix();
+        String fileName = "Attention_" + lang + ".wav";
+        return new File(requireContext().getFilesDir(), "tts_audio/" + fileName);
+    }
+
+    private File getCompletionVoiceFile() {
+        String lang = resolveLangCodeSuffix();
+        String fileName = "Completion_" + lang + ".wav";
+        return new File(requireContext().getFilesDir(), "tts_audio/" + fileName);
     }
 }

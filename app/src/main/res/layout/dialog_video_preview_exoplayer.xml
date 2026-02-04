@@ -5,12 +5,12 @@
     android:layout_height="wrap_content"
     android:padding="16dp">
 
-    <com.google.android.exoplayer2.ui.PlayerView
+    <androidx.media3.ui.PlayerView
         android:id="@+id/playerView"
         android:layout_width="match_parent"
-        android:layout_height="220dp"
-        android:layout_gravity="center"
-        android:background="#000"
+        android:layout_height="200dp"
         android:keepScreenOn="true"
-        app:use_controller="true" />
+        app:resize_mode="fit"
+        app:show_buffering="when_playing" />
+
 </FrameLayout>

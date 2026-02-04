@@ -2,12 +2,25 @@ package com.example.hygienebuddy;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
+
+import android.util.Log;
+
+
+import androidx.media3.common.PlaybackException;
+import androidx.media3.common.Player;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.common.MediaItem;
+import androidx.media3.ui.PlayerView;
+import java.util.concurrent.TimeUnit;
+import okhttp3.ResponseBody;
+
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
+import android.graphics.Typeface;
+import android.view.Gravity;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,7 +33,6 @@ import android.widget.TextView;
 import android.widget.RadioGroup;
 import android.widget.RadioButton;
 import android.widget.Toast;
-import android.widget.VideoView;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
@@ -32,17 +44,31 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.exoplayer2.MediaItem;
-import com.google.android.exoplayer2.ui.PlayerView;
+
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.MultipartBody;
+import okhttp3.MediaType;
+import okhttp3.Callback;
+import okhttp3.Call;
+import okhttp3.Response;
+
+
+import org.json.JSONException;
+import org.json.JSONObject;
+import java.io.IOException;
+
+import android.widget.EditText;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -85,8 +111,133 @@ public class SettingsFragment extends Fragment {
     private ActivityResultLauncher<Intent> videoAudioExtractorLauncher;
     private String voiceSampleFilePath = null;
 
-    public SettingsFragment() {}
+    private AlertDialog loadingDialog;
 
+    private String savedUid = null; // ✅ store the UID returned by the server after upload
+
+    private ActivityResultLauncher<Intent> audioRecorderLauncher;
+
+    private String currentVoiceUid = null;
+
+    private static final String SERVER_URL = "http://192.168.68.136:5000";
+
+    private final OkHttpClient http = new OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(3, TimeUnit.MINUTES)    // TTS can be slow
+            .writeTimeout(3, TimeUnit.MINUTES)
+            .build();
+
+    private File writeResponseToFile(ResponseBody body, File dest) throws IOException {
+        File dir = dest.getParentFile();
+        if (dir != null && !dir.exists()) dir.mkdirs();
+
+        File temp = new File(dest.getAbsolutePath() + ".part");
+        try (InputStream in = body.byteStream();
+             FileOutputStream out = new FileOutputStream(temp)) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+            out.flush();
+        }
+        // Atomic replace
+        if (dest.exists() && !dest.delete()) {
+            // best effort; continue
+        }
+        if (!temp.renameTo(dest)) {
+            throw new IOException("Failed to move temp file into place: " + dest.getAbsolutePath());
+        }
+        return dest;
+    }
+
+
+
+    // 🧼 Handwashing (English / Filipino)
+    private final String[] handwashingStepsEN = {
+            "Identify the necessary materials to be used (soap, water, towel).",
+            "Turn on the faucet using your dominant hand.",
+            "Wet your hands under the running water.",
+            "Turn off the faucet to save water.",
+            "Get the soap with your dominant hand from the soap dish.",
+            "Rub your hands together to create a rich lather.",
+            "Scrub all parts of your hands, including between your fingers and under your nails.",
+            "Turn on the faucet again.",
+            "Rinse your hands thoroughly under running water.",
+            "Turn off the faucet using your dominant hand.",
+            "Shake your hands gently to remove excess water.",
+            "Pick up the towel using your dominant hand.",
+            "Dry your hands thoroughly with the towel.",
+            "Return the towel to its proper place."
+    };
+
+    private final String[] handwashingStepsPH = {
+            "Tukuyin ang mga kailangang gamit (sabon, tubig, tuwalya).",
+            "Buksan ang gripo gamit ang iyong dominanteng kamay.",
+            "Basain ang mga kamay sa dumadaloy na tubig.",
+            "Patayin ang gripo upang makatipid sa tubig.",
+            "Kunin ang sabon gamit ang iyong dominanteng kamay mula sa sabonan.",
+            "Kuskusin ang mga kamay upang bumula nang husto.",
+            "Kuskusin ang lahat ng bahagi ng kamay, kasama ang pagitan ng mga daliri at ilalim ng kuko.",
+            "Buksan muli ang gripo.",
+            "Banlawan nang mabuti ang mga kamay sa dumadaloy na tubig.",
+            "Patayin ang gripo gamit ang iyong dominanteng kamay.",
+            "Iling ang mga kamay upang alisin ang sobrang tubig.",
+            "Kunin ang tuwalya gamit ang iyong dominanteng kamay.",
+            "Patuyuin ang mga kamay gamit ang tuwalya.",
+            "Ibalik ang tuwalya sa tamang lagayan."
+    };
+
+    // 🪥 Toothbrushing (English / Filipino)
+    private final String[] brushingStepsEN = {
+            "Pick up your toothbrush.",
+            "Rinse the toothbrush with water.",
+            "Open the toothpaste cap.",
+            "Squeeze a small amount of toothpaste onto the brush.",
+            "Close the toothpaste cap.",
+            "Start brushing your top front teeth.",
+            "Brush the top side teeth (left side).",
+            "Brush the top side teeth (right side).",
+            "Brush the bottom front teeth.",
+            "Brush the bottom side teeth (left side).",
+            "Brush the bottom side teeth (right side).",
+            "Gently brush your tongue.",
+            "Spit out the toothpaste into the sink.",
+            "Rinse your mouth with water.",
+            "Rinse your toothbrush and put it back in its holder."
+    };
+
+    private final String[] brushingStepsPH = {
+            "Kunin ang iyong sipilyo.",
+            "Basain ang sipilyo gamit ang tubig.",
+            "Buksan ang takip ng toothpaste.",
+            "Maglagay ng kaunting toothpaste sa sipilyo.",
+            "Isara ang takip ng toothpaste.",
+            "Simulang sipilyuhin ang mga ngipin sa itaas na harap.",
+            "Sipilyuhin ang mga ngipin sa itaas na kaliwang bahagi.",
+            "Sipilyuhin ang mga ngipin sa itaas na kanang bahagi.",
+            "Sipilyuhin ang mga ngipin sa ibabang harap.",
+            "Sipilyuhin ang mga ngipin sa ibabang kaliwang bahagi.",
+            "Sipilyuhin ang mga ngipin sa ibabang kanang bahagi.",
+            "Marahang sipilyuhin ang dila.",
+            "Idura ang toothpaste sa lababo.",
+            "Banlawan ang bibig gamit ang tubig.",
+            "Banlawan ang sipilyo at ibalik ito sa lalagyan."
+    };
+
+
+    // ⚠️ Attention warning & completion (English / Filipino)
+    private final String[] systemPromptsEN = {
+            "Attention Warning",
+            "Completion"
+    };
+
+    private final String[] systemPromptsPH = {
+            "Attention Warning",
+            "Completion"
+    };
+
+
+    public SettingsFragment() {}
+    
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -111,12 +262,13 @@ public class SettingsFragment extends Fragment {
             setupPermissionLauncher();
             setupExpandableTasks();
             setupVoiceImportLaunchers();
+            setupTTSSteps(view);
 
             if (btnListVideos != null) {
                 btnListVideos.setOnClickListener(v -> showExistingVideosDialog());
             }
 
-            // Reminder setup - with null checks
+            // Reminder setup
             if (rvReminders != null && btnAddReminder != null && tvNoReminders != null) {
                 setupRemindersRecyclerView();
                 btnAddReminder.setOnClickListener(v -> showAddReminderDialog());
@@ -126,20 +278,50 @@ public class SettingsFragment extends Fragment {
             }
         } catch (Exception e) {
             android.util.Log.e("SettingsFragment", "Error initializing SettingsFragment: " + e.getMessage(), e);
-            // Don't crash - just log the error
         }
-
 
         // Badge Theme setup
         setupBadgeThemeSelector();
 
+        // 🧬 VOICE CLONING BUTTONS (Upload/Record)
         View btnImportVoice = view.findViewById(R.id.btnImportVoice);
-        if (btnImportVoice != null)
+        if (btnImportVoice != null) {
             btnImportVoice.setOnClickListener(v -> importVoiceSample());
+        }
 
+        View btnRecordVoice = view.findViewById(R.id.btnRecordVoice);
+        if (btnRecordVoice != null) {
+            btnRecordVoice.setOnClickListener(v -> recordVoice());
+        }
+
+        // ============================================================
+        // 🔊 FIXED PREVIEW BUTTONS
+        // We removed the "if (currentVoiceUid != null)" check.
+        // The buttons now DIRECTLY ask the server to play the voice.
+        // ============================================================
+
+        // English Preview Button
+        View btnSampleVoiceEn = view.findViewById(R.id.btnSampleVoiceEn);
+        if (btnSampleVoiceEn != null) {
+            btnSampleVoiceEn.setOnClickListener(v -> {
+                // Force call to English endpoint
+                playPreview(SERVER_URL + "/preview_eng");
+            });
+        }
+
+        // Filipino Preview Button
+        View btnSampleVoicePh = view.findViewById(R.id.btnSampleVoicePh);
+        if (btnSampleVoicePh != null) {
+            btnSampleVoicePh.setOnClickListener(v -> {
+                // Force call to Filipino endpoint
+                playPreview(SERVER_URL + "/preview_ph");
+            });
+        }
 
         return view;
     }
+
+
 
     private void setupBadgeThemeSelector() {
         if (rgBadgeTheme == null || rbBubbleQuest == null || rbCleanHeroes == null) return;
@@ -259,6 +441,7 @@ public class SettingsFragment extends Fragment {
         taskAdapter.setTasks(tasks);
     }
 
+
     private void selectStepForVideo(String taskType, int stepNumber) {
         currentTaskSelected = taskType;
         currentStepSelected = stepNumber;
@@ -280,20 +463,21 @@ public class SettingsFragment extends Fragment {
         }
     }
 
+
     private void showExistingVideoPreview(File videoFile) {
         View previewLayout = LayoutInflater.from(getContext())
                 .inflate(R.layout.dialog_video_preview_exoplayer, null);
 
         PlayerView playerView = previewLayout.findViewById(R.id.playerView);
-        com.google.android.exoplayer2.ExoPlayer player =
-                new com.google.android.exoplayer2.ExoPlayer.Builder(requireContext()).build();
+        ExoPlayer player = new ExoPlayer.Builder(requireContext()).build();
         playerView.setPlayer(player);
 
         Uri videoUri = Uri.fromFile(videoFile);
         MediaItem mediaItem = MediaItem.fromUri(videoUri);
         player.setMediaItem(mediaItem);
         player.prepare();
-        player.setPlayWhenReady(true);
+        player.play();
+
 
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("Preview Existing Video")
@@ -338,6 +522,16 @@ public class SettingsFragment extends Fragment {
         videoRecorderLauncher.launch(recordIntent);
     }
 
+    private boolean checkStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_VIDEO)
+                    == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+    }
+
     private void saveVideoToLocalStorage(Uri videoUri) {
         if (videoUri == null) return;
 
@@ -345,14 +539,14 @@ public class SettingsFragment extends Fragment {
                 .inflate(R.layout.dialog_video_preview_exoplayer, null);
 
         PlayerView playerView = previewLayout.findViewById(R.id.playerView);
-        com.google.android.exoplayer2.ExoPlayer player = new com.google.android.exoplayer2.ExoPlayer.Builder(requireContext()).build();
+        ExoPlayer player = new ExoPlayer.Builder(requireContext()).build();
         playerView.setPlayer(player);
 
         // Prepare media
         MediaItem mediaItem = MediaItem.fromUri(videoUri);
         player.setMediaItem(mediaItem);
         player.prepare();
-        player.setPlayWhenReady(true);
+        player.play();
 
         // Show dialog
         new com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
@@ -378,8 +572,6 @@ public class SettingsFragment extends Fragment {
                 .setOnDismissListener(dialog -> player.release())
                 .show();
     }
-
-
 
 
     private void showExistingVideosDialog() {
@@ -415,16 +607,6 @@ public class SettingsFragment extends Fragment {
                 .setMessage(message.toString())
                 .setPositiveButton("OK", null)
                 .show();
-    }
-
-    private boolean checkStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_VIDEO)
-                    == PackageManager.PERMISSION_GRANTED;
-        } else {
-            return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED;
-        }
     }
 
     private boolean checkCameraPermission() {
@@ -753,43 +935,6 @@ public class SettingsFragment extends Fragment {
     // ---------------------------------------------------------------
 // VOICE CLONING IMPORT FEATURE
 // ---------------------------------------------------------------
-    private void setupVoiceImportLaunchers() {
-        audioPickerLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                        Uri audioUri = result.getData().getData();
-                        if (audioUri != null) {
-                            handleImportedAudio(audioUri);
-                        }
-                    }
-                });
-
-        videoAudioExtractorLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                        Uri videoUri = result.getData().getData();
-                        if (videoUri != null) {
-                            extractAudioFromVideo(videoUri);
-                        }
-                    }
-                });
-    }
-
-    private void importVoiceSample() {
-        new MaterialAlertDialogBuilder(requireContext())
-                .setTitle("Import Voice Sample")
-                .setItems(new CharSequence[]{"Import MP3 file", "Import from Video"}, (dialog, which) -> {
-                    if (which == 0) {
-                        pickAudioFile();
-                    } else {
-                        pickVideoFile();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
 
     private void pickAudioFile() {
         Intent pickIntent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI);
@@ -821,66 +966,858 @@ public class SettingsFragment extends Fragment {
             }
 
             voiceSampleFilePath = outputFile.getAbsolutePath();
-            Toast.makeText(getContext(), "Voice sample imported successfully!", Toast.LENGTH_SHORT).show();
+            requireActivity().runOnUiThread(() -> showAudioPreviewDialog(new File(voiceSampleFilePath)));
         } catch (Exception e) {
             Toast.makeText(getContext(), "Error importing audio: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
     private void extractAudioFromVideo(Uri videoUri) {
+        showLoading("Extracting audio from video...");
+
+        new Thread(() -> {
+            try {
+                File outputDir = new File(requireContext().getFilesDir(), "voice_samples");
+                if (!outputDir.exists()) outputDir.mkdirs();
+
+                File outputFile = new File(outputDir, "voice_sample_" + System.currentTimeMillis() + ".mp4");
+
+                MediaExtractor extractor = new MediaExtractor();
+                extractor.setDataSource(requireContext(), videoUri, null);
+
+                int audioTrackIndex = -1;
+                for (int i = 0; i < extractor.getTrackCount(); i++) {
+                    MediaFormat format = extractor.getTrackFormat(i);
+                    String mime = format.getString(MediaFormat.KEY_MIME);
+                    if (mime.startsWith("audio/")) {
+                        audioTrackIndex = i;
+                        break;
+                    }
+                }
+
+                if (audioTrackIndex == -1) {
+                    extractor.release();
+                    requireActivity().runOnUiThread(() -> {
+                        hideLoading();
+                        Toast.makeText(getContext(), "No audio track found in video", Toast.LENGTH_SHORT).show();
+                    });
+                    return;
+                }
+
+                extractor.selectTrack(audioTrackIndex);
+                MediaMuxer muxer = new MediaMuxer(outputFile.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+                int dstIndex = muxer.addTrack(extractor.getTrackFormat(audioTrackIndex));
+                muxer.start();
+
+                ByteBuffer buffer = ByteBuffer.allocate(1024 * 1024);
+                MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+
+                while (true) {
+                    info.offset = 0;
+                    info.size = extractor.readSampleData(buffer, 0);
+                    if (info.size < 0) break;
+                    info.presentationTimeUs = extractor.getSampleTime();
+                    info.flags = MediaCodec.BUFFER_FLAG_SYNC_FRAME;
+                    muxer.writeSampleData(dstIndex, buffer, info);
+                    extractor.advance();
+                }
+
+                muxer.stop();
+                muxer.release();
+                extractor.release();
+
+                voiceSampleFilePath = outputFile.getAbsolutePath();
+
+                requireActivity().runOnUiThread(() -> {
+                    hideLoading();
+                    Toast.makeText(getContext(), "Audio extracted successfully!", Toast.LENGTH_SHORT).show();
+
+                    // ✅ Preview the extracted audio first before uploading
+                    File voiceFile = new File(voiceSampleFilePath);
+                    if (voiceFile.exists()) {
+                        showAudioPreviewDialog(voiceFile);
+                    } else {
+                        Toast.makeText(getContext(), "Error: Extracted file not found.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+
+            } catch (Exception e) {
+                requireActivity().runOnUiThread(() -> {
+                    hideLoading();
+                    Toast.makeText(getContext(), "Audio extraction failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
+
+    private void showAudioPreviewDialog(File audioFile) {
+        if (audioFile == null || !audioFile.exists()) {
+            Toast.makeText(getContext(), "No audio file to preview.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        View previewView = LayoutInflater.from(getContext())
+                .inflate(R.layout.dialog_audio_preview, null);
+
+        MaterialButton btnPlay = previewView.findViewById(R.id.btnPlayAudio);
+        MaterialButton btnConfirm = previewView.findViewById(R.id.btnConfirmAudio);
+        MaterialButton btnCancel = previewView.findViewById(R.id.btnCancelAudio);
+        TextView tvFilename = previewView.findViewById(R.id.tvAudioName);
+
+        tvFilename.setText(audioFile.getName());
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Preview Extracted Audio")
+                .setView(previewView)
+                .setCancelable(false)
+                .create();
+
+        MediaPlayer player = new MediaPlayer();
+
+        btnPlay.setOnClickListener(v -> {
+            try {
+                if (player.isPlaying()) {
+                    player.pause();
+                    btnPlay.setText("Play");
+                } else {
+                    player.reset();
+                    player.setDataSource(audioFile.getAbsolutePath());
+                    player.prepare();
+                    player.start();
+                    btnPlay.setText("Pause");
+                }
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "Cannot play audio: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        btnConfirm.setOnClickListener(v -> {
+            player.release();
+            dialog.dismiss();
+            showLoading("Uploading selected voice...");
+            uploadVoiceToBackend(audioFile);
+        });
+        btnCancel.setOnClickListener(v -> {
+            player.release();
+            dialog.dismiss();
+            Toast.makeText(getContext(), "Audio discarded.", Toast.LENGTH_SHORT).show();
+        });
+
+        dialog.show();
+    }
+
+
+
+    // ---------------------------------------------------------------
+// TTS STEPS GENERATION
+// ---------------------------------------------------------------
+    private void setupTTSSteps(View view) {
+        ViewGroup scrollView = view.findViewById(R.id.scrollContent);
+        LinearLayout mainLayout = null;
+
+        if (scrollView instanceof ViewGroup) {
+            for (int i = 0; i < ((ViewGroup) scrollView).getChildCount(); i++) {
+                View child = ((ViewGroup) scrollView).getChildAt(i);
+                if (child instanceof LinearLayout) {
+                    mainLayout = (LinearLayout) child;
+                    break;
+                }
+            }
+        }
+
+        if (mainLayout == null) {
+            Toast.makeText(getContext(), "Layout container not found.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        LinearLayout ttsContainer = new LinearLayout(getContext());
+        ttsContainer.setOrientation(LinearLayout.VERTICAL);
+        ttsContainer.setPadding(32, 32, 32, 32);
+
+        // === Language Toggle ===
+        LinearLayout langToggleContainer = new LinearLayout(getContext());
+        langToggleContainer.setOrientation(LinearLayout.HORIZONTAL);
+        langToggleContainer.setGravity(Gravity.CENTER_VERTICAL);
+        langToggleContainer.setPadding(24, 24, 24, 24);
+
+        TextView langLabel = new TextView(getContext());
+        langLabel.setText("TTS Language: Filipino");
+        langLabel.setTextSize(16f);
+        langLabel.setPadding(0, 0, 16, 0);
+
+        android.widget.Switch switchLang = new android.widget.Switch(getContext());
+        switchLang.setChecked(false);
+        switchLang.setTextOn("English");
+        switchLang.setTextOff("Filipino");
+
+        langToggleContainer.addView(langLabel);
+        langToggleContainer.addView(switchLang);
+        mainLayout.addView(langToggleContainer);
+        mainLayout.addView(ttsContainer);
+
+        // Default render (Filipino)
+        renderAllSections(ttsContainer, false);
+
+        // Switch behavior
+        switchLang.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            String lang = isChecked ? "English" : "Filipino";
+            langLabel.setText("TTS Language: " + lang);
+            requireContext().getSharedPreferences("tts_settings", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("isEnglish", isChecked)
+                    .apply();
+
+            ttsContainer.removeAllViews();
+            renderAllSections(ttsContainer, isChecked);
+        });
+    }
+
+
+    private void renderAllSections(LinearLayout container, boolean isEnglish) {
+        // 🧼 Handwashing
+        addSectionTitle(container, "🧼 Handwashing Steps");
+        String[] handSteps = isEnglish ? handwashingStepsEN : handwashingStepsPH;
+        for (String step : handSteps) addStepRowWithIndicator(container, step, isEnglish);
+
+        // 🪥 Toothbrushing
+        addSectionTitle(container, "🪥 Toothbrushing Steps");
+        String[] brushSteps = isEnglish ? brushingStepsEN : brushingStepsPH;
+        for (String step : brushSteps) addStepRowWithIndicator(container, step, isEnglish);
+
+        // ⚠️ Attention + Completion
+        addSectionTitle(container, "⚠️ System Prompts");
+        String[] sysSteps = isEnglish ? systemPromptsEN : systemPromptsPH;
+        for (String step : sysSteps) addStepRowWithIndicator(container, step, isEnglish);
+    }
+
+    private void addSectionTitle(LinearLayout parent, String title) {
+        TextView sectionTitle = new TextView(getContext());
+        sectionTitle.setText(title);
+        sectionTitle.setTextSize(16f);
+        sectionTitle.setTypeface(null, Typeface.BOLD);
+        sectionTitle.setPadding(0, 24, 0, 12);
+        parent.addView(sectionTitle);
+    }
+
+
+
+    private void addStepRowWithIndicator(LinearLayout parent, String stepText, boolean isEnglish) {
+        LinearLayout row = new LinearLayout(getContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, 8, 0, 8);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        // 🔘 Status Circle
+        View indicator = new View(getContext());
+        int size = (int) (20 * getResources().getDisplayMetrics().density / 3);
+        LinearLayout.LayoutParams circleParams = new LinearLayout.LayoutParams(size, size);
+        circleParams.setMargins(0, 0, 16, 0);
+        indicator.setLayoutParams(circleParams);
+
+        // ✅ Check if TTS exists
+        String langCode = isEnglish ? "en" : "ph";
+        File ttsFile = new File(requireContext().getFilesDir(),
+                "tts_audio/" + stepText.replace(" ", "_") + "_" + langCode + ".wav");
+
+        indicator.setBackgroundResource(ttsFile.exists()
+                ? android.R.color.holo_green_light
+                : android.R.color.holo_red_light);
+
+        // 📝 Step Label
+        TextView stepLabel = new TextView(getContext());
+        stepLabel.setText(stepText);
+        stepLabel.setTextSize(14);
+        stepLabel.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        // Buttons
+        MaterialButton btnEdit = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnEdit.setText("Edit");
+        btnEdit.setTextSize(12);
+
+        MaterialButton btnGenerate = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnGenerate.setText("Generate");
+        btnGenerate.setTextSize(12);
+
+        MaterialButton btnPreview = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnPreview.setText("Preview");
+        btnPreview.setTextSize(12);
+
+        // Listeners
+        btnEdit.setOnClickListener(v -> showTTSEditDialog(stepText));
+        btnGenerate.setOnClickListener(v -> {
+            generateTTSForStep(stepText);
+            indicator.setBackgroundResource(android.R.color.holo_green_light);
+        });
+        btnPreview.setOnClickListener(v -> previewTTSForStep(stepText));
+
+        // Layout
+        row.addView(indicator);
+        row.addView(stepLabel);
+        row.addView(btnEdit);
+        row.addView(btnGenerate);
+        row.addView(btnPreview);
+        parent.addView(row);
+    }
+
+
+    private void setupVoiceImportLaunchers() {
+        // 🎙 RECORD AUDIO
+        audioRecorderLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        Uri audioUri = result.getData().getData();
+                        if (audioUri != null) {
+                            handleRecordedAudio(audioUri);
+                        }
+                    }
+                });
+
+        // 🎵 IMPORT AUDIO FILE
+        audioPickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        Uri audioUri = result.getData().getData();
+                        if (audioUri != null) {
+                            handleImportedAudio(audioUri);  // ✅ CALL IT HERE
+                        }
+                    }
+                });
+
+        // 🎥 IMPORT VIDEO AND EXTRACT AUDIO
+        videoAudioExtractorLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        Uri videoUri = result.getData().getData();
+                        if (videoUri != null) {
+                            extractAudioFromVideo(videoUri);  // ✅ ALREADY HANDLED
+                        }
+                    }
+                });
+    }
+
+
+    private void handleRecordedAudio(Uri audioUri) {
         try {
             File outputDir = new File(requireContext().getFilesDir(), "voice_samples");
             if (!outputDir.exists()) outputDir.mkdirs();
 
-            File outputFile = new File(outputDir, "voice_sample_" + System.currentTimeMillis() + ".mp4");
+            File outputFile = new File(outputDir, "recorded_" + System.currentTimeMillis() + ".wav");
 
-            MediaExtractor extractor = new MediaExtractor();
-            extractor.setDataSource(requireContext(), videoUri, null);
-
-            int audioTrackIndex = -1;
-            for (int i = 0; i < extractor.getTrackCount(); i++) {
-                MediaFormat format = extractor.getTrackFormat(i);
-                String mime = format.getString(MediaFormat.KEY_MIME);
-                if (mime.startsWith("audio/")) {
-                    audioTrackIndex = i;
-                    break;
+            try (InputStream in = requireContext().getContentResolver().openInputStream(audioUri);
+                 FileOutputStream out = new FileOutputStream(outputFile)) {
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
                 }
             }
 
-            if (audioTrackIndex == -1) {
-                extractor.release();
-                Toast.makeText(getContext(), "No audio track found in video", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            extractor.selectTrack(audioTrackIndex);
-            MediaMuxer muxer = new MediaMuxer(outputFile.getAbsolutePath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-            int dstIndex = muxer.addTrack(extractor.getTrackFormat(audioTrackIndex));
-            muxer.start();
-
-            ByteBuffer buffer = ByteBuffer.allocate(1024 * 1024);
-            MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
-
-            while (true) {
-                info.offset = 0;
-                info.size = extractor.readSampleData(buffer, 0);
-                if (info.size < 0) break;
-                info.presentationTimeUs = extractor.getSampleTime();
-                info.flags = MediaCodec.BUFFER_FLAG_SYNC_FRAME;
-                muxer.writeSampleData(dstIndex, buffer, info);
-                extractor.advance();
-            }
-
-            muxer.stop();
-            muxer.release();
-            extractor.release();
-
-            voiceSampleFilePath = outputFile.getAbsolutePath();
-            Toast.makeText(getContext(), "Audio extracted successfully!", Toast.LENGTH_SHORT).show();
+            showAudioPreviewDialog(outputFile);
 
         } catch (Exception e) {
-            Toast.makeText(getContext(), "Audio extraction failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "Error saving recorded audio: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
+    private void importVoiceSample() {
+        CharSequence[] options = new CharSequence[]{
+                "Import MP3 / Audio File",
+                "Import from Video"
+        };
+
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("Add Voice Sample")
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0:
+                            pickAudioFile();
+                            break;
+                        case 1:
+                            pickVideoFile();
+                            break;
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+
+    private void recordVoice() {
+        Intent recordIntent = new Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION);
+        audioRecorderLauncher.launch(recordIntent);
+    }
+
+    private void playPreview(String baseUrl) {
+        ProgressDialog progressDialog = new ProgressDialog(getContext());
+        progressDialog.setMessage("Generating AI Voice Preview...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        // The timestamp (?t=...) forces the app to get the newest file, not a cached one
+        String finalUrl = baseUrl + "?t=" + System.currentTimeMillis();
+
+        // Log the URL so you can check it in the "Logcat" tab at the bottom of Android Studio
+        Log.d("SettingsFragment", "Requesting Audio: " + finalUrl);
+
+        ExoPlayer player = new ExoPlayer.Builder(requireContext()).build();
+        MediaItem mediaItem = MediaItem.fromUri(finalUrl);
+        player.setMediaItem(mediaItem);
+        player.prepare();
+
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onPlaybackStateChanged(int state) {
+                if (state == Player.STATE_READY) {
+                    progressDialog.dismiss();
+                    player.play();
+                }
+            }
+
+            @Override
+            public void onPlayerError(PlaybackException error) {
+                progressDialog.dismiss();
+                Log.e("TTS_ERROR", "Server Error: " + error.getMessage());
+
+                // This toast tells you if the SERVER failed (e.g. voice.pth is missing)
+                Toast.makeText(getContext(),
+                        "Server Error: Have you uploaded a voice yet?",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+
+    private void generateVoicePreview(String uid) {
+        showLoading("Generating voice preview...");
+
+        OkHttpClient client = new OkHttpClient();
+        JSONObject json = new JSONObject();
+        try {
+            json.put("uid", uid);
+            json.put("text", "Hello! This is my cloned voice from Hygiene Buddy.");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        RequestBody body = RequestBody.create(
+                json.toString(),
+                MediaType.parse("application/json")
+        );
+
+        Request request = new Request.Builder()
+                .url(SERVER_URL + "/generate")
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                requireActivity().runOnUiThread(() -> {
+                    hideLoading();
+                    Toast.makeText(getContext(), "Voice generation failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                requireActivity().runOnUiThread(() -> hideLoading());
+                if (response.isSuccessful() && response.body() != null) {
+                    InputStream inputStream = response.body().byteStream();
+                    File outFile = new File(requireContext().getFilesDir(), "tts_output.wav");
+
+                    try (FileOutputStream out = new FileOutputStream(outFile)) {
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+                        while ((bytesRead = inputStream.read(buffer)) != -1) {
+                            out.write(buffer, 0, bytesRead);
+                        }
+                    }
+
+                    // 🎧 Play the cloned voice
+                    MediaPlayer player = new MediaPlayer();
+                    player.setDataSource(outFile.getAbsolutePath());
+                    player.prepare();
+                    player.start();
+
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Preview playing...", Toast.LENGTH_SHORT).show()
+                    );
+                }
+            }
+        });
+    }
+
+    private void showLoading(String message) {
+        if (loadingDialog != null && loadingDialog.isShowing()) return;
+
+        View loadingView = LayoutInflater.from(getContext())
+                .inflate(R.layout.dialog_loading, null);
+
+        TextView tvMessage = loadingView.findViewById(R.id.tvLoadingMessage);
+        tvMessage.setText(message);
+
+        loadingDialog = new MaterialAlertDialogBuilder(requireContext())
+                .setView(loadingView)
+                .setCancelable(false)
+                .create();
+
+        loadingDialog.show();
+    }
+
+    private void hideLoading() {
+        if (loadingDialog != null && loadingDialog.isShowing()) {
+            loadingDialog.dismiss();
+        }
+    }
+
+    private void uploadVoiceToBackend(File file) {
+        // Show loading
+        if (loadingDialog == null) {
+            loadingDialog = new AlertDialog.Builder(requireContext())
+                    .setView(new android.widget.ProgressBar(requireContext()))
+                    .setMessage("Uploading and Processing Voice...")
+                    .setCancelable(false)
+                    .create();
+        }
+        loadingDialog.show();
+
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("file", "voice.wav", // We name it voice.wav for the server
+                        RequestBody.create(file, MediaType.parse("audio/wav")))
+                .build();
+
+        Request request = new Request.Builder()
+                .url(SERVER_URL + "/upload")
+                .post(requestBody)
+                .build();
+
+        http.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        if (loadingDialog != null) loadingDialog.dismiss();
+                        Toast.makeText(getContext(), "Upload Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        if (loadingDialog != null) loadingDialog.dismiss();
+                        if (response.isSuccessful()) {
+                            // We don't need to save UID anymore. Just tell user it worked.
+                            Toast.makeText(getContext(), "Voice Profile Updated Successfully!", Toast.LENGTH_SHORT).show();
+                            // Mark that we have a voice ready (optional flag)
+                            currentVoiceUid = "ready";
+                        } else {
+                            Toast.makeText(getContext(), "Server Error: " + response.code(), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+
+
+    private void addStepRow(LinearLayout parent, String stepText) {
+        LinearLayout row = new LinearLayout(getContext());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, 8, 0, 8);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView stepLabel = new TextView(getContext());
+        stepLabel.setText(stepText);
+        stepLabel.setTextSize(14);
+        stepLabel.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+
+        // --- Three buttons ---
+        MaterialButton btnEdit = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnEdit.setText("Edit");
+        btnEdit.setTextSize(12);
+
+        MaterialButton btnGenerate = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnGenerate.setText("Generate");
+        btnGenerate.setTextSize(12);
+
+        MaterialButton btnPreview = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        btnPreview.setText("Preview");
+        btnPreview.setTextSize(12);
+
+        // Add listeners
+        btnEdit.setOnClickListener(v -> showTTSEditDialog(stepText));
+        btnGenerate.setOnClickListener(v -> generateTTSForStep(stepText));
+        btnPreview.setOnClickListener(v -> previewTTSForStep(stepText));
+
+        row.addView(stepLabel);
+        row.addView(btnEdit);
+        row.addView(btnGenerate);
+        row.addView(btnPreview);
+        parent.addView(row);
+    }
+
+
+    private void showTTSEditDialog(String stepText) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("Edit TTS Text");
+
+        final EditText input = new EditText(requireContext());
+        input.setHint("Enter custom text...");
+        input.setText(getSavedTTSText(stepText)); // load existing saved text
+        input.setPadding(40, 30, 40, 30);
+        input.setLines(3);
+
+        builder.setView(input);
+
+        builder.setPositiveButton("Save", (dialog, which) -> {
+            String text = input.getText().toString().trim();
+            if (text.isEmpty()) {
+                Toast.makeText(getContext(), "Text cannot be empty", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            saveTTSText(stepText, text);
+            Toast.makeText(getContext(), "Text saved for " + stepText, Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+
+    private void saveTTSText(String step, String text) {
+        requireContext().getSharedPreferences("tts_custom_texts", Context.MODE_PRIVATE)
+                .edit()
+                .putString(step, text)
+                .apply();
+    }
+
+    private String getSavedTTSText(String step) {
+        return requireContext().getSharedPreferences("tts_custom_texts", Context.MODE_PRIVATE)
+                .getString(step, "");
+    }
+
+    private void generateTTSForStep(String stepText) {
+        boolean isEnglish = requireContext()
+                .getSharedPreferences("tts_settings", Context.MODE_PRIVATE)
+                .getBoolean("isEnglish", false);
+
+        String endpoint = SERVER_URL + (isEnglish ? "/generatetts_eng" : "/generatetts_ph");
+        String text = getSavedTTSText(stepText);
+        if (text == null || text.trim().isEmpty()) {
+            Toast.makeText(getContext(), "Please set the text first (Edit).", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String filenamePrefix;
+        String lower = stepText.toLowerCase(Locale.US);
+        if (lower.contains("attention")) {
+            filenamePrefix = "Attention";
+        } else if (lower.contains("completion")) {
+            filenamePrefix = "Completion";
+        } else if (lower.contains("hand") || lower.contains("kama")) {
+            filenamePrefix = "HWSteps";
+        } else {
+            filenamePrefix = "TBSteps";
+        }
+
+        int stepNumber = findStepNumber(stepText);
+        String lang = isEnglish ? "ENG" : "PH";
+        String fileName = (filenamePrefix.equals("HWSteps") || filenamePrefix.equals("TBSteps"))
+                ? (filenamePrefix + stepNumber + "_" + lang + ".wav")
+                : (filenamePrefix + "_" + lang + ".wav");
+
+        showLoading("Generating " + (isEnglish ? "English" : "Filipino") + " TTS...");
+
+        JSONObject json = new JSONObject();
+        try {
+            json.put("text", text);
+            // If your server accepts "filename", you can hint it:
+            json.put("filename", fileName);
+        } catch (JSONException ignore) {}
+
+        RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json"));
+        Request request = new Request.Builder()
+                .url(endpoint)
+                .post(body)
+                .build();
+
+        http.newCall(request).enqueue(new Callback() {
+            @Override public void onFailure(Call call, IOException e) {
+                requireActivity().runOnUiThread(() -> {
+                    hideLoading();
+                    Toast.makeText(getContext(), "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override public void onResponse(Call call, Response response) throws IOException {
+                ResponseBody rb = response.body();
+                requireActivity().runOnUiThread(() -> hideLoading());
+
+                if (!response.isSuccessful() || rb == null) {
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Server error: " + response.code(), Toast.LENGTH_SHORT).show()
+                    );
+                    return;
+                }
+
+                // Some servers return JSON on error; sniff content-type
+                String ctype = response.header("Content-Type", "");
+                if (ctype.contains("application/json")) {
+                    String errJson = rb.string();
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Server said: " + errJson, Toast.LENGTH_SHORT).show()
+                    );
+                    return;
+                }
+
+                File ttsDir = new File(requireContext().getFilesDir(), "tts_audio");
+                File outFile = new File(ttsDir, fileName);
+
+                try {
+                    writeResponseToFile(rb, outFile);
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Saved: " + fileName, Toast.LENGTH_SHORT).show()
+                    );
+                } catch (IOException ioe) {
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "Write failed: " + ioe.getMessage(), Toast.LENGTH_SHORT).show()
+                    );
+                }
+            }
+        });
+    }
+
+
+    private int findStepNumber(String stepText) {
+        // Extract first number found in the step text, default to 1 if none
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\d+").matcher(stepText);
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group());
+        }
+        return 1;
+    }
+
+
+    private void previewTTSForStep(String stepText) {
+        boolean isEnglish = requireContext()
+                .getSharedPreferences("tts_settings", Context.MODE_PRIVATE)
+                .getBoolean("isEnglish", false);
+
+        String lang = isEnglish ? "ENG" : "PH";
+
+        // Match the same filename logic used during generation
+        String filenamePrefix;
+        if (stepText.toLowerCase().contains("attention")) {
+            filenamePrefix = "Attention";
+        } else if (stepText.toLowerCase().contains("completion")) {
+            filenamePrefix = "Completion";
+        } else if (stepText.toLowerCase().contains("hand") || stepText.toLowerCase().contains("kama")) {
+            filenamePrefix = "HWSteps";
+        } else {
+            filenamePrefix = "TBSteps";
+        }
+
+        int stepNumber = findStepNumber(stepText);
+        String outputName;
+        if (filenamePrefix.equals("HWSteps") || filenamePrefix.equals("TBSteps")) {
+            outputName = filenamePrefix + stepNumber + "_" + lang + ".wav";
+        } else {
+            outputName = filenamePrefix + "_" + lang + ".wav";
+        }
+
+        File ttsFile = new File(requireContext().getFilesDir(), "tts_audio/" + outputName);
+
+        if (!ttsFile.exists()) {
+            Toast.makeText(getContext(), "No generated TTS found. Please generate first.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        MediaPlayer player = new MediaPlayer();
+        try {
+            player.setDataSource(ttsFile.getAbsolutePath());
+            player.prepare();
+            player.start();
+            Toast.makeText(getContext(), "Playing " + outputName, Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "Playback error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+
+        player.setOnCompletionListener(mp -> player.release());
+    }
+
+
+
+
+
+    private void saveTTSText(String step, String lang, String text) {
+        String key = step + "_" + lang;
+        requireContext().getSharedPreferences("tts_custom_texts", Context.MODE_PRIVATE)
+                .edit()
+                .putString(key, text)
+                .apply();
+    }
+
+
+    private String getSavedTTSText(String step, String lang) {
+        String key = step + "_" + lang;
+        return requireContext().getSharedPreferences("tts_custom_texts", Context.MODE_PRIVATE)
+                .getString(key, "");
+    }
+
+    private void regenerateTTS(String stepName, String lang, String text) {
+        showLoading("Regenerating " + (lang.equals("EN") ? "English" : "Filipino") + " voice...");
+
+        OkHttpClient client = new OkHttpClient();
+        JSONObject json = new JSONObject();
+        try {
+            json.put("uid", savedUid); // same uid from your voice upload
+            json.put("text", text);
+            json.put("lang", lang);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json"));
+        Request request = new Request.Builder()
+                .url(SERVER_URL + "/generate")
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                requireActivity().runOnUiThread(() -> {
+                    hideLoading();
+                    Toast.makeText(getContext(), "Failed to regenerate: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                requireActivity().runOnUiThread(() -> hideLoading());
+                if (response.isSuccessful() && response.body() != null) {
+                    // save or play the audio
+                    File outputFile = new File(requireContext().getFilesDir(), stepName + "_" + lang + ".wav");
+                    try (FileOutputStream out = new FileOutputStream(outputFile)) {
+                        byte[] buffer = new byte[4096];
+                        InputStream input = response.body().byteStream();
+                        int bytesRead;
+                        while ((bytesRead = input.read(buffer)) != -1) out.write(buffer, 0, bytesRead);
+                    }
+
+                    requireActivity().runOnUiThread(() ->
+                            Toast.makeText(getContext(), "TTS updated for " + stepName + " (" + lang + ")", Toast.LENGTH_SHORT).show()
+                    );
+                }
+            }
+        });
+    }
 }
