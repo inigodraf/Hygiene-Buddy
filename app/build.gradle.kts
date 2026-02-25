@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.hygienebuddy"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -58,6 +58,6 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
-
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

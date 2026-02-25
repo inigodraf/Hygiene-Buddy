@@ -5,23 +5,26 @@ import android.graphics.Canvas;
 import android.util.AttributeSet;
 import android.view.View;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A view that overlays graphics on top of a camera preview.
- * Handles scaling, rotation, and mirroring correctly for CameraX + ML Kit.
+ * Handles scaling, rotation, offsets, and mirroring for MediaPipe's normalized coordinates.
  */
 public class GraphicOverlay extends View {
 
     private final Object lock = new Object();
-    private int previewWidth;
-    private int previewHeight;
+    private int imageWidth;
+    private int imageHeight;
     private boolean isFrontFacing = true;
-    private float widthScaleFactor = 1.0f;
-    private float heightScaleFactor = 1.0f;
 
-    private final Set<Graphic> graphics = new HashSet<>();
+    // Calculated values for mapping MediaPipe coordinates to the screen
+    private float scaleFactor = 1.0f;
+    private float postScaleWidthOffset = 0f;
+    private float postScaleHeightOffset = 0f;
+
+    private final List<Graphic> graphics = new ArrayList<>();
 
     public abstract static class Graphic {
         private final GraphicOverlay overlay;
@@ -32,28 +35,25 @@ public class GraphicOverlay extends View {
 
         public abstract void draw(Canvas canvas);
 
-        /** Scale horizontal coordinate */
-        public float scaleX(float x) {
-            return x * overlay.widthScaleFactor;
-        }
-
-        /** Scale vertical coordinate */
-        public float scaleY(float y) {
-            return y * overlay.heightScaleFactor;
-        }
-
-        /** Translate X and flip horizontally for front camera */
-        public float translateX(float x) {
+        /**
+         * Converts MediaPipe's normalized X coordinate (0.0 to 1.0) to screen pixels.
+         * Also handles horizontal flipping for the front camera.
+         */
+        public float translateX(float normalizedX) {
+            float x = (normalizedX * overlay.imageWidth * overlay.scaleFactor) + overlay.postScaleWidthOffset;
             if (overlay.isFrontFacing) {
-                return overlay.getWidth() - scaleX(x);
+                // Flip horizontally for front camera
+                return overlay.getWidth() - x;
             } else {
-                return scaleX(x);
+                return x;
             }
         }
 
-        /** Translate Y coordinate */
-        public float translateY(float y) {
-            return scaleY(y);
+        /**
+         * Converts MediaPipe's normalized Y coordinate (0.0 to 1.0) to screen pixels.
+         */
+        public float translateY(float normalizedY) {
+            return (normalizedY * overlay.imageHeight * overlay.scaleFactor) + overlay.postScaleHeightOffset;
         }
 
         public void postInvalidate() {
@@ -79,21 +79,16 @@ public class GraphicOverlay extends View {
         postInvalidate();
     }
 
-    public void remove(Graphic graphic) {
-        synchronized (lock) {
-            graphics.remove(graphic);
-        }
-        postInvalidate();
-    }
-
     /**
-     * Called by the camera to update overlay with preview size and facing direction.
-     * The preview size must be in the camera sensor’s coordinate system.
+     * Called when a new frame is processed.
+     * @param imageWidth The width of the frame MediaPipe processed
+     * @param imageHeight The height of the frame MediaPipe processed
+     * @param isFrontFacing True if using the selfie camera
      */
-    public void setCameraInfo(int previewWidth, int previewHeight, boolean isFrontFacing) {
+    public void setCameraInfo(int imageWidth, int imageHeight, boolean isFrontFacing) {
         synchronized (lock) {
-            this.previewWidth = previewWidth;
-            this.previewHeight = previewHeight;
+            this.imageWidth = imageWidth;
+            this.imageHeight = imageHeight;
             this.isFrontFacing = isFrontFacing;
         }
         postInvalidate();
@@ -103,13 +98,22 @@ public class GraphicOverlay extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         synchronized (lock) {
-            if (previewWidth != 0 && previewHeight != 0) {
-                // ✅ Use min ratio to ensure proportional scaling even if PreviewView is letterboxed
-                float scaleX = (float) getWidth() / (float) previewWidth;
-                float scaleY = (float) getHeight() / (float) previewHeight;
-                float scale = Math.min(scaleX, scaleY);
-                widthScaleFactor = scale;
-                heightScaleFactor = scale;
+            if (imageWidth > 0 && imageHeight > 0) {
+                // Calculate scaling and offsets assuming the PreviewView is set to FILL_CENTER
+                float viewAspectRatio = (float) getWidth() / getHeight();
+                float imageAspectRatio = (float) imageWidth / imageHeight;
+
+                if (viewAspectRatio > imageAspectRatio) {
+                    // The view is wider than the image's aspect ratio
+                    scaleFactor = (float) getWidth() / imageWidth;
+                    postScaleHeightOffset = (getHeight() - (imageHeight * scaleFactor)) / 2f;
+                    postScaleWidthOffset = 0f;
+                } else {
+                    // The view is taller than the image's aspect ratio
+                    scaleFactor = (float) getHeight() / imageHeight;
+                    postScaleWidthOffset = (getWidth() - (imageWidth * scaleFactor)) / 2f;
+                    postScaleHeightOffset = 0f;
+                }
             }
 
             for (Graphic graphic : graphics) {

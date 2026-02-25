@@ -4,8 +4,6 @@ import android.Manifest;
 import android.app.Activity;
 
 import android.util.Log;
-
-
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -1174,7 +1172,6 @@ public class SettingsFragment extends Fragment {
         });
     }
 
-
     private void renderAllSections(LinearLayout container, boolean isEnglish) {
         // 🧼 Handwashing
         addSectionTitle(container, "🧼 Handwashing Steps");
@@ -1200,8 +1197,6 @@ public class SettingsFragment extends Fragment {
         sectionTitle.setPadding(0, 24, 0, 12);
         parent.addView(sectionTitle);
     }
-
-
 
     private void addStepRowWithIndicator(LinearLayout parent, String stepText, boolean isEnglish) {
         LinearLayout row = new LinearLayout(getContext());
@@ -1525,44 +1520,6 @@ public class SettingsFragment extends Fragment {
                 }
             }
         });
-    }
-
-
-
-    private void addStepRow(LinearLayout parent, String stepText) {
-        LinearLayout row = new LinearLayout(getContext());
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(0, 8, 0, 8);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-
-        TextView stepLabel = new TextView(getContext());
-        stepLabel.setText(stepText);
-        stepLabel.setTextSize(14);
-        stepLabel.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-
-        // --- Three buttons ---
-        MaterialButton btnEdit = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        btnEdit.setText("Edit");
-        btnEdit.setTextSize(12);
-
-        MaterialButton btnGenerate = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        btnGenerate.setText("Generate");
-        btnGenerate.setTextSize(12);
-
-        MaterialButton btnPreview = new MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        btnPreview.setText("Preview");
-        btnPreview.setTextSize(12);
-
-        // Add listeners
-        btnEdit.setOnClickListener(v -> showTTSEditDialog(stepText));
-        btnGenerate.setOnClickListener(v -> generateTTSForStep(stepText));
-        btnPreview.setOnClickListener(v -> previewTTSForStep(stepText));
-
-        row.addView(stepLabel);
-        row.addView(btnEdit);
-        row.addView(btnGenerate);
-        row.addView(btnPreview);
-        parent.addView(row);
     }
 
 

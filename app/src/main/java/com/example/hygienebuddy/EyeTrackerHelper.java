@@ -2,8 +2,13 @@ package com.example.hygienebuddy;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Matrix;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -13,26 +18,42 @@ import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.LifecycleOwner;
 
-import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.face.Face;
-import com.google.mlkit.vision.face.FaceDetection;
-import com.google.mlkit.vision.face.FaceDetector;
-import com.google.mlkit.vision.face.FaceDetectorOptions;
+import com.google.mediapipe.framework.image.BitmapImageBuilder;
+import com.google.mediapipe.framework.image.MPImage;
+import com.google.mediapipe.tasks.components.containers.Category;
+import com.google.mediapipe.tasks.components.containers.NormalizedLandmark;
+import com.google.mediapipe.tasks.core.BaseOptions;
+import com.google.mediapipe.tasks.vision.core.RunningMode;
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker;
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult;
 
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * Handles real-time eye tracking using CameraX and ML Kit.
- * Draws landmarks using GraphicOverlay for visualization.
+ * Optimized Eye Tracker using MediaPipe.
+ * Features: 2-second distraction delay, smoothed blink detection, and UI thread safety.
  */
 public class EyeTrackerHelper {
 
     private final Context context;
     private final LifecycleOwner lifecycleOwner;
-    private FaceDetector detector;
-    private boolean userIsLooking = true;
+    private FaceLandmarker faceLandmarker;
     private final EyeTrackerListener listener;
+    private GraphicOverlay currentOverlay;
+
+    // --- Logic & Timing ---
+    private boolean userIsLooking = true;
+    private long distractionStartTime = 0;
+    private boolean isCurrentlyFlagged = false;
+    private static final long DISTRACTION_THRESHOLD_MS = 1200; // 2 Seconds
+
+    // --- Performance Optimizations ---
+    private final Matrix rotationMatrix = new Matrix();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
 
     public interface EyeTrackerListener {
         void onUserLookAway();
@@ -43,131 +64,171 @@ public class EyeTrackerHelper {
         this.context = context;
         this.lifecycleOwner = lifecycleOwner;
         this.listener = listener;
-        setupFaceDetector();
+        setupFaceLandmarker();
     }
 
-    /** Configure ML Kit face detector */
-    private void setupFaceDetector() {
-        FaceDetectorOptions options = new FaceDetectorOptions.Builder()
-                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-                .enableTracking()
+    private void setupFaceLandmarker() {
+        BaseOptions baseOptions = BaseOptions.builder()
+                .setModelAssetPath("face_landmarker.task")
                 .build();
 
-        detector = FaceDetection.getClient(options);
+        FaceLandmarker.FaceLandmarkerOptions options = FaceLandmarker.FaceLandmarkerOptions.builder()
+                .setBaseOptions(baseOptions)
+                .setRunningMode(RunningMode.LIVE_STREAM)
+                .setOutputFaceBlendshapes(true)
+                .setResultListener(this::onLandmarkerResult)
+                .setErrorListener(e -> Log.e("EyeTrackerHelper", "MediaPipe Error: ", e))
+                .build();
+
+        faceLandmarker = FaceLandmarker.createFromOptions(context, options);
     }
 
-    /** Start camera + ML Kit detection with overlay */
     @SuppressLint("UnsafeOptInUsageError")
     public void startEyeTracking(PreviewView previewView, GraphicOverlay graphicOverlay) {
-        ProcessCameraProvider cameraProvider;
-        try {
-            cameraProvider = ProcessCameraProvider.getInstance(context).get();
-        } catch (ExecutionException | InterruptedException e) {
-            e.printStackTrace();
-            return;
-        }
+        this.currentOverlay = graphicOverlay;
 
-        // Camera Preview
-        Preview preview = new Preview.Builder().build();
-        preview.setSurfaceProvider(previewView.getSurfaceProvider());
+        backgroundExecutor.execute(() -> {
+            try {
+                ProcessCameraProvider cameraProvider = ProcessCameraProvider.getInstance(context).get();
+                Preview preview = new Preview.Builder().build();
 
-        // ML Kit Analysis
-        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .build();
+                ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                        .build();
 
-        imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(context),
-                imageProxy -> analyzeImage(imageProxy, graphicOverlay));
+                imageAnalysis.setAnalyzer(backgroundExecutor, this::analyzeImage);
 
-        // Unbind previous sessions
-        cameraProvider.unbindAll();
+                CameraSelector cameraSelector = new CameraSelector.Builder()
+                        .requireLensFacing(CameraSelector.LENS_FACING_FRONT)
+                        .build();
 
-        // Front camera
-        CameraSelector cameraSelector = new CameraSelector.Builder()
-                .requireLensFacing(CameraSelector.LENS_FACING_FRONT)
-                .build();
+                mainHandler.post(() -> {
+                    preview.setSurfaceProvider(previewView.getSurfaceProvider());
+                    cameraProvider.unbindAll();
+                    cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalysis);
+                });
 
-        // Bind camera to lifecycle
-        cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, preview, imageAnalysis);
-
-        // ✅ Sync overlay dimensions and mirroring
-        previewView.post(() -> {
-            graphicOverlay.setCameraInfo(
-                    previewView.getWidth(),
-                    previewView.getHeight(),
-                    true // front camera mirror
-            );
+            } catch (Exception e) {
+                Log.e("EyeTrackerHelper", "Camera initialization failed", e);
+            }
         });
     }
 
-    /** Analyze image frames and detect faces */
     @SuppressLint("UnsafeOptInUsageError")
-    private void analyzeImage(ImageProxy imageProxy, GraphicOverlay graphicOverlay) {
-        if (imageProxy.getImage() == null) {
+    private void analyzeImage(@NonNull ImageProxy imageProxy) {
+        if (faceLandmarker == null) {
             imageProxy.close();
             return;
         }
 
-        InputImage image = InputImage.fromMediaImage(
-                imageProxy.getImage(),
-                imageProxy.getImageInfo().getRotationDegrees()
-        );
-
-        detector.process(image)
-                .addOnSuccessListener(faces -> handleFaces(faces, graphicOverlay))
-                .addOnFailureListener(e -> Log.e("EyeTrackerHelper", "Detection failed: " + e))
-                .addOnCompleteListener(task -> imageProxy.close());
-    }
-
-    /** Handle detected faces and draw overlays */
-    private void handleFaces(List<Face> faces, GraphicOverlay graphicOverlay) {
-        graphicOverlay.clear();
-
-        if (faces.isEmpty()) {
-            if (userIsLooking) {
-                userIsLooking = false;
-                listener.onUserLookAway();
-            }
+        Bitmap bitmap = imageProxy.toBitmap();
+        if (bitmap == null) {
+            imageProxy.close();
             return;
         }
 
-        for (Face face : faces) {
-            // Draw face and eyes
-            graphicOverlay.add(new EyeGraphic(graphicOverlay, face));
+        rotationMatrix.reset();
+        rotationMatrix.postRotate(imageProxy.getImageInfo().getRotationDegrees());
+        Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), rotationMatrix, true);
 
-            // Get rotation and eye open probabilities
-            float rotY = face.getHeadEulerAngleY();
-            Float leftEyeOpen = face.getLeftEyeOpenProbability();
-            Float rightEyeOpen = face.getRightEyeOpenProbability();
+        MPImage mpImage = new BitmapImageBuilder(rotatedBitmap).build();
+        faceLandmarker.detectAsync(mpImage, imageProxy.getImageInfo().getTimestamp() / 1000000);
 
-            boolean eyesClosed = (leftEyeOpen != null && rightEyeOpen != null)
-                    && (leftEyeOpen < 0.3f && rightEyeOpen < 0.3f);
-            boolean lookingAway = Math.abs(rotY) > 25;
+        imageProxy.close();
+    }
 
-            if (eyesClosed || lookingAway) {
-                if (userIsLooking) {
-                    userIsLooking = false;
-                    listener.onUserLookAway();
-                }
-            } else {
-                if (!userIsLooking) {
-                    userIsLooking = true;
-                    listener.onUserLookBack();
-                }
+    private void onLandmarkerResult(FaceLandmarkerResult result, MPImage inputImage) {
+        // UI Updates MUST happen on the Main Thread
+        mainHandler.post(() -> {
+            if (currentOverlay == null) return;
+            currentOverlay.clear();
+
+            if (result.faceLandmarks().isEmpty()) {
+                handleDistraction(true); // Treat "no face" as a distraction
+                return;
+            }
+
+            // Sync coordinate mapping
+            currentOverlay.setCameraInfo(inputImage.getWidth(), inputImage.getHeight(), true);
+
+            List<NormalizedLandmark> face = result.faceLandmarks().get(0);
+            currentOverlay.add(new EyeGraphic(currentOverlay, face));
+            currentOverlay.postInvalidate();
+
+            processFaceDistractionLogic(face, result);
+        });
+    }
+
+    private void processFaceDistractionLogic(List<NormalizedLandmark> face, FaceLandmarkerResult result) {
+        boolean eyesClosed = false;
+        boolean eyesDarting = false; // NEW: Tracks pupil movement
+
+        Optional<List<List<Category>>> blendshapesOpt = result.faceBlendshapes();
+
+        if (blendshapesOpt.isPresent() && !blendshapesOpt.get().isEmpty()) {
+            List<Category> blendshapes = blendshapesOpt.get().get(0);
+
+            // 1. Blink Detection
+            float avgBlinkScore = (blendshapes.get(9).score() + blendshapes.get(10).score()) / 2f;
+            eyesClosed = avgBlinkScore > 0.5f;
+
+            // 2. Eye Gaze Detection (Darting left, right, up, or down)
+            // Indices: 11(DownL), 12(DownR), 13(InL), 14(InR), 15(OutL), 16(OutR), 17(UpL), 18(UpR)
+            float lookLeftRight = Math.max(
+                    Math.max(blendshapes.get(13).score(), blendshapes.get(14).score()),
+                    Math.max(blendshapes.get(15).score(), blendshapes.get(16).score())
+            );
+
+            float lookUpDown = Math.max(
+                    Math.max(blendshapes.get(11).score(), blendshapes.get(12).score()),
+                    Math.max(blendshapes.get(17).score(), blendshapes.get(18).score())
+            );
+
+            // If any eye direction scores higher than 0.55, the user is looking away
+            if (lookLeftRight > 0.55f || lookUpDown > 0.55f) {
+                eyesDarting = true;
             }
         }
 
-        // Redraw overlay
-        graphicOverlay.postInvalidate();
+        // 3. Head Rotation Check (Nose ratio)
+        float noseX = face.get(1).x();
+        float leftCheekX = face.get(234).x();
+        float rightCheekX = face.get(454).x();
+        float noseRatio = (noseX - leftCheekX) / (rightCheekX - leftCheekX);
+        boolean headTurned = (noseRatio < 0.28f || noseRatio > 0.72f);
+
+        // Flag the user if ANY of these 3 conditions are met!
+        handleDistraction(eyesClosed || headTurned || eyesDarting);
     }
 
-    /** Stop face detection */
+    private void handleDistraction(boolean isDistracted) {
+        long currentTime = System.currentTimeMillis();
+
+        if (isDistracted) {
+            if (distractionStartTime == 0) {
+                distractionStartTime = currentTime; // Start the timer
+            } else if (currentTime - distractionStartTime >= DISTRACTION_THRESHOLD_MS) {
+                if (!isCurrentlyFlagged) {
+                    isCurrentlyFlagged = true;
+                    listener.onUserLookAway();
+                }
+            }
+        } else {
+            // User is back!
+            if (isCurrentlyFlagged) {
+                isCurrentlyFlagged = false;
+                listener.onUserLookBack();
+            }
+            distractionStartTime = 0; // Reset timer
+        }
+    }
+
     public void stop() {
-        if (detector != null) {
-            detector.close();
+        backgroundExecutor.shutdown();
+        if (faceLandmarker != null) {
+            faceLandmarker.close();
+            faceLandmarker = null;
         }
     }
 }
-
