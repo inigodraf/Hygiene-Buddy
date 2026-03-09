@@ -52,6 +52,7 @@ public class EyeTrackerHelper {
 
     // --- Performance Optimizations ---
     private final Matrix rotationMatrix = new Matrix();
+    private boolean isProcessing = false; // Add this flag
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
 
@@ -77,7 +78,10 @@ public class EyeTrackerHelper {
                 .setRunningMode(RunningMode.LIVE_STREAM)
                 .setOutputFaceBlendshapes(true)
                 .setResultListener(this::onLandmarkerResult)
-                .setErrorListener(e -> Log.e("EyeTrackerHelper", "MediaPipe Error: ", e))
+                .setErrorListener(e -> {
+                    isProcessing = false; // Release lock on error
+                    Log.e("EyeTrackerHelper", "MediaPipe Error: ", e);
+                })
                 .build();
 
         faceLandmarker = FaceLandmarker.createFromOptions(context, options);
@@ -117,13 +121,17 @@ public class EyeTrackerHelper {
 
     @SuppressLint("UnsafeOptInUsageError")
     private void analyzeImage(@NonNull ImageProxy imageProxy) {
-        if (faceLandmarker == null) {
+        // 1. Drop the frame if MediaPipe is still busy analyzing the last one
+        if (faceLandmarker == null || isProcessing) {
             imageProxy.close();
             return;
         }
 
+        isProcessing = true; // 2. Lock the pipeline
+
         Bitmap bitmap = imageProxy.toBitmap();
         if (bitmap == null) {
+            isProcessing = false; // Release lock if bitmap fails
             imageProxy.close();
             return;
         }
@@ -133,13 +141,16 @@ public class EyeTrackerHelper {
         Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), rotationMatrix, true);
 
         MPImage mpImage = new BitmapImageBuilder(rotatedBitmap).build();
-        faceLandmarker.detectAsync(mpImage, imageProxy.getImageInfo().getTimestamp() / 1000000);
 
-        imageProxy.close();
+        // 3. Use SystemClock.uptimeMillis() to ensure strictly increasing timestamps
+        faceLandmarker.detectAsync(mpImage, android.os.SystemClock.uptimeMillis());
+
+        imageProxy.close(); // Closing here is safe because toBitmap() copied the data
     }
 
     private void onLandmarkerResult(FaceLandmarkerResult result, MPImage inputImage) {
         // UI Updates MUST happen on the Main Thread
+        isProcessing = false;
         mainHandler.post(() -> {
             if (currentOverlay == null) return;
             currentOverlay.clear();

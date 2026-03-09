@@ -117,7 +117,7 @@ public class SettingsFragment extends Fragment {
 
     private String currentVoiceUid = null;
 
-    private static final String SERVER_URL = "http://192.168.1.6:5000";
+    private static final String SERVER_URL = "http://192.168.68.121:5000";
 
     private final OkHttpClient http = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
