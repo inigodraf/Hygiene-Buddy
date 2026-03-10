@@ -745,35 +745,53 @@ public class FragmentReportSummary extends Fragment {
             String fileName = "HygieneBuddy_Report_" + profileName.replace(" ", "_") + "_" +
                     new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date()) + ".csv";
 
-            File csvFile;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // Android 10+ (API 29+): Use app-specific directory (no permission needed)
-                File appDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
-                if (appDir == null) {
-                    appDir = requireContext().getFilesDir();
+                // Android 10+ (API 29+): Save to public Downloads via MediaStore (visible to user, no storage permission needed)
+                android.content.ContentResolver resolver = requireContext().getContentResolver();
+
+                android.content.ContentValues values = new android.content.ContentValues();
+                values.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName);
+                values.put(android.provider.MediaStore.Downloads.MIME_TYPE, "text/csv");
+                values.put(android.provider.MediaStore.Downloads.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + File.separator + "HygieneBuddy");
+                values.put(android.provider.MediaStore.Downloads.IS_PENDING, 1);
+
+                android.net.Uri collection = android.provider.MediaStore.Downloads.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY);
+                android.net.Uri itemUri = resolver.insert(collection, values);
+                if (itemUri == null) {
+                    throw new IOException("Failed to create CSV in Downloads");
                 }
-                csvFile = new File(appDir, fileName);
+
+                try (java.io.OutputStream os = resolver.openOutputStream(itemUri);
+                     java.io.OutputStreamWriter osw = new java.io.OutputStreamWriter(os);
+                     java.io.BufferedWriter bw = new java.io.BufferedWriter(osw)) {
+                    bw.write(csv.toString());
+                }
+
+                // Mark as finished so it shows up to other apps
+                android.content.ContentValues done = new android.content.ContentValues();
+                done.put(android.provider.MediaStore.Downloads.IS_PENDING, 0);
+                resolver.update(itemUri, done, null, null);
+
+                String message = "Report exported: " + fileName + "\nSaved to: Downloads/HygieneBuddy";
+                Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
+                android.util.Log.d("ReportSummary", "CSV exported to (MediaStore): " + itemUri);
             } else {
                 // Android 9 and below: Use public Downloads directory
                 File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
                 if (!downloadsDir.exists()) {
                     downloadsDir.mkdirs();
                 }
-                csvFile = new File(downloadsDir, fileName);
-            }
+                File csvFile = new File(downloadsDir, fileName);
 
-            FileWriter writer = new FileWriter(csvFile);
-            writer.write(csv.toString());
-            writer.close();
+                FileWriter writer = new FileWriter(csvFile);
+                writer.write(csv.toString());
+                writer.close();
 
-            String message = "Report exported: " + fileName;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                message += "\nSaved to: " + csvFile.getParent();
-            } else {
-                message += "\nSaved to Downloads folder";
+                String message = "Report exported: " + fileName + "\nSaved to Downloads folder";
+                Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
+                android.util.Log.d("ReportSummary", "CSV exported to: " + csvFile.getAbsolutePath());
             }
-            Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
-            android.util.Log.d("ReportSummary", "CSV exported to: " + csvFile.getAbsolutePath());
 
         } catch (IOException e) {
             android.util.Log.e("ReportSummary", "Error exporting CSV: " + e.getMessage(), e);
