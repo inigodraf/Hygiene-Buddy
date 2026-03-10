@@ -1,6 +1,7 @@
 package com.example.hygienebuddy;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -8,6 +9,8 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -23,10 +26,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.iceteck.silicompressorr.SiliCompressor;
+
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class UploadVideoActivity extends AppCompatActivity {
 
@@ -37,6 +41,10 @@ public class UploadVideoActivity extends AppCompatActivity {
     private Button btnUploadVideo, btnSaveVideo;
     private Uri selectedVideoUri;
     private String taskName = "";
+
+    // Background executor to prevent the app from freezing during compression
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     // Launcher for selecting a video from gallery
     private final ActivityResultLauncher<Intent> videoPickerLauncher =
@@ -75,7 +83,7 @@ public class UploadVideoActivity extends AppCompatActivity {
         btnUploadVideo.setOnClickListener(v -> openGallery());
 
         // Save video button
-        btnSaveVideo.setOnClickListener(v -> saveVideoLocally());
+        btnSaveVideo.setOnClickListener(v -> saveAndCompressVideo());
 
         // Resize container to 16:9 after layout
         if (videoContainer != null) {
@@ -83,18 +91,12 @@ public class UploadVideoActivity extends AppCompatActivity {
         }
     }
 
-    /* private void openGallery() {
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Video.Media.EXTERNAL_CONTENT_URI);
-        videoPickerLauncher.launch(intent);
-    }
-    */
     private void openGallery() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("video/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         videoPickerLauncher.launch(Intent.createChooser(intent, "Select a video"));
     }
-
 
     private void previewVideo(Uri videoUri) {
         videoPreview.setVideoURI(videoUri);
@@ -115,48 +117,61 @@ public class UploadVideoActivity extends AppCompatActivity {
         videoContainer.setLayoutParams(lp);
     }
 
-    private void saveVideoLocally() {
+    private void saveAndCompressVideo() {
         if (selectedVideoUri == null) {
             Toast.makeText(this, "Please choose a video first", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        try {
-            // Directory for app-specific videos
-            File directory = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "CustomInstructions");
-            if (!directory.exists()) directory.mkdirs();
+        // Show a loading dialog so the user knows it is compressing
+        ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Compressing video... Please wait.");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
 
-            // File name includes task name
-            String fileName = (taskName != null ? taskName.toLowerCase().replace(" ", "_") : "instruction")
-                    + "_" + System.currentTimeMillis() + ".mp4";
+        // Run the heavy compression task in the background
+        executor.execute(() -> {
+            try {
+                // Directory for app-specific videos
+                File directory = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), "CustomInstructions");
+                if (!directory.exists()) directory.mkdirs();
 
-            File destFile = new File(directory, fileName);
+                // 1. Compress the video to ~720p light mp4
+                // SiliCompressor returns the file path of the newly compressed video
+                String compressedFilePath = SiliCompressor.with(UploadVideoActivity.this)
+                        .compressVideo(selectedVideoUri, directory.getAbsolutePath());
 
-            // Copy the video data to destination
-            try (InputStream inputStream = getContentResolver().openInputStream(selectedVideoUri);
-                 OutputStream outputStream = getContentResolver().openOutputStream(getVideoUri(destFile))) {
+                File compressedFile = new File(compressedFilePath);
 
-                byte[] buffer = new byte[1024];
-                int length;
-                while ((length = inputStream.read(buffer)) > 0) {
-                    outputStream.write(buffer, 0, length);
-                }
+                // 2. Rename the file to match your custom naming convention
+                String fileName = (taskName != null ? taskName.toLowerCase().replace(" ", "_") : "instruction")
+                        + "_" + System.currentTimeMillis() + ".mp4";
+                File finalDestFile = new File(directory, fileName);
 
-                Toast.makeText(this, "Video saved to: " + destFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
-                //finish();
-                previewVideo(Uri.fromFile(destFile));
-                videoPreview.setVideoURI(Uri.fromFile(destFile));
-                videoPreview.start();
+                compressedFile.renameTo(finalDestFile);
 
-            } catch (IOException e) {
+                // 3. Register it with the MediaStore (Optional, keeps your original logic)
+                Uri finalUri = getVideoUri(finalDestFile);
+
+                // 4. Update the UI back on the Main Thread
+                handler.post(() -> {
+                    progressDialog.dismiss();
+                    Toast.makeText(UploadVideoActivity.this, "Video successfully compressed and saved!", Toast.LENGTH_LONG).show();
+
+                    // Preview the newly compressed video
+                    previewVideo(Uri.fromFile(finalDestFile));
+                });
+
+            } catch (Exception e) {
                 e.printStackTrace();
-                Toast.makeText(this, "Error saving video: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Unexpected error occurred", Toast.LENGTH_SHORT).show();
-        }
+                // Handle errors gracefully on the Main Thread
+                handler.post(() -> {
+                    progressDialog.dismiss();
+                    Toast.makeText(UploadVideoActivity.this, "Error compressing video: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
     @Override
