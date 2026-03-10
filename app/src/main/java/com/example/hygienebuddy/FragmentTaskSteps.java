@@ -6,10 +6,12 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -39,6 +41,8 @@ public class FragmentTaskSteps extends Fragment {
 
     // UI elements
 // UI elements
+
+    private FrameLayout layoutMediaContainer; // Add this line
     private TextView tvTaskTitle, tvStepProgress, tvInstruction, tvNoVideo;
     private ImageView ivStepImage, btnExit; // Added btnExit here
     private ImageView btnSpeaker;
@@ -74,6 +78,8 @@ public class FragmentTaskSteps extends Fragment {
     private Handler voiceLoopHandler = new Handler(Looper.getMainLooper());
     private Runnable voiceLoopRunnable = null;
     private File lastStepVoiceFile = null;
+    // Add layoutCameraPreview here!
+    private View layoutCameraPreview;
 
 
     public FragmentTaskSteps() {}
@@ -104,6 +110,8 @@ public class FragmentTaskSteps extends Fragment {
         btnHome = view.findViewById(R.id.btnHome);
         videoViewTask = view.findViewById(R.id.videoViewTask);
         btnExit = view.findViewById(R.id.btnExit);
+        layoutMediaContainer = view.findViewById(R.id.layoutMediaContainer);
+        layoutCameraPreview = view.findViewById(R.id.layoutCameraPreview);
 
         // Eye tracking
         eyeTrackerPreview = view.findViewById(R.id.eyeTrackerPreview);
@@ -190,33 +198,113 @@ public class FragmentTaskSteps extends Fragment {
 
     /** Go to next step */
     private void goToNextStep() {
-        stopEyeTracking();
-        cancelVoiceLoop();
-        stopAndReleaseVoice();
-        if (videoViewTask != null) videoViewTask.stopPlayback();
-
         if (currentStepIndex < steps.size() - 1) {
+            // Standard step navigation
+            stopEyeTracking();
+            cancelVoiceLoop();
+            stopAndReleaseVoice();
+            if (videoViewTask != null) videoViewTask.stopPlayback();
+
             currentStepIndex++;
             showStep(currentStepIndex);
         } else {
-            // Completed
-            tvInstruction.setText(getLocalizedString(R.string.ui_great_job));
-            tvStepProgress.setText(getLocalizedString(R.string.ui_task_completed));
-            btnNext.setVisibility(View.GONE);
-            btnQuiz.setVisibility(View.VISIBLE);
-            btnHome.setVisibility(View.VISIBLE);
-            ivStepImage.setImageResource(R.drawable.ic_placeholder_video);
-            videoViewTask.setVisibility(View.GONE);
-            tvNoVideo.setVisibility(View.GONE);
-
-            // Record task completion for badge progress/unlocks
-            try {
-                new BadgeManager(requireContext()).recordTaskCompletion(taskType);
-            } catch (Exception ignored) {}
-
-            // play completion chime/voice if available (no loop)
-            playCompletionVoice();
+            // TRIGGER CELEBRATION HERE
+            showCelebrationScreen();
         }
+    }
+
+    private void showCelebrationScreen() {
+        // 1. CLEANUP: Stop tracking, looping audio, and video immediately to prevent crashes
+        stopEyeTracking();
+        cancelVoiceLoop();
+        stopAndReleaseVoice();
+        if (videoViewTask != null) {
+            videoViewTask.stopPlayback();
+        }
+
+        // 2. Clear UI clutter (Hide instructions, progress, navigation buttons)
+        if (tvInstruction != null) tvInstruction.setVisibility(View.GONE);
+        if (tvStepProgress != null) tvStepProgress.setVisibility(View.GONE);
+        if (progressStep != null) progressStep.setVisibility(View.GONE);
+        if (btnBack != null) btnBack.setVisibility(View.GONE);
+        if (btnNext != null) btnNext.setVisibility(View.GONE);
+
+        // HIDE TOP BUTTONS: Mute and Language Toggle
+        if (btnSpeaker != null) btnSpeaker.setVisibility(View.GONE);
+        if (btnLangToggle != null) btnLangToggle.setVisibility(View.GONE);
+
+        // Hide the camera preview layout if it exists
+        if (layoutCameraPreview != null) {
+            layoutCameraPreview.setVisibility(View.GONE);
+        }
+
+        // 3. Configure the Celebration Picture to be LARGER
+        if (layoutMediaContainer != null) {
+            layoutMediaContainer.setVisibility(View.VISIBLE);
+
+            // Remove the 16:9 video height restriction so the image can grow
+            ViewGroup.LayoutParams containerLp = layoutMediaContainer.getLayoutParams();
+            containerLp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            layoutMediaContainer.setLayoutParams(containerLp);
+        }
+
+        if (videoViewTask != null) {
+            videoViewTask.setVisibility(View.GONE); // Hide video part
+        }
+
+        if (tvNoVideo != null) {
+            tvNoVideo.setVisibility(View.GONE); // Hide fallback text
+        }
+
+        if (ivStepImage != null) {
+            ivStepImage.setVisibility(View.VISIBLE);
+            ivStepImage.setImageResource(R.drawable.goodjob);
+
+            // Allow the ImageView to expand to fit the actual image dimensions
+            ViewGroup.LayoutParams lp = ivStepImage.getLayoutParams();
+            lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            ivStepImage.setLayoutParams(lp);
+            ivStepImage.setAdjustViewBounds(true); // Forces the image to keep its aspect ratio while expanding
+            ivStepImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        }
+
+        // 4. Update Title and show Quiz/Home buttons
+        if (tvTaskTitle != null) {
+            // Changed the text and added a newline (\n) so it stacks nicely
+            tvTaskTitle.setText("TASK COMPLETED\nGOOD JOB!");
+
+            // Sized down from 32 to 24 (you can adjust this number to make it even smaller if needed)
+            tvTaskTitle.setTextSize(24);
+        }
+
+        // HIDE the container holding the Back/Next buttons to save space
+        View layoutButtons = getView() != null ? getView().findViewById(R.id.layoutButtons) : null;
+        if (layoutButtons != null) {
+            layoutButtons.setVisibility(View.GONE);
+        }
+
+        // SHOW the Quiz button
+        if (btnQuiz != null) {
+            btnQuiz.setVisibility(View.VISIBLE);
+        }
+
+        // SHOW the Home button (This was missing!)
+        if (btnHome != null) {
+            btnHome.setVisibility(View.VISIBLE);
+        }
+
+        // 5. Play the completion audio!
+        playCompletionVoice();
+    }
+    private void playCelebrationVoice() {
+        // Replace with your actual celebration audio resource
+        //int celebrationResId = R.raw.voice_celebration;
+
+        // Use your existing voice player logic
+        stopAndReleaseVoice();
+        //voicePlayer = MediaPlayer.create(requireContext(), celebrationResId);
+        voicePlayer.start();
     }
 
     private void showStep(int index) {
@@ -385,8 +473,26 @@ public class FragmentTaskSteps extends Fragment {
 
     private void stopEyeTracking() {
         if (eyeTrackerHelper != null) {
-            eyeTrackerHelper.stop();
-            eyeTrackerHelper = null;
+            try {
+                // 1. Unbind the camera and analysis first
+                eyeTrackerHelper.stop();
+
+                // 2. Clear any active graphic overlays so they don't try to redraw
+                if (graphicOverlay != null) {
+                    graphicOverlay.clear();
+                }
+            } catch (Exception e) {
+                Log.e("FragmentTaskSteps", "Error stopping EyeTracker: " + e.getMessage());
+            } finally {
+                // 3. DO NOT set to null if you might need it again quickly,
+                // but if you do, ensure all threads are finished.
+                eyeTrackerHelper = null;
+            }
+        }
+
+        // Always hide the warning UI
+        if (tvFocusWarning != null) {
+            tvFocusWarning.setVisibility(View.GONE);
         }
     }
 

@@ -57,9 +57,12 @@ public class EyeTrackerHelper {
     private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
     private long lastTimestampMs = 0;
 
+    private volatile boolean isStopped = false;
+
 
     public interface EyeTrackerListener {
         void onUserLookAway();
+
         void onUserLookBack();
     }
 
@@ -91,6 +94,7 @@ public class EyeTrackerHelper {
 
     @SuppressLint("UnsafeOptInUsageError")
     public void startEyeTracking(PreviewView previewView, GraphicOverlay graphicOverlay) {
+        isStopped = false;
         this.currentOverlay = graphicOverlay;
 
         backgroundExecutor.execute(() -> {
@@ -124,6 +128,12 @@ public class EyeTrackerHelper {
     @SuppressLint("UnsafeOptInUsageError")
     private void analyzeImage(@NonNull ImageProxy imageProxy) {
         // 1. Drop the frame if MediaPipe is still busy or closed
+
+        if (isStopped) {
+            imageProxy.close();
+            return;
+        }
+
         if (faceLandmarker == null || isProcessing) {
             imageProxy.close();
             return;
@@ -252,7 +262,10 @@ public class EyeTrackerHelper {
     }
 
     public void stop() {
-        // Lock the pipeline immediately so no new frames enter analyzeImage
+        // 1. Instantly block all new frames permanently
+        isStopped = true;
+
+        // Lock the pipeline so no new frames enter analyzeImage
         isProcessing = true;
 
         if (backgroundExecutor != null && !backgroundExecutor.isShutdown()) {
@@ -269,4 +282,5 @@ public class EyeTrackerHelper {
             }
         }
     }
+
 }

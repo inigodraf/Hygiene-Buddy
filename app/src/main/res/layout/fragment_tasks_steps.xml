@@ -1,259 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white">
 
-    <!-- Main Scrollable Content -->
-    <ScrollView
-        android:id="@+id/scrollViewStep"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true">
-
-        <LinearLayout
-            android:id="@+id/layoutStepContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <!-- Title + Speaker Icon -->
-            <RelativeLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp">
-
-                <ImageView
-                    android:id="@+id/btnExit"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:layout_alignParentStart="true"
-                    android:layout_centerVertical="true"
-                    android:src="@drawable/ic_arrow_back"
-                    android:contentDescription="Exit Task"
-                    app:tint="#000000" />
-
-                <TextView
-                    android:id="@+id/tvTaskTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_toEndOf="@id/btnExit"
-                    android:layout_toStartOf="@id/btnSpeaker"
-                    android:layout_centerVertical="true"
-                    android:gravity="center"
-                    android:text="@string/task_title_placeholder"
-                    android:textColor="@color/black"
-                    android:textSize="22sp"
-                    android:textStyle="bold"
-                    android:ellipsize="end"
-                    android:maxLines="2" />
-
-                <ImageView
-                    android:id="@+id/btnSpeaker"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    android:src="@drawable/ic_speaker"
-                    android:contentDescription="Play audio"
-                    app:tint="#000000" />
-            </RelativeLayout>
-
-            <!-- Step Progress -->
-            <TextView
-                android:id="@+id/tvStepProgress"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/step_progress_placeholder"
-                android:textSize="15sp"
-                android:gravity="center"
-                android:layout_marginBottom="12dp"
-                android:ellipsize="end"
-                android:maxLines="1" />
-
-            <!-- Progress Bar -->
-            <ProgressBar
-                android:id="@+id/progressStep"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="6dp"
-                android:progress="0"
-                android:max="100"
-                android:progressTint="#121417"
-                android:layout_marginBottom="16dp" />
-
-            <!-- Main Task Video (larger 400dp height) -->
-            <FrameLayout
-                android:id="@+id/layoutMediaContainer"
-                android:layout_width="match_parent"
-                android:layout_height="400dp"
-                android:layout_marginBottom="24dp"
-                android:background="#D3D3D3"
-                android:gravity="center">
-
-                <VideoView
-                    android:id="@+id/videoViewTask"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="center"
-                    android:visibility="gone" />
-
-                <ImageView
-                    android:id="@+id/ivStepImage"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/ic_placeholder_video"
-                    android:contentDescription="Step illustration"
-                    android:visibility="visible" />
-
-                <TextView
-                    android:id="@+id/tvNoVideo"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/ui_no_video"
-                    android:textColor="#888888"
-                    android:layout_gravity="center"
-                    android:visibility="gone" />
-            </FrameLayout>
-
-            <!-- Instruction -->
-            <TextView
-                android:id="@+id/tvInstruction"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/instruction_placeholder"
-                android:textSize="18sp"
-                android:textColor="@color/black"
-                android:gravity="center"
-                android:layout_marginBottom="10dp"
-                android:lineSpacingExtra="4dp" />
-
-            <!-- 👁 Small Camera Preview (square + higher) -->
-            <LinearLayout
-                android:id="@+id/layoutCameraPreview"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:layout_marginTop="0dp"
-                android:layout_marginBottom="50dp">
-
-                <FrameLayout
-                    android:layout_width="180dp"
-                    android:layout_height="180dp"
-                    android:layout_gravity="center"
-                    android:background="#D3D3D3"
-                    android:elevation="5dp"
-                    android:translationY="10dp">
-
-                    <androidx.camera.view.PreviewView
-                        android:id="@+id/eyeTrackerPreview"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:scaleType="fitCenter"
-                        android:adjustViewBounds="true"
-                        android:layout_gravity="center" />
-
-                    <com.example.hygienebuddy.GraphicOverlay
-                        android:id="@+id/graphicOverlay"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent" />
-                </FrameLayout>
-            </LinearLayout>
-
-
-            <!-- Buttons (moved slightly lower) -->
-            <LinearLayout
-                android:id="@+id/layoutButtons"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:weightSum="2"
-                android:layout_marginBottom="15dp">
-
-                <Button
-                    android:id="@+id/btnBack"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="16dp"
-                    android:background="@drawable/button_primary"
-                    android:minHeight="0dp"
-                    android:minWidth="0dp"
-                    android:paddingVertical="0dp"
-                    android:text="Back"
-                    android:textAllCaps="false"
-                    android:textColor="@color/white"
-                    android:textSize="14sp"
-                    />
-
-                <Button
-                    android:id="@+id/btnNext"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_primary"
-                    android:minWidth="0dp"
-                    android:minHeight="0dp"
-                    android:paddingVertical="0dp"
-                    android:text="@string/next_button"
-                    android:textAllCaps="false"
-                    android:textColor="@color/white"
-                    android:textSize="14sp" />
-
-                <Button
-                    android:id="@+id/btnQuiz"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/take_quiz"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:background="@drawable/button_primary"
-                    android:textColor="@color/white"
-                    android:paddingVertical="12dp"
-                    android:layout_marginBottom="12dp"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/btnHome"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/back_to_home"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:background="@drawable/button_primary"
-                    android:textColor="@color/white"
-                    android:paddingVertical="12dp"
-                    android:layout_marginBottom="12dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-
-            <!-- Language Toggle -->
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp">
-
-                <ImageButton
-                    android:id="@+id/btnLangToggle"
-                    android:layout_width="32dp"
-                    android:layout_height="35dp"
-                    android:layout_gravity="start|bottom"
-                    android:background="@android:color/transparent"
-                    android:padding="0dp"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/ic_flag_us" />
-            </FrameLayout>
-        </LinearLayout>
-    </ScrollView>
-
-    <!-- ⚠ Focus Warning Banner -->
     <TextView
         android:id="@+id/tvFocusWarning"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="⚠ Please keep your eyes on the screen"
         android:textColor="#FFFFFF"
@@ -262,5 +17,264 @@
         android:gravity="center"
         android:textSize="16sp"
         android:elevation="8dp"
-        android:visibility="gone" />
-</FrameLayout>
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ScrollView
+        android:id="@+id/scrollViewStep"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:paddingBottom="20dp"
+        app:layout_constraintTop_toBottomOf="@id/tvFocusWarning"
+        app:layout_constraintBottom_toTopOf="@id/bottomActionContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/layoutStepContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/btnExit"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_arrow_back"
+                    android:contentDescription="Exit Task"
+                    app:tint="#000000" />
+
+                <TextView
+                    android:id="@+id/tvTaskTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="@string/task_title_placeholder"
+                    android:textColor="@color/black"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:paddingHorizontal="8dp"/>
+
+                <ImageView
+                    android:id="@+id/btnSpeaker"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_speaker"
+                    android:contentDescription="Play audio"
+                    app:tint="#000000" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvStepProgress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/step_progress_placeholder"
+                android:textSize="15sp"
+                android:gravity="center"
+                android:layout_marginBottom="8dp"
+                android:textColor="#555555"
+                android:maxLines="1" />
+
+            <ProgressBar
+                android:id="@+id/progressStep"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="8dp"
+                android:progress="0"
+                android:max="100"
+                android:progressTint="#121417"
+                android:layout_marginBottom="24dp" />
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="#F5F5F5">
+
+                <FrameLayout
+                    android:id="@+id/layoutMediaContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="400dp"
+                    android:gravity="center">
+
+                    <VideoView
+                        android:id="@+id/videoViewTask"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="center"
+                        android:visibility="gone" />
+
+                    <ImageView
+                        android:id="@+id/ivStepImage"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ic_placeholder_video"
+                        android:contentDescription="Step illustration"
+                        android:visibility="visible" />
+
+                    <TextView
+                        android:id="@+id/tvNoVideo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/ui_no_video"
+                        android:textColor="#888888"
+                        android:layout_gravity="center"
+                        android:visibility="gone" />
+                </FrameLayout>
+            </androidx.cardview.widget.CardView>
+
+            <TextView
+                android:id="@+id/tvInstruction"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/instruction_placeholder"
+                android:textSize="20sp"
+                android:textColor="@color/black"
+                android:gravity="center"
+                android:layout_marginBottom="24dp"
+                android:lineSpacingExtra="6dp" />
+
+            <LinearLayout
+                android:id="@+id/layoutCameraPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginBottom="16dp">
+
+                <androidx.cardview.widget.CardView
+                    android:layout_width="180dp"
+                    android:layout_height="180dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="6dp">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="#D3D3D3">
+
+                        <androidx.camera.view.PreviewView
+                            android:id="@+id/eyeTrackerPreview"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="fitCenter" />
+
+                        <com.example.hygienebuddy.GraphicOverlay
+                            android:id="@+id/graphicOverlay"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent" />
+                    </FrameLayout>
+                </androidx.cardview.widget.CardView>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start|center_vertical"
+                android:layout_marginTop="16dp">
+
+                <ImageButton
+                    android:id="@+id/btnLangToggle"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_flag_us" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/bottomActionContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="16dp"
+        android:background="@color/white"
+        android:elevation="10dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/layoutButtons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <Button
+                android:id="@+id/btnBack"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="12dp"
+                android:background="@drawable/button_primary"
+                android:text="Back"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnNext"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:background="@drawable/button_primary"
+                android:text="@string/next_button"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnQuiz"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/take_quiz"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:background="@drawable/button_primary"
+            android:textColor="@color/white"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnHome"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/back_to_home"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:background="@drawable/button_primary"
+            android:textColor="@color/white"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
