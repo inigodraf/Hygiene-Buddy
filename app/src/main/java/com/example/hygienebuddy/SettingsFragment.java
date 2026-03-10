@@ -111,7 +111,7 @@ public class SettingsFragment extends Fragment {
 
     private AlertDialog loadingDialog;
 
-    private String savedUid = null; // ✅ store the UID returned by the server after upload
+    private String savedUid = null; // store the UID returned by the server after upload
 
     private ActivityResultLauncher<Intent> audioRecorderLauncher;
 
@@ -149,7 +149,7 @@ public class SettingsFragment extends Fragment {
 
 
 
-    // 🧼 Handwashing (English / Filipino)
+    // Handwashing (English / Filipino)
     private final String[] handwashingStepsEN = {
             "Identify the necessary materials to be used (soap, water, towel).",
             "Turn on the faucet using your dominant hand.",
@@ -184,7 +184,7 @@ public class SettingsFragment extends Fragment {
             "Ibalik ang tuwalya sa tamang lagayan."
     };
 
-    // 🪥 Toothbrushing (English / Filipino)
+    // Toothbrushing (English / Filipino)
     private final String[] brushingStepsEN = {
             "Pick up your toothbrush.",
             "Rinse the toothbrush with water.",
@@ -281,7 +281,7 @@ public class SettingsFragment extends Fragment {
         // Badge Theme setup
         setupBadgeThemeSelector();
 
-        // 🧬 VOICE CLONING BUTTONS (Upload/Record)
+        // VOICE CLONING BUTTONS (Upload/Record)
         View btnImportVoice = view.findViewById(R.id.btnImportVoice);
         if (btnImportVoice != null) {
             btnImportVoice.setOnClickListener(v -> importVoiceSample());
@@ -338,10 +338,7 @@ public class SettingsFragment extends Fragment {
             Toast.makeText(getContext(), "Badge theme set to " + (selected == BadgeThemeManager.Theme.CLEAN_HEROES ? "Clean Heroes" : "Bubble Quest"), Toast.LENGTH_SHORT).show();
         });
     }
-
-    // ---------------------------------------------------------------
     // VIDEO MANAGEMENT SETUP
-    // ---------------------------------------------------------------
     private void setupVideoLaunchers() {
         videoPickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -389,13 +386,11 @@ public class SettingsFragment extends Fragment {
                 });
     }
 
-    // ---------------------------------------------------------------
     // EXPANDABLE TASKS SETUP
-    // ---------------------------------------------------------------
     private void setupExpandableTasks() {
         List<ExpandableTaskAdapter.TaskData> tasks = new ArrayList<>();
 
-        // ✅ Handwashing task (kept same)
+        // Handwashing task (kept same)
         List<TaskStep> handwashingSteps = new ArrayList<>();
         handwashingSteps.add(new TaskStep(1, "Identify the necessary materials to be used.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
         handwashingSteps.add(new TaskStep(2, "Turn on the faucet using your dominant hand.", R.drawable.ic_handwashing, 0, 5, "handwashing"));
@@ -413,7 +408,7 @@ public class SettingsFragment extends Fragment {
         handwashingSteps.add(new TaskStep(14, "Return the towel to its proper place.", R.drawable.ic_handwashing, 0, 3, "handwashing"));
         tasks.add(new ExpandableTaskAdapter.TaskData("Handwashing", "handwashing", handwashingSteps));
 
-        // ✅ Toothbrushing task (new 15-step version)
+        // Toothbrushing task (new 15-step version)
         List<TaskStep> toothbrushingSteps = new ArrayList<>();
         toothbrushingSteps.add(new TaskStep(1, "Pick up your toothbrush.", R.drawable.ic_toothbrushing, 0, 5, "toothbrushing"));
         toothbrushingSteps.add(new TaskStep(2, "Rinse the toothbrush with water.", R.drawable.ic_toothbrushing, 0, 3, "toothbrushing"));
@@ -447,10 +442,10 @@ public class SettingsFragment extends Fragment {
         File existingVideo = videoManager.getStepVideoFile(taskType, stepNumber);
 
         if (existingVideo != null && existingVideo.exists()) {
-            // ✅ Show preview dialog if video already exists
+            // Show preview dialog if video already exists
             showExistingVideoPreview(existingVideo);
         } else {
-            // ✅ Default behavior (no video yet)
+            // Default behavior (no video yet)
             new MaterialAlertDialogBuilder(requireContext())
                     .setTitle("Upload Video for " + capitalizeFirst(taskType) + " - Step " + stepNumber)
                     .setMessage("Choose how you want to add a video for this step:")
@@ -554,11 +549,11 @@ public class SettingsFragment extends Fragment {
                     boolean success = videoManager.saveStepVideo(currentTaskSelected, currentStepSelected, videoUri);
                     if (success) {
                         Toast.makeText(getContext(),
-                                "✅ " + capitalizeFirst(currentTaskSelected) + " Step " + currentStepSelected + " video saved!",
+                                capitalizeFirst(currentTaskSelected) + " Step " + currentStepSelected + " video saved!",
                                 Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(getContext(),
-                                "❌ Failed to save video. Please try again.", Toast.LENGTH_SHORT).show();
+                                "Failed to save video. Please try again.", Toast.LENGTH_SHORT).show();
                     }
                     player.release();
                 })
@@ -930,9 +925,7 @@ public class SettingsFragment extends Fragment {
         }
     }
 
-    // ---------------------------------------------------------------
 // VOICE CLONING IMPORT FEATURE
-// ---------------------------------------------------------------
 
     private void pickAudioFile() {
         Intent pickIntent = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI);
@@ -1030,7 +1023,7 @@ public class SettingsFragment extends Fragment {
                     hideLoading();
                     Toast.makeText(getContext(), "Audio extracted successfully!", Toast.LENGTH_SHORT).show();
 
-                    // ✅ Preview the extracted audio first before uploading
+                    // Preview the extracted audio first before uploading
                     File voiceFile = new File(voiceSampleFilePath);
                     if (voiceFile.exists()) {
                         showAudioPreviewDialog(voiceFile);
@@ -1106,11 +1099,7 @@ public class SettingsFragment extends Fragment {
         dialog.show();
     }
 
-
-
-    // ---------------------------------------------------------------
 // TTS STEPS GENERATION
-// ---------------------------------------------------------------
     private void setupTTSSteps(View view) {
         ViewGroup scrollView = view.findViewById(R.id.scrollContent);
         LinearLayout mainLayout = null;
@@ -1173,18 +1162,18 @@ public class SettingsFragment extends Fragment {
     }
 
     private void renderAllSections(LinearLayout container, boolean isEnglish) {
-        // 🧼 Handwashing
-        addSectionTitle(container, "🧼 Handwashing Steps");
+        // Handwashing
+        addSectionTitle(container, "Handwashing Steps");
         String[] handSteps = isEnglish ? handwashingStepsEN : handwashingStepsPH;
         for (String step : handSteps) addStepRowWithIndicator(container, step, isEnglish);
 
-        // 🪥 Toothbrushing
-        addSectionTitle(container, "🪥 Toothbrushing Steps");
+        // Toothbrushing
+        addSectionTitle(container, "Toothbrushing Steps");
         String[] brushSteps = isEnglish ? brushingStepsEN : brushingStepsPH;
         for (String step : brushSteps) addStepRowWithIndicator(container, step, isEnglish);
 
-        // ⚠️ Attention + Completion
-        addSectionTitle(container, "⚠️ System Prompts");
+        //Attention + Completion
+        addSectionTitle(container, "System Prompts");
         String[] sysSteps = isEnglish ? systemPromptsEN : systemPromptsPH;
         for (String step : sysSteps) addStepRowWithIndicator(container, step, isEnglish);
     }
@@ -1204,14 +1193,14 @@ public class SettingsFragment extends Fragment {
         row.setPadding(0, 8, 0, 8);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        // 🔘 Status Circle
+        // Status Circle
         View indicator = new View(getContext());
         int size = (int) (20 * getResources().getDisplayMetrics().density / 3);
         LinearLayout.LayoutParams circleParams = new LinearLayout.LayoutParams(size, size);
         circleParams.setMargins(0, 0, 16, 0);
         indicator.setLayoutParams(circleParams);
 
-        // ✅ Check if TTS exists
+        // Check if TTS exists
         String langCode = isEnglish ? "en" : "ph";
         File ttsFile = new File(requireContext().getFilesDir(),
                 "tts_audio/" + stepText.replace(" ", "_") + "_" + langCode + ".wav");
@@ -1220,7 +1209,7 @@ public class SettingsFragment extends Fragment {
                 ? android.R.color.holo_green_light
                 : android.R.color.holo_red_light);
 
-        // 📝 Step Label
+        // Step Label
         TextView stepLabel = new TextView(getContext());
         stepLabel.setText(stepText);
         stepLabel.setTextSize(14);
@@ -1270,26 +1259,26 @@ public class SettingsFragment extends Fragment {
                     }
                 });
 
-        // 🎵 IMPORT AUDIO FILE
+        // IMPORT AUDIO FILE
         audioPickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                         Uri audioUri = result.getData().getData();
                         if (audioUri != null) {
-                            handleImportedAudio(audioUri);  // ✅ CALL IT HERE
+                            handleImportedAudio(audioUri);  // CALL IT HERE
                         }
                     }
                 });
 
-        // 🎥 IMPORT VIDEO AND EXTRACT AUDIO
+        // IMPORT VIDEO AND EXTRACT AUDIO
         videoAudioExtractorLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
                     if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                         Uri videoUri = result.getData().getData();
                         if (videoUri != null) {
-                            extractAudioFromVideo(videoUri);  // ✅ ALREADY HANDLED
+                            extractAudioFromVideo(videoUri);  // ALREADY HANDLED
                         }
                     }
                 });

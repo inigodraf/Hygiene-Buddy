@@ -788,7 +788,7 @@ public class FragmentReportSummary extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // ✅ Ensures navbar highlights correctly
+        // Ensures navbar highlights correctly
         view.post(() -> BottomNavHelper.setupBottomNav(this, "report"));
     }
 }
