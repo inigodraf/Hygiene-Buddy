@@ -55,6 +55,8 @@ public class EyeTrackerHelper {
     private boolean isProcessing = false; // Add this flag
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
+    private long lastTimestampMs = 0;
+
 
     public interface EyeTrackerListener {
         void onUserLookAway();
@@ -121,7 +123,7 @@ public class EyeTrackerHelper {
 
     @SuppressLint("UnsafeOptInUsageError")
     private void analyzeImage(@NonNull ImageProxy imageProxy) {
-        // 1. Drop the frame if MediaPipe is still busy analyzing the last one
+        // 1. Drop the frame if MediaPipe is still busy or closed
         if (faceLandmarker == null || isProcessing) {
             imageProxy.close();
             return;
@@ -142,10 +144,24 @@ public class EyeTrackerHelper {
 
         MPImage mpImage = new BitmapImageBuilder(rotatedBitmap).build();
 
-        // 3. Use SystemClock.uptimeMillis() to ensure strictly increasing timestamps
-        faceLandmarker.detectAsync(mpImage, android.os.SystemClock.uptimeMillis());
+        // 3. Ensure strictly increasing timestamps (MediaPipe will crash otherwise)
+        long currentTimestampMs = android.os.SystemClock.uptimeMillis();
+        if (currentTimestampMs <= lastTimestampMs) {
+            currentTimestampMs = lastTimestampMs + 1;
+        }
+        lastTimestampMs = currentTimestampMs;
 
-        imageProxy.close(); // Closing here is safe because toBitmap() copied the data
+        // 4. Safely process the frame
+        try {
+            faceLandmarker.detectAsync(mpImage, currentTimestampMs);
+        } catch (RuntimeException e) {
+            // Catch graph initialization errors or closed graph errors
+            Log.e("EyeTrackerHelper", "MediaPipe skipped frame: " + e.getMessage());
+            isProcessing = false; // CRITICAL: Release the lock so the camera doesn't freeze!
+        } finally {
+            // ALWAYS close the proxy so CameraX can send the next frame
+            imageProxy.close();
+        }
     }
 
     private void onLandmarkerResult(FaceLandmarkerResult result, MPImage inputImage) {
@@ -236,10 +252,21 @@ public class EyeTrackerHelper {
     }
 
     public void stop() {
-        backgroundExecutor.shutdown();
+        // Lock the pipeline immediately so no new frames enter analyzeImage
+        isProcessing = true;
+
+        if (backgroundExecutor != null && !backgroundExecutor.isShutdown()) {
+            backgroundExecutor.shutdownNow();
+        }
+
         if (faceLandmarker != null) {
-            faceLandmarker.close();
-            faceLandmarker = null;
+            try {
+                faceLandmarker.close();
+            } catch (Exception e) {
+                Log.e("EyeTrackerHelper", "Error closing FaceLandmarker", e);
+            } finally {
+                faceLandmarker = null;
+            }
         }
     }
 }
