@@ -32,15 +32,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
+
 public class FragmentTaskSteps extends Fragment {
 
     // UI elements
+// UI elements
     private TextView tvTaskTitle, tvStepProgress, tvInstruction, tvNoVideo;
-    private ImageView ivStepImage;
-    private ImageView btnSpeaker; // acts as play/pause for step voice
+    private ImageView ivStepImage, btnExit; // Added btnExit here
+    private ImageView btnSpeaker;
     private ImageButton btnLangToggle;
     private ProgressBar progressStep;
-    private Button btnNext, btnQuiz, btnHome;
+    private Button btnNext, btnQuiz, btnHome, btnBack; // Added btnBack here
     private VideoView videoViewTask;
 
     // Eye tracking UI
@@ -71,6 +75,7 @@ public class FragmentTaskSteps extends Fragment {
     private Runnable voiceLoopRunnable = null;
     private File lastStepVoiceFile = null;
 
+
     public FragmentTaskSteps() {}
 
     @Nullable
@@ -94,9 +99,11 @@ public class FragmentTaskSteps extends Fragment {
         btnLangToggle = view.findViewById(R.id.btnLangToggle);
         progressStep = view.findViewById(R.id.progressStep);
         btnNext = view.findViewById(R.id.btnNext);
+        btnBack = view.findViewById(R.id.btnBack);
         btnQuiz = view.findViewById(R.id.btnQuiz);
         btnHome = view.findViewById(R.id.btnHome);
         videoViewTask = view.findViewById(R.id.videoViewTask);
+        btnExit = view.findViewById(R.id.btnExit);
 
         // Eye tracking
         eyeTrackerPreview = view.findViewById(R.id.eyeTrackerPreview);
@@ -118,6 +125,8 @@ public class FragmentTaskSteps extends Fragment {
         btnNext.setOnClickListener(v -> goToNextStep());
         btnQuiz.setOnClickListener(v -> navigateToQuiz());
         btnHome.setOnClickListener(v -> navigateToHome());
+        btnBack.setOnClickListener(v -> goToPreviousStep());
+        btnExit.setOnClickListener(v -> exitTask());
 
         // Speaker: play/pause current step voice
         btnSpeaker.setOnClickListener(v -> toggleStepVoice());
@@ -165,41 +174,18 @@ public class FragmentTaskSteps extends Fragment {
     }
 
     /** Show current step */
-    private void showStep(int index) {
-        if (index < 0 || index >= steps.size()) return;
-        TaskStep current = steps.get(index);
 
-        // reset attention flag + cancel any pending voice loop from previous step
-        attentionPlayedThisStep = false;
-        cancelVoiceLoop();
-        stopAndReleaseVoice();
+    private void goToPreviousStep() {
+        if (currentStepIndex > 0) {
+            // Clean up current step before moving back
+            stopEyeTracking();
+            cancelVoiceLoop();
+            stopAndReleaseVoice();
+            if (videoViewTask != null) videoViewTask.stopPlayback();
 
-        tvStepProgress.setText(String.format(Locale.getDefault(),
-                getLocalizedString(R.string.ui_step_of), current.getStepNumber(), steps.size()));
-        tvInstruction.setText(current.getInstruction());
-        progressStep.setProgress(current.getStepNumber());
-
-        boolean videoLoaded = loadCustomVideo(taskType, current.getStepNumber());
-        if (!videoLoaded) {
-            videoViewTask.setVisibility(View.GONE);
-            tvNoVideo.setVisibility(View.VISIBLE);
-            ivStepImage.setVisibility(View.VISIBLE);
-            ivStepImage.setImageResource(current.getImageResId());
-        } else {
-            ivStepImage.setVisibility(View.GONE);
-            tvNoVideo.setVisibility(View.GONE);
-            videoViewTask.setVisibility(View.VISIBLE);
-            autoPlayVideo();
+            currentStepIndex--;
+            showStep(currentStepIndex);
         }
-
-        // auto-play step voice if available (starts loop cycle)
-        autoPlayStepVoice();
-
-        // Start eye tracking for this step
-        startEyeTracking();
-
-        btnNext.setText(index == steps.size() - 1 ? getLocalizedString(R.string.ui_finish)
-                : getLocalizedString(R.string.ui_next));
     }
 
     /** Go to next step */
@@ -231,6 +217,54 @@ public class FragmentTaskSteps extends Fragment {
             // play completion chime/voice if available (no loop)
             playCompletionVoice();
         }
+    }
+
+    private void showStep(int index) {
+        if (index < 0 || index >= steps.size()) return;
+        TaskStep current = steps.get(index);
+
+        // --- 1. VISUAL TRANSITION ---
+        // We trigger a quick fade-out/in effect so the user sees the change
+        applyStepTransition();
+
+        // --- 2. LOGIC & CLEANUP ---
+        attentionPlayedThisStep = false;
+        cancelVoiceLoop();
+        stopAndReleaseVoice();
+        updateLangToggleIcon();
+
+        // --- 3. UI UPDATES ---
+        tvStepProgress.setText(String.format(Locale.getDefault(),
+                getLocalizedString(R.string.ui_step_of), current.getStepNumber(), steps.size()));
+        tvInstruction.setText(current.getInstruction());
+        progressStep.setProgress(current.getStepNumber());
+
+        if (btnBack != null) {
+            // Change View.GONE to View.INVISIBLE
+            btnBack.setVisibility(index == 0 ? View.INVISIBLE : View.VISIBLE);
+        }
+
+        // Media Loading
+        boolean videoLoaded = loadCustomVideo(taskType, current.getStepNumber());
+        if (!videoLoaded) {
+            videoViewTask.setVisibility(View.GONE);
+            tvNoVideo.setVisibility(View.VISIBLE);
+            ivStepImage.setVisibility(View.VISIBLE);
+            ivStepImage.setImageResource(current.getImageResId());
+        } else {
+            ivStepImage.setVisibility(View.GONE);
+            tvNoVideo.setVisibility(View.GONE);
+            videoViewTask.setVisibility(View.VISIBLE);
+            autoPlayVideo();
+        }
+
+        // --- 4. AUDIO & TRACKING ---
+        autoPlayStepVoice();
+        startEyeTracking();
+
+        // Navigation Text
+        btnNext.setText(index == steps.size() - 1 ? getLocalizedString(R.string.ui_finish)
+                : getLocalizedString(R.string.ui_next));
     }
 
     /** Reload localized steps */
@@ -387,7 +421,8 @@ public class FragmentTaskSteps extends Fragment {
 
     private void toggleStepVoice() {
         if (voicePlayer == null) {
-            // try to start (and loop)
+            // ADDED: The user clicked to unmute, so reset the flag and play
+            isVoicePaused = false;
             autoPlayStepVoice();
             return;
         }
@@ -395,13 +430,13 @@ public class FragmentTaskSteps extends Fragment {
             voicePlayer.pause();
             isVoicePaused = true;
             setSpeakerIcon(false);
-            cancelVoiceLoop(); // pause loop while paused
+            cancelVoiceLoop();
         } else {
             try {
                 voicePlayer.start();
                 isVoicePaused = false;
                 setSpeakerIcon(true);
-                scheduleNextLoop(); // resume loop
+                scheduleNextLoop();
             } catch (IllegalStateException ignored) {
                 autoPlayStepVoice();
             }
@@ -411,11 +446,19 @@ public class FragmentTaskSteps extends Fragment {
     private void autoPlayStepVoice() {
         File f = getCurrentStepVoiceFile();
         lastStepVoiceFile = f;
+
         if (f == null || !f.exists()) {
             setSpeakerIcon(false);
             cancelVoiceLoop();
             return;
         }
+
+        // ADDED: If the user previously muted the app, abort playback!
+        if (isVoicePaused) {
+            setSpeakerIcon(false);
+            return;
+        }
+
         playVoiceFile(f, /*shouldLoop*/true);
     }
 
@@ -518,8 +561,8 @@ public class FragmentTaskSteps extends Fragment {
             voicePlayer.release();
             voicePlayer = null;
         }
-        isVoicePaused = false;
-        setSpeakerIcon(false);
+        // REMOVED: isVoicePaused = false; <-- This was causing the reset!
+        setSpeakerIcon(!isVoicePaused); // Keep icon consistent with the saved state
     }
 
     private void setSpeakerIcon(boolean playing) {
@@ -552,5 +595,42 @@ public class FragmentTaskSteps extends Fragment {
         String lang = resolveLangCodeSuffix();
         String fileName = "Completion_" + lang + ".wav";
         return new File(requireContext().getFilesDir(), "tts_audio/" + fileName);
+    }
+
+    private void applyStepTransition() {
+        View container = getView() != null ? getView().findViewById(R.id.layoutMediaContainer) : null;
+        if (container != null) {
+            // Reset position and alpha
+            container.setAlpha(0f);
+            container.setTranslationX(50f); // Slide in from the right slightly
+
+            // Animate to final position
+            container.animate()
+                    .alpha(1f)
+                    .translationX(0f)
+                    .setDuration(400)
+                    .start();
+        }
+
+        // Also animate the instruction text so it "pops"
+        tvInstruction.setAlpha(0f);
+        tvInstruction.animate().alpha(1f).setDuration(600).start();
+    }
+
+    private void exitTask() {
+        // 1. Stop all active systems
+        stopEyeTracking();
+        cancelVoiceLoop();
+        stopAndReleaseVoice();
+
+        // 2. Stop video
+        if (videoViewTask != null) {
+            videoViewTask.stopPlayback();
+        }
+
+        // 3. Go back to the previous screen (Dashboard)
+        if (isAdded()) {
+            getParentFragmentManager().popBackStack();
+        }
     }
 }
