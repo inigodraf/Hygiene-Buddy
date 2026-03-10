@@ -60,5 +60,12 @@ dependencies {
     implementation("androidx.camera:camera-view:1.3.4")
     implementation("com.google.mediapipe:tasks-vision:0.10.14")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.iceteck.silicompressorr:silicompressor:2.2.4")
+    //implementation("com.iceteck.silicompressorr:silicompressor:2.2.4")
+
+// LightCompressor
+    implementation("com.github.AbedElazizShe:LightCompressor:1.3.2")
+
+    // Required Kotlin Coroutines for LightCompressor to work in Java
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
 }
