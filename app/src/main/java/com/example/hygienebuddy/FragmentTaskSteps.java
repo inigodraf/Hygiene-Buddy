@@ -43,7 +43,7 @@ public class FragmentTaskSteps extends Fragment {
     private Button btnNext, btnQuiz, btnHome;
     private VideoView videoViewTask;
 
-    // 👁️ Eye tracking UI
+    // Eye tracking UI
     private EyeTrackerHelper eyeTrackerHelper;
     private PreviewView eyeTrackerPreview;
     private GraphicOverlay graphicOverlay;
@@ -59,14 +59,14 @@ public class FragmentTaskSteps extends Fragment {
     // Video management
     private VideoManager videoManager;
 
-    // 🔊 Audio
+    // Audio
     private MediaPlayer voicePlayer;
     private boolean isVoicePaused = false;
     private boolean attentionPlayedThisStep = false; // prevent spam
     private long lastAttentionAtMs = 0L; // cooldown across rapid look-away events
     private static final long ATTENTION_COOLDOWN_MS = 6000L;
 
-    // 🔁 Step-voice looping (4s gap)
+    // Step-voice looping (4s gap)
     private Handler voiceLoopHandler = new Handler(Looper.getMainLooper());
     private Runnable voiceLoopRunnable = null;
     private File lastStepVoiceFile = null;
@@ -195,7 +195,7 @@ public class FragmentTaskSteps extends Fragment {
         // auto-play step voice if available (starts loop cycle)
         autoPlayStepVoice();
 
-        // 👁️ Start eye tracking for this step
+        // Start eye tracking for this step
         startEyeTracking();
 
         btnNext.setText(index == steps.size() - 1 ? getLocalizedString(R.string.ui_finish)
@@ -228,7 +228,7 @@ public class FragmentTaskSteps extends Fragment {
                 new BadgeManager(requireContext()).recordTaskCompletion(taskType);
             } catch (Exception ignored) {}
 
-            // 🔊 play completion chime/voice if available (no loop)
+            // play completion chime/voice if available (no loop)
             playCompletionVoice();
         }
     }
@@ -264,7 +264,7 @@ public class FragmentTaskSteps extends Fragment {
                 // Mute + loop
                 videoViewTask.setOnPreparedListener(mp -> {
                     try {
-                        mp.setVolume(0f, 0f);    // ✅ mute video
+                        mp.setVolume(0f, 0f);    // mute video
                         mp.setLooping(true);     // loop silently
                     } catch (Throwable ignored) {}
                     videoViewTask.setVisibility(View.VISIBLE);
@@ -315,7 +315,7 @@ public class FragmentTaskSteps extends Fragment {
         container.setLayoutParams(lp);
     }
 
-    // 👁️ Start Eye Tracking
+    // Start Eye Tracking
     private void startEyeTracking() {
         if (eyeTrackerHelper != null) eyeTrackerHelper.stop();
 
@@ -345,7 +345,7 @@ public class FragmentTaskSteps extends Fragment {
                     }
                 });
 
-        // ✅ Updated version with overlay support
+        // Updated version with overlay support
         eyeTrackerHelper.startEyeTracking(eyeTrackerPreview, graphicOverlay);
     }
 
@@ -383,9 +383,7 @@ public class FragmentTaskSteps extends Fragment {
                 .commit();
     }
 
-    // =========================
-    // 🔊 VOICE: helpers
-    // =========================
+    // VOICE: helpers
 
     private void toggleStepVoice() {
         if (voicePlayer == null) {

@@ -46,7 +46,7 @@ public class FragmentTasks extends Fragment {
         // Click: Back Button → previous screen
         btnBack.setOnClickListener(v -> requireActivity().onBackPressed());
 
-        // ✅ Set up bottom navigation *after* view is attached
+        // Set up bottom navigation *after* view is attached
         view.post(() -> BottomNavHelper.setupBottomNav(this, "tasks"));
     }
 
